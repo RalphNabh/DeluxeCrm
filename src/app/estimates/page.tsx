@@ -50,10 +50,10 @@ const estimateData = {
     email: "john@email.com"
   },
   company: {
-    name: "GreenFlow Landscaping",
+    name: "Dyluxe Landscaping",
     address: "456 Business Ave, Springfield, IL 62702",
     phone: "(555) 987-6543",
-    email: "info@greenflow.com"
+    email: "info@dyluxe.com"
   },
   lineItems: [
     {
