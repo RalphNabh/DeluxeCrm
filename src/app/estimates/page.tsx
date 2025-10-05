@@ -40,9 +40,9 @@ const sidebarItems = [
 
 // Sample estimate data
 const estimateData = {
-  id: "EST-2024-001",
-  date: "2024-01-15",
-  validUntil: "2024-02-15",
+  id: "EST-2025-001",
+  date: "2025-01-15",
+  validUntil: "2025-02-15",
   client: {
     name: "Johnson Residence",
     address: "123 Oak Street, Springfield, IL 62701",

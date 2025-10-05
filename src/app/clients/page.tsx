@@ -53,8 +53,8 @@ const clientData = [
     status: "Active",
     totalProjects: 3,
     totalValue: 12450,
-    lastContact: "2024-01-15",
-    nextFollowUp: "2024-02-01"
+    lastContact: "2025-01-15",
+    nextFollowUp: "2025-02-01"
   },
   {
     id: 2,
@@ -66,8 +66,8 @@ const clientData = [
     status: "Lead",
     totalProjects: 0,
     totalValue: 0,
-    lastContact: "2024-01-14",
-    nextFollowUp: "2024-01-21"
+    lastContact: "2025-01-14",
+    nextFollowUp: "2025-01-21"
   },
   {
     id: 3,
@@ -79,8 +79,8 @@ const clientData = [
     status: "Active",
     totalProjects: 1,
     totalValue: 1800,
-    lastContact: "2024-01-13",
-    nextFollowUp: "2024-02-15"
+    lastContact: "2025-01-13",
+    nextFollowUp: "2025-02-15"
   },
   {
     id: 4,
@@ -92,8 +92,8 @@ const clientData = [
     status: "Pending",
     totalProjects: 0,
     totalValue: 4200,
-    lastContact: "2024-01-12",
-    nextFollowUp: "2024-01-19"
+    lastContact: "2025-01-12",
+    nextFollowUp: "2025-01-19"
   },
   {
     id: 5,
@@ -105,8 +105,8 @@ const clientData = [
     status: "Active",
     totalProjects: 2,
     totalValue: 5600,
-    lastContact: "2024-01-11",
-    nextFollowUp: "2024-03-01"
+    lastContact: "2025-01-11",
+    nextFollowUp: "2025-03-01"
   },
   {
     id: 6,
@@ -118,8 +118,8 @@ const clientData = [
     status: "Active",
     totalProjects: 1,
     totalValue: 3500,
-    lastContact: "2024-01-10",
-    nextFollowUp: "2024-02-28"
+    lastContact: "2025-01-10",
+    nextFollowUp: "2025-02-28"
   }
 ];
 
