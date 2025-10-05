@@ -96,7 +96,7 @@ export default function EstimatePage() {
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6">
-          <Link href="/" className="text-xl font-bold text-green-600">DyluxePro</Link>
+          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
         </div>
         
         <nav className="flex-1 px-4">
@@ -107,7 +107,7 @@ export default function EstimatePage() {
                   href={item.href}
                   className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                     item.active
-                      ? "bg-green-50 text-green-700 border-r-2 border-green-600"
+                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
@@ -140,7 +140,7 @@ export default function EstimatePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-gray-900">Estimate #{estimateData.id}</h1>
-              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
                 Pending Approval
               </span>
             </div>
@@ -154,7 +154,7 @@ export default function EstimatePage() {
                 <Download className="h-4 w-4 mr-2" />
                 Download PDF
               </Button>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700">
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Check className="h-4 w-4 mr-2" />
                 Approve Estimate
               </Button>
@@ -186,15 +186,15 @@ export default function EstimatePage() {
           <div className="max-w-4xl mx-auto">
             {/* Estimate Header */}
             <Card className="mb-6 border-0 shadow-lg">
-              <CardHeader className="bg-green-50 border-b border-green-100">
+              <CardHeader className="bg-blue-50 border-b border-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-2xl text-green-800">{estimateData.company.name}</CardTitle>
-                    <p className="text-green-600 mt-1">Professional Landscaping Services</p>
+                    <CardTitle className="text-2xl text-blue-800">{estimateData.company.name}</CardTitle>
+                    <p className="text-blue-600 mt-1">Professional Landscaping Services</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-semibold text-green-800">ESTIMATE</div>
-                    <div className="text-sm text-green-600">#{estimateData.id}</div>
+                    <div className="text-lg font-semibold text-blue-800">ESTIMATE</div>
+                    <div className="text-sm text-blue-600">#{estimateData.id}</div>
                   </div>
                 </div>
               </CardHeader>
@@ -252,7 +252,7 @@ export default function EstimatePage() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-500">Status</div>
-                    <div className="font-medium text-green-600">Pending Approval</div>
+                    <div className="font-medium text-blue-600">Pending Approval</div>
                   </div>
                 </div>
               </CardContent>
@@ -306,7 +306,7 @@ export default function EstimatePage() {
                       </div>
                       <div className="flex justify-between text-lg font-semibold border-t border-gray-300 pt-2">
                         <span>Total:</span>
-                        <span className="text-green-600">${estimateData.total.toLocaleString()}</span>
+                        <span className="text-blue-600">${estimateData.total.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>

@@ -138,7 +138,7 @@ export default function AutomationsPage() {
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6">
-          <Link href="/" className="text-xl font-bold text-green-600">DyluxePro</Link>
+          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
         </div>
         
         <nav className="flex-1 px-4">
@@ -149,7 +149,7 @@ export default function AutomationsPage() {
                   href={item.href}
                   className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                     item.active
-                      ? "bg-green-50 text-green-700 border-r-2 border-green-600"
+                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
@@ -220,8 +220,8 @@ export default function AutomationsPage() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Zap className="h-5 w-5 text-green-600" />
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Zap className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Active Automations</p>
@@ -295,7 +295,7 @@ export default function AutomationsPage() {
                         <div className="flex items-center space-x-2 mt-1">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             automation.status 
-                              ? "bg-green-100 text-green-800" 
+                              ? "bg-blue-100 text-blue-800" 
                               : "bg-gray-100 text-gray-800"
                           }`}>
                             {automation.status ? "Active" : "Inactive"}
@@ -358,7 +358,7 @@ export default function AutomationsPage() {
                       <div className="flex items-center space-x-2">
                         <div className="w-16 h-2 bg-gray-200 rounded-full">
                           <div 
-                            className="h-2 bg-green-500 rounded-full transition-all duration-300"
+                            className="h-2 bg-blue-500 rounded-full transition-all duration-300"
                             style={{ width: `${automation.successRate}%` }}
                           ></div>
                         </div>
@@ -393,8 +393,8 @@ export default function AutomationsPage() {
               <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer group">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
-                      <Play className="h-6 w-6 text-green-600" />
+                    <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                      <Play className="h-6 w-6 text-blue-600" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">Test All</h3>

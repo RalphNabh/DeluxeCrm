@@ -66,7 +66,7 @@ export default function Dashboard() {
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6">
-          <h1 className="text-xl font-bold text-green-600">DyluxePro</h1>
+          <h1 className="text-xl font-bold text-blue-600">DyluxePro</h1>
         </div>
         
         <nav className="flex-1 px-4">
@@ -77,7 +77,7 @@ export default function Dashboard() {
                   href={item.href}
                   className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                     item.active
-                      ? "bg-green-50 text-green-700 border-r-2 border-green-600"
+                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
@@ -166,7 +166,7 @@ export default function Dashboard() {
                 <CardContent className="p-4">
                   <div className="text-center">
                     <h3 className="font-semibold text-gray-900 mb-1">{stage}</h3>
-                    <div className="text-2xl font-bold text-green-600 mb-1">{clients.length}</div>
+                    <div className="text-2xl font-bold text-blue-600 mb-1">{clients.length}</div>
                     <div className="text-sm text-gray-500">
                       ${clients.reduce((sum, client) => sum + client.value, 0).toLocaleString()}
                     </div>
@@ -184,7 +184,7 @@ export default function Dashboard() {
                   <h3 className="font-semibold text-gray-900 mb-2">{stage}</h3>
                   <div className="w-full h-1 bg-gray-200 rounded-full">
                     <div 
-                      className="h-1 bg-green-500 rounded-full transition-all duration-300"
+                      className="h-1 bg-blue-500 rounded-full transition-all duration-300"
                       style={{ 
                         width: `${Math.min((clients.length / Math.max(...Object.values(pipelineData).map(c => c.length))) * 100, 100)}%` 
                       }}
@@ -196,19 +196,19 @@ export default function Dashboard() {
                   {clients.map((client) => (
                     <Card 
                       key={client.id} 
-                      className="p-4 hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200 hover:border-green-300 group"
+                      className="p-4 hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200 hover:border-blue-300 group"
                       draggable
                     >
                       <div className="space-y-2">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h4 className="font-medium text-gray-900 text-sm group-hover:text-green-700">
+                            <h4 className="font-medium text-gray-900 text-sm group-hover:text-blue-700">
                               {client.name}
                             </h4>
                             <p className="text-xs text-gray-500 mt-1">{client.address}</p>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-semibold text-green-600">
+                            <div className="text-sm font-semibold text-blue-600">
                               ${client.value.toLocaleString()}
                             </div>
                           </div>
@@ -216,7 +216,7 @@ export default function Dashboard() {
                         
                         <div className="flex items-center justify-between text-xs text-gray-500">
                           <span>{client.phone}</span>
-                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                         </div>
                         
                         <div className="pt-2 border-t border-gray-100">
@@ -232,7 +232,7 @@ export default function Dashboard() {
                           </div>
                           <div className="w-full h-1 bg-gray-200 rounded-full mt-1">
                             <div 
-                              className="h-1 bg-green-500 rounded-full transition-all duration-300"
+                              className="h-1 bg-blue-500 rounded-full transition-all duration-300"
                               style={{ 
                                 width: stage === "New Leads" ? "0%" :
                                        stage === "Estimate Sent" ? "25%" :

@@ -129,7 +129,7 @@ export default function ClientsPage() {
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6">
-          <Link href="/" className="text-xl font-bold text-green-600">DyluxePro</Link>
+          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
         </div>
         
         <nav className="flex-1 px-4">
@@ -140,7 +140,7 @@ export default function ClientsPage() {
                   href={item.href}
                   className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                     item.active
-                      ? "bg-green-50 text-green-700 border-r-2 border-green-600"
+                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
                       : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
@@ -239,8 +239,8 @@ export default function ClientsPage() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
                 <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <CheckCircle className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Active Clients</p>
@@ -346,13 +346,13 @@ export default function ClientsPage() {
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between mb-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        client.status === "Active" ? "bg-green-100 text-green-800" :
+                        client.status === "Active" ? "bg-blue-100 text-blue-800" :
                         client.status === "Lead" ? "bg-blue-100 text-blue-800" :
                         "bg-orange-100 text-orange-800"
                       }`}>
                         {client.status}
                       </span>
-                      <span className="text-sm font-semibold text-green-600">
+                      <span className="text-sm font-semibold text-blue-600">
                         ${client.totalValue.toLocaleString()}
                       </span>
                     </div>

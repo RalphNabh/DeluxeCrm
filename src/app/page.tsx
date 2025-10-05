@@ -23,18 +23,18 @@ export default function Home() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-green-600">DyluxePro</h1>
+                <h1 className="text-2xl font-bold text-blue-600">DyluxePro</h1>
               </div>
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
-                <Link href="#features" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="#features" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                   Features
                 </Link>
-                <Link href="#pricing" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="#pricing" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                   Pricing
                 </Link>
-                <Link href="#contact" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="#contact" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                   Contact
                 </Link>
               </div>
@@ -59,7 +59,7 @@ export default function Home() {
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
               Close more landscaping jobs,{" "}
-              <span className="text-green-600">faster.</span>
+              <span className="text-blue-600">faster.</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               Organize clients, send estimates, and automate follow-ups — all in one place. 
@@ -67,7 +67,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/dashboard">
-                <Button size="lg" className="bg-green-600 hover:bg-green-700">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
                   Try Demo
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -95,8 +95,8 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <Users className="h-6 w-6 text-green-600" />
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <CardTitle>Organize Clients</CardTitle>
                 <CardDescription>
@@ -108,8 +108,8 @@ export default function Home() {
 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <FileText className="h-6 w-6 text-green-600" />
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="h-6 w-6 text-blue-600" />
                 </div>
                 <CardTitle>Send Estimates</CardTitle>
                 <CardDescription>
@@ -121,8 +121,8 @@ export default function Home() {
 
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <Zap className="h-6 w-6 text-green-600" />
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <Zap className="h-6 w-6 text-blue-600" />
                 </div>
                 <CardTitle>Automate Workflows</CardTitle>
                 <CardDescription>
@@ -153,7 +153,7 @@ export default function Home() {
                 <div className="flex items-center space-x-4">
                   <div className="w-3 h-3 bg-red-400 rounded-full"></div>
                   <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                  <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
                 </div>
                 <div className="text-sm text-gray-500">DyluxePro CRM Dashboard</div>
               </div>
@@ -166,7 +166,7 @@ export default function Home() {
                       <h3 className="font-semibold text-gray-900 mb-2">{stage}</h3>
                       <div className="w-full h-1 bg-gray-200 rounded-full">
                         <div 
-                          className="h-1 bg-green-500 rounded-full transition-all duration-300"
+                          className="h-1 bg-blue-500 rounded-full transition-all duration-300"
                           style={{ width: `${(index + 1) * 20}%` }}
                         ></div>
                       </div>
@@ -176,7 +176,7 @@ export default function Home() {
                         <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer">
                           <div className="text-sm font-medium text-gray-900">Johnson Residence</div>
                           <div className="text-xs text-gray-500">123 Oak Street</div>
-                          <div className="text-sm font-semibold text-green-600 mt-1">$2,450</div>
+                          <div className="text-sm font-semibold text-blue-600 mt-1">$2,450</div>
                         </Card>
                       )}
                     </div>
@@ -189,20 +189,20 @@ export default function Home() {
       </section>
 
       {/* Social Proof */}
-      <section className="py-16 bg-green-600">
+      <section className="py-16 bg-blue-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="grid md:grid-cols-3 gap-8 text-white">
             <div>
               <div className="text-3xl font-bold mb-2">500+</div>
-              <div className="text-green-100">Landscaping Companies</div>
+              <div className="text-blue-100">Landscaping Companies</div>
             </div>
             <div>
               <div className="text-3xl font-bold mb-2">$2M+</div>
-              <div className="text-green-100">Revenue Managed</div>
+              <div className="text-blue-100">Revenue Managed</div>
             </div>
             <div>
               <div className="text-3xl font-bold mb-2">98%</div>
-              <div className="text-green-100">Customer Satisfaction</div>
+              <div className="text-blue-100">Customer Satisfaction</div>
             </div>
           </div>
         </div>
@@ -213,7 +213,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold text-green-400 mb-4">DyluxePro</h3>
+              <h3 className="text-xl font-bold text-blue-400 mb-4">DyluxePro</h3>
               <p className="text-gray-400">
                 The CRM built specifically for landscaping professionals.
               </p>
