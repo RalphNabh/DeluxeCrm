@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,30 +25,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import SignOutButton from "@/components/auth/sign-out";
 
-// Sample data for the sales pipeline
-const pipelineData = {
-  "New Leads": [
-    { id: 1, name: "Johnson Residence", address: "123 Oak Street", value: 2450, phone: "(555) 123-4567", email: "john@email.com" },
-    { id: 2, name: "Smith Property", address: "456 Pine Avenue", value: 3200, phone: "(555) 234-5678", email: "smith@email.com" },
-    { id: 3, name: "Williams Home", address: "789 Maple Drive", value: 1800, phone: "(555) 345-6789", email: "williams@email.com" },
-  ],
-  "Estimate Sent": [
-    { id: 4, name: "Brown Estate", address: "321 Elm Street", value: 4200, phone: "(555) 456-7890", email: "brown@email.com" },
-    { id: 5, name: "Davis Property", address: "654 Cedar Lane", value: 2800, phone: "(555) 567-8901", email: "davis@email.com" },
-  ],
-  "Approved": [
-    { id: 6, name: "Miller Residence", address: "987 Birch Road", value: 3500, phone: "(555) 678-9012", email: "miller@email.com" },
-    { id: 7, name: "Wilson Home", address: "147 Spruce Way", value: 2100, phone: "(555) 789-0123", email: "wilson@email.com" },
-  ],
-  "Job Scheduled": [
-    { id: 8, name: "Taylor Property", address: "258 Willow Court", value: 3900, phone: "(555) 890-1234", email: "taylor@email.com" },
-  ],
-  "Completed": [
-    { id: 9, name: "Anderson Estate", address: "369 Poplar Place", value: 2600, phone: "(555) 901-2345", email: "anderson@email.com" },
-    { id: 10, name: "Thomas Residence", address: "741 Ash Street", value: 3100, phone: "(555) 012-3456", email: "thomas@email.com" },
-  ],
+type Lead = {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  value: number;
+  status: "New Leads" | "Estimate Sent" | "Approved" | "Job Scheduled" | "Completed";
+  created_at: string;
+  updated_at: string;
 };
+
+const STAGES: Lead["status"][] = [
+  "New Leads",
+  "Estimate Sent",
+  "Approved",
+  "Job Scheduled",
+  "Completed",
+];
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", active: true },
@@ -60,6 +57,64 @@ const sidebarItems = [
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLeads = async () => {
+      try {
+        const res = await fetch("/api/leads");
+        if (!res.ok) throw new Error("Failed to load leads");
+        const data = await res.json();
+        setLeads(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error loading leads");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLeads();
+  }, []);
+
+  const grouped = useMemo(() => {
+    const map: Record<Lead["status"], Lead[]> = {
+      "New Leads": [],
+      "Estimate Sent": [],
+      "Approved": [],
+      "Job Scheduled": [],
+      "Completed": [],
+    };
+    const filtered = leads.filter((l) =>
+      [l.name, l.address, l.email, l.phone]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+    );
+    for (const lead of filtered) map[lead.status].push(lead);
+    return map;
+  }, [leads, searchQuery]);
+
+  const maxColumnLen = useMemo(
+    () => Math.max(1, ...STAGES.map((s) => grouped[s].length)),
+    [grouped]
+  );
+
+  async function changeLeadStatus(leadId: string, newStatus: Lead["status"]) {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to update lead");
+      const updated = (await res.json()) as Lead;
+      setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update lead");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -125,10 +180,12 @@ export default function Dashboard() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                New Client
-              </Button>
+              <Link href="/clients/new">
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Client
+                </Button>
+              </Link>
               <Button variant="ghost" size="sm">
                 <Bell className="h-4 w-4" />
               </Button>
@@ -143,9 +200,15 @@ export default function Dashboard() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <SignOutButton />
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -161,14 +224,16 @@ export default function Dashboard() {
 
           {/* Pipeline Stats */}
           <div className="grid grid-cols-5 gap-6 mb-8">
-            {Object.entries(pipelineData).map(([stage, clients]) => (
+            {STAGES.map((stage) => (
               <Card key={stage} className="border-0 shadow-sm">
                 <CardContent className="p-4">
                   <div className="text-center">
                     <h3 className="font-semibold text-gray-900 mb-1">{stage}</h3>
-                    <div className="text-2xl font-bold text-blue-600 mb-1">{clients.length}</div>
+                    <div className="text-2xl font-bold text-blue-600 mb-1">{grouped[stage].length}</div>
                     <div className="text-sm text-gray-500">
-                      ${clients.reduce((sum, client) => sum + client.value, 0).toLocaleString()}
+                      ${grouped[stage]
+                        .reduce((sum, lead) => sum + (lead.value ?? 0), 0)
+                        .toLocaleString()}
                     </div>
                   </div>
                 </CardContent>
@@ -178,24 +243,22 @@ export default function Dashboard() {
 
           {/* Sales Pipeline Board */}
           <div className="grid grid-cols-5 gap-6">
-            {Object.entries(pipelineData).map(([stage, clients]) => (
+            {STAGES.map((stage) => (
               <div key={stage} className="space-y-4">
                 <div className="text-center">
                   <h3 className="font-semibold text-gray-900 mb-2">{stage}</h3>
                   <div className="w-full h-1 bg-gray-200 rounded-full">
                     <div 
                       className="h-1 bg-blue-500 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${Math.min((clients.length / Math.max(...Object.values(pipelineData).map(c => c.length))) * 100, 100)}%` 
-                      }}
+                      style={{ width: `${Math.min((grouped[stage].length / maxColumnLen) * 100, 100)}%` }}
                     ></div>
                   </div>
                 </div>
                 
                 <div className="space-y-3">
-                  {clients.map((client) => (
+                  {grouped[stage].map((client) => (
                     <Card 
-                      key={client.id} 
+                      key={client.id}
                       className="p-4 hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200 hover:border-blue-300 group"
                       draggable
                     >
@@ -210,6 +273,41 @@ export default function Dashboard() {
                           <div className="text-right">
                             <div className="text-sm font-semibold text-blue-600">
                               ${client.value.toLocaleString()}
+                            </div>
+                            <div className="flex items-center gap-1 mt-2">
+                              {(() => {
+                                const idx = STAGES.indexOf(client.status);
+                                const prev = idx > 0 ? STAGES[idx - 1] : null;
+                                const next = idx < STAGES.length - 1 ? STAGES[idx + 1] : null;
+                                return (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-7 w-7"
+                                      disabled={!prev}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (prev) changeLeadStatus(client.id, prev);
+                                      }}
+                                    >
+                                      ◀
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-7 w-7"
+                                      disabled={!next}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (next) changeLeadStatus(client.id, next);
+                                      }}
+                                    >
+                                      ▶
+                                    </Button>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -249,6 +347,12 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+          {loading && (
+            <div className="text-center text-sm text-gray-500 mt-6">Loading leads...</div>
+          )}
+          {error && (
+            <div className="text-center text-sm text-red-600 mt-6">{error}</div>
+          )}
         </main>
       </div>
     </div>

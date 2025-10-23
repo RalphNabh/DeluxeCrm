@@ -40,9 +40,11 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                Sign In
-              </Button>
+              <Link href="/login">
+                <Button variant="outline" size="sm">
+                  Sign In
+                </Button>
+              </Link>
               <Link href="/dashboard">
                 <Button size="sm">
                   Try Demo

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import SignOutButton from "@/components/auth/sign-out";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -42,95 +43,46 @@ const sidebarItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-// Sample automation data
-const automationData = [
-  {
-    id: 1,
-    name: "New Lead Welcome",
-    description: "Send a welcome email when a new lead is added to the system",
-    trigger: "New Lead Added",
-    action: "Send Email",
-    icon: Mail,
-    color: "bg-blue-100 text-blue-600",
-    status: true,
-    lastRun: "2 hours ago",
-    runs: 47,
-    successRate: 98
-  },
-  {
-    id: 2,
-    name: "Estimate Follow-up",
-    description: "Send a follow-up email 3 days after an estimate is sent",
-    trigger: "Estimate Sent",
-    action: "Send Email + Create Task",
-    icon: Calendar,
-    color: "bg-green-100 text-green-600",
-    status: true,
-    lastRun: "1 day ago",
-    runs: 23,
-    successRate: 100
-  },
-  {
-    id: 3,
-    name: "Project Completion",
-    description: "Send thank you email and request review after project completion",
-    trigger: "Project Completed",
-    action: "Send Email + Create Follow-up",
-    icon: CheckCircle,
-    color: "bg-purple-100 text-purple-600",
-    status: true,
-    lastRun: "3 days ago",
-    runs: 12,
-    successRate: 95
-  },
-  {
-    id: 4,
-    name: "Payment Reminder",
-    description: "Send payment reminder emails for overdue invoices",
-    trigger: "Invoice Overdue",
-    action: "Send Email",
-    icon: AlertCircle,
-    color: "bg-orange-100 text-orange-600",
-    status: false,
-    lastRun: "1 week ago",
-    runs: 8,
-    successRate: 88
-  },
-  {
-    id: 5,
-    name: "Seasonal Maintenance",
-    description: "Create seasonal maintenance reminders for existing clients",
-    trigger: "Seasonal Schedule",
-    action: "Create Tasks + Send Email",
-    icon: Clock,
-    color: "bg-teal-100 text-teal-600",
-    status: true,
-    lastRun: "2 weeks ago",
-    runs: 156,
-    successRate: 92
-  },
-  {
-    id: 6,
-    name: "Client Anniversary",
-    description: "Send anniversary emails to long-term clients",
-    trigger: "Client Anniversary",
-    action: "Send Email",
-    icon: User,
-    color: "bg-pink-100 text-pink-600",
-    status: false,
-    lastRun: "Never",
-    runs: 0,
-    successRate: 0
-  }
-];
+type Automation = {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  trigger_event: string;
+  action_type: string;
+};
 
 export default function AutomationsPage() {
-  const [automations, setAutomations] = useState(automationData);
+  const [automations, setAutomations] = useState<Automation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const toggleAutomation = (id: number) => {
-    setAutomations(automations.map(auto => 
-      auto.id === id ? { ...auto, status: !auto.status } : auto
-    ));
+  useEffect(() => {
+    fetchAutomations();
+  }, []);
+
+  const fetchAutomations = async () => {
+    try {
+      const res = await fetch('/api/automations');
+      if (!res.ok) throw new Error('Failed to fetch automations');
+      const data = await res.json();
+      setAutomations(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch automations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleAutomation = async (id: string, current: boolean) => {
+    try {
+      await fetch(`/api/automations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !current })
+      });
+      setAutomations(prev => prev.map(a => a.id === id ? { ...a, is_active: !current } : a));
+    } catch {}
   };
 
   return (
@@ -204,9 +156,15 @@ export default function AutomationsPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <SignOutButton />
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -225,9 +183,7 @@ export default function AutomationsPage() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Active Automations</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {automations.filter(a => a.status).length}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{automations.filter(a => a.is_active).length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -293,21 +249,14 @@ export default function AutomationsPage() {
                       <div>
                         <CardTitle className="text-lg">{automation.name}</CardTitle>
                         <div className="flex items-center space-x-2 mt-1">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            automation.status 
-                              ? "bg-blue-100 text-blue-800" 
-                              : "bg-gray-100 text-gray-800"
-                          }`}>
-                            {automation.status ? "Active" : "Inactive"}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${automation.is_active ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
+                            {automation.is_active ? "Active" : "Inactive"}
                           </span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={automation.status}
-                        onCheckedChange={() => toggleAutomation(automation.id)}
-                      />
+                      <Switch checked={automation.is_active} onCheckedChange={() => toggleAutomation(automation.id, automation.is_active)} />
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -333,18 +282,16 @@ export default function AutomationsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <CardDescription className="mb-4">
-                    {automation.description}
-                  </CardDescription>
+                  <CardDescription className="mb-4">{automation.description}</CardDescription>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Trigger:</span>
-                      <span className="font-medium text-gray-900">{automation.trigger}</span>
+                      <span className="font-medium text-gray-900">{automation.trigger_event}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Action:</span>
-                      <span className="font-medium text-gray-900">{automation.action}</span>
+                      <span className="font-medium text-gray-900">{automation.action_type}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Last Run:</span>

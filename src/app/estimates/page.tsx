@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,9 @@ import {
   Calendar,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Plus,
+  Eye
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +32,32 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import SignOutButton from "@/components/auth/sign-out";
+
+interface Estimate {
+  id: string;
+  client_id: string;
+  lead_id?: string;
+  status: 'Draft' | 'Sent' | 'Approved' | 'Rejected' | 'Scheduled' | 'Completed';
+  subtotal: number;
+  tax: number;
+  total: number;
+  created_at: string;
+  updated_at: string;
+  clients?: {
+    name: string;
+    email?: string;
+    phone?: string;
+  };
+  estimate_line_items?: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    total: number;
+  }>;
+}
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -38,59 +67,63 @@ const sidebarItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-// Sample estimate data
-const estimateData = {
-  id: "EST-2025-001",
-  date: "2025-01-15",
-  validUntil: "2025-02-15",
-  client: {
-    name: "Johnson Residence",
-    address: "123 Oak Street, Springfield, IL 62701",
-    phone: "(555) 123-4567",
-    email: "john@email.com"
-  },
-  company: {
-    name: "Dyluxe Landscaping",
-    address: "456 Business Ave, Springfield, IL 62702",
-    phone: "(555) 987-6543",
-    email: "info@dyluxe.com"
-  },
-  lineItems: [
-    {
-      description: "Lawn Installation - Premium Sod (2,500 sq ft)",
-      quantity: 2500,
-      unit: "sq ft",
-      unitPrice: 2.50,
-      total: 6250
-    },
-    {
-      description: "Mulch Application - Premium Hardwood",
-      quantity: 15,
-      unit: "yards",
-      unitPrice: 45.00,
-      total: 675
-    },
-    {
-      description: "Stone Patio Installation (12' x 16')",
-      quantity: 192,
-      unit: "sq ft",
-      unitPrice: 12.00,
-      total: 2304
-    },
-    {
-      description: "Landscape Design & Planning",
-      quantity: 1,
-      unit: "project",
-      unitPrice: 500.00,
-      total: 500
-    }
-  ],
-  subtotal: 9729,
-  tax: 680.03,
-  total: 10409.03
-};
-
 export default function EstimatePage() {
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchEstimates();
+  }, []);
+
+  const fetchEstimates = async () => {
+    try {
+      const response = await fetch('/api/estimates');
+      if (!response.ok) {
+        throw new Error('Failed to fetch estimates');
+      }
+      const data = await response.json();
+      setEstimates(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Draft': return 'bg-gray-100 text-gray-800';
+      case 'Sent': return 'bg-blue-100 text-blue-800';
+      case 'Approved': return 'bg-green-100 text-green-800';
+      case 'Rejected': return 'bg-red-100 text-red-800';
+      case 'Scheduled': return 'bg-purple-100 text-purple-800';
+      case 'Completed': return 'bg-emerald-100 text-emerald-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading estimates...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error: {error}</p>
+          <Button onClick={fetchEstimates}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -172,188 +205,166 @@ export default function EstimatePage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <SignOutButton />
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         </header>
 
-        {/* Estimate Content */}
+        {/* Estimates Content */}
         <main className="flex-1 p-6">
-          <div className="max-w-4xl mx-auto">
-            {/* Estimate Header */}
-            <Card className="mb-6 border-0 shadow-lg">
-              <CardHeader className="bg-blue-50 border-b border-blue-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-2xl text-blue-800">{estimateData.company.name}</CardTitle>
-                    <p className="text-blue-600 mt-1">Professional Landscaping Services</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold text-blue-800">ESTIMATE</div>
-                    <div className="text-sm text-blue-600">#{estimateData.id}</div>
-                  </div>
-                </div>
-              </CardHeader>
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Estimates</h1>
+                <p className="text-gray-600">Manage your project estimates and track approval status.</p>
+              </div>
+              <Link href="/estimates/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Estimate
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
-                <div className="grid md:grid-cols-2 gap-8">
-                  {/* Company Info */}
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">From:</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="font-medium">{estimateData.company.name}</div>
-                      <div className="flex items-center text-gray-600">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        {estimateData.company.address}
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <Phone className="h-4 w-4 mr-2" />
-                        {estimateData.company.phone}
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <Mail className="h-4 w-4 mr-2" />
-                        {estimateData.company.email}
-                      </div>
-                    </div>
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <FileText className="h-5 w-5 text-blue-600" />
                   </div>
-
-                  {/* Client Info */}
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">To:</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="font-medium">{estimateData.client.name}</div>
-                      <div className="flex items-center text-gray-600">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        {estimateData.client.address}
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <Phone className="h-4 w-4 mr-2" />
-                        {estimateData.client.phone}
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <Mail className="h-4 w-4 mr-2" />
-                        {estimateData.client.email}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-gray-200">
-                  <div>
-                    <div className="text-sm text-gray-500">Estimate Date</div>
-                    <div className="font-medium">{new Date(estimateData.date).toLocaleDateString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Valid Until</div>
-                    <div className="font-medium">{new Date(estimateData.validUntil).toLocaleDateString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500">Status</div>
-                    <div className="font-medium text-blue-600">Pending Approval</div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Estimates</p>
+                    <p className="text-2xl font-bold text-gray-900">{estimates.length}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Line Items */}
-            <Card className="mb-6 border-0 shadow-lg">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-900">Description</th>
-                        <th className="px-6 py-4 text-right text-sm font-medium text-gray-900">Quantity</th>
-                        <th className="px-6 py-4 text-right text-sm font-medium text-gray-900">Unit Price</th>
-                        <th className="px-6 py-4 text-right text-sm font-medium text-gray-900">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {estimateData.lineItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm">
-                            <div className="font-medium text-gray-900">{item.description}</div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-right text-gray-600">
-                            {item.quantity.toLocaleString()} {item.unit}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-right text-gray-600">
-                            ${item.unitPrice.toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-right font-medium text-gray-900">
-                            ${item.total.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Totals */}
-                <div className="bg-gray-50 px-6 py-4">
-                  <div className="flex justify-end">
-                    <div className="w-64 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Subtotal:</span>
-                        <span className="font-medium">${estimateData.subtotal.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Tax (7%):</span>
-                        <span className="font-medium">${estimateData.tax.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-lg font-semibold border-t border-gray-300 pt-2">
-                        <span>Total:</span>
-                        <span className="text-blue-600">${estimateData.total.toLocaleString()}</span>
-                      </div>
-                    </div>
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Check className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Approved</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {estimates.filter(e => e.status === 'Approved').length}
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Terms and Signature */}
-            <Card className="border-0 shadow-lg">
+            <Card className="border-0 shadow-sm">
               <CardContent className="p-6">
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Terms & Conditions</h3>
-                    <div className="text-sm text-gray-600 space-y-2">
-                      <p>• Payment is due within 30 days of project completion</p>
-                      <p>• A 50% deposit is required to begin work</p>
-                      <p>• This estimate is valid for 30 days from the date above</p>
-                      <p>• All work is guaranteed for 1 year from completion date</p>
-                      <p>• Weather delays may affect project timeline</p>
-                    </div>
+                <div className="flex items-center">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Calendar className="h-5 w-5 text-orange-600" />
                   </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {estimates.filter(e => e.status === 'Sent').length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Client Approval</h3>
-                    <div className="space-y-4">
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                        <div className="text-sm text-gray-500 mb-2">Client Signature</div>
-                        <div className="text-xs text-gray-400">Signature will appear here after approval</div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <Input 
-                          placeholder="Client Name" 
-                          className="flex-1"
-                          disabled
-                        />
-                        <Input 
-                          type="date" 
-                          className="flex-1"
-                          disabled
-                        />
-                      </div>
-                    </div>
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <DollarSign className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Value</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      ${estimates.reduce((sum, e) => sum + e.total, 0).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Estimates List */}
+          {estimates.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No estimates yet</h3>
+              <p className="text-gray-600 mb-4">Get started by creating your first estimate.</p>
+              <Link href="/estimates/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Estimate
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {estimates.map((estimate) => (
+                <Card key={estimate.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">#{estimate.id.slice(0, 8)}</h3>
+                        <p className="text-sm text-gray-600">{estimate.clients?.name || 'Unknown Client'}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(estimate.status)}`}>
+                        {estimate.status}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Total</span>
+                        <span className="font-semibold text-gray-900">${estimate.total.toLocaleString()}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Created {new Date(estimate.created_at).toLocaleDateString()}</span>
+                        <span>{estimate.estimate_line_items?.length || 0} items</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <Link href={`/estimates/${estimate.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        </Link>
+                        <div className="flex space-x-2">
+                          <Button variant="ghost" size="sm">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </main>
       </div>
     </div>

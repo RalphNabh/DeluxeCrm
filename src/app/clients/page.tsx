@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import SignOutButton from "@/components/auth/sign-out";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -41,89 +43,92 @@ const sidebarItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-// Sample client data
-const clientData = [
-  {
-    id: 1,
-    name: "Johnson Residence",
-    contact: "John Johnson",
-    email: "john@email.com",
-    phone: "(555) 123-4567",
-    address: "123 Oak Street, Springfield, IL 62701",
-    status: "Active",
-    totalProjects: 3,
-    totalValue: 12450,
-    lastContact: "2025-01-15",
-    nextFollowUp: "2025-02-01"
-  },
-  {
-    id: 2,
-    name: "Smith Property",
-    contact: "Sarah Smith",
-    email: "sarah@email.com",
-    phone: "(555) 234-5678",
-    address: "456 Pine Avenue, Springfield, IL 62702",
-    status: "Lead",
-    totalProjects: 0,
-    totalValue: 0,
-    lastContact: "2025-01-14",
-    nextFollowUp: "2025-01-21"
-  },
-  {
-    id: 3,
-    name: "Williams Home",
-    contact: "Mike Williams",
-    email: "mike@email.com",
-    phone: "(555) 345-6789",
-    address: "789 Maple Drive, Springfield, IL 62703",
-    status: "Active",
-    totalProjects: 1,
-    totalValue: 1800,
-    lastContact: "2025-01-13",
-    nextFollowUp: "2025-02-15"
-  },
-  {
-    id: 4,
-    name: "Brown Estate",
-    contact: "Lisa Brown",
-    email: "lisa@email.com",
-    phone: "(555) 456-7890",
-    address: "321 Elm Street, Springfield, IL 62704",
-    status: "Pending",
-    totalProjects: 0,
-    totalValue: 4200,
-    lastContact: "2025-01-12",
-    nextFollowUp: "2025-01-19"
-  },
-  {
-    id: 5,
-    name: "Davis Property",
-    contact: "Robert Davis",
-    email: "robert@email.com",
-    phone: "(555) 567-8901",
-    address: "654 Cedar Lane, Springfield, IL 62705",
-    status: "Active",
-    totalProjects: 2,
-    totalValue: 5600,
-    lastContact: "2025-01-11",
-    nextFollowUp: "2025-03-01"
-  },
-  {
-    id: 6,
-    name: "Miller Residence",
-    contact: "Jennifer Miller",
-    email: "jennifer@email.com",
-    phone: "(555) 678-9012",
-    address: "987 Birch Road, Springfield, IL 62706",
-    status: "Active",
-    totalProjects: 1,
-    totalValue: 3500,
-    lastContact: "2025-01-10",
-    nextFollowUp: "2025-02-28"
-  }
-];
+interface Client {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  total_value?: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function ClientsPage() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    fetchClients();
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const fetchClients = async () => {
+    try {
+      const url = debouncedQuery ? `/api/clients?q=${encodeURIComponent(debouncedQuery)}` : '/api/clients';
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch clients');
+      }
+      const data = await response.json();
+      setClients(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this client?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/clients/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete client');
+      }
+      
+      setClients(clients.filter(client => client.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete client');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading clients...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error: {error}</p>
+          <Button onClick={fetchClients}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -177,6 +182,8 @@ export default function ClientsPage() {
                 <Input
                   placeholder="Search clients..."
                   className="pl-10"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
               <Button variant="outline" size="sm">
@@ -186,10 +193,12 @@ export default function ClientsPage() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                New Client
-              </Button>
+              <Link href="/clients/new">
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Client
+                </Button>
+              </Link>
               <Button variant="ghost" size="sm">
                 <Bell className="h-4 w-4" />
               </Button>
@@ -204,9 +213,15 @@ export default function ClientsPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <SignOutButton />
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -230,7 +245,7 @@ export default function ClientsPage() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Total Clients</p>
-                    <p className="text-2xl font-bold text-gray-900">{clientData.length}</p>
+                    <p className="text-2xl font-bold text-gray-900">{clients.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -244,9 +259,7 @@ export default function ClientsPage() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Active Clients</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {clientData.filter(c => c.status === "Active").length}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{clients.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -261,7 +274,7 @@ export default function ClientsPage() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Total Value</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      ${clientData.reduce((sum, c) => sum + c.totalValue, 0).toLocaleString()}
+                      ${clients.reduce((sum, c) => sum + Number(c.total_value || 0), 0).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -276,9 +289,7 @@ export default function ClientsPage() {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Follow-ups Due</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {clientData.filter(c => new Date(c.nextFollowUp) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)).length}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">0</p>
                   </div>
                 </div>
               </CardContent>
@@ -287,84 +298,111 @@ export default function ClientsPage() {
 
           {/* Clients Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {clientData.map((client) => (
-              <Card key={client.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src="/placeholder-avatar.jpg" />
-                        <AvatarFallback>{client.contact.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{client.name}</h3>
-                        <p className="text-sm text-gray-600">{client.contact}</p>
+            {clients.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No clients yet</h3>
+                <p className="text-gray-600 mb-4">Get started by adding your first client.</p>
+                <Link href="/clients/new">
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Client
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              clients.map((client) => (
+                <Card key={client.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src="/placeholder-avatar.jpg" />
+                          <AvatarFallback>{client.name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{client.name}</h3>
+                          <p className="text-sm text-gray-600">Client</p>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/clients/${client.id}`}>
+                              <span className="flex items-center">
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </span>
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/clients/${client.id}/edit`}>
+                              <span className="flex items-center">
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Client
+                              </span>
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/estimates/new?clientId=${client.id}`}>
+                              <span className="flex items-center">
+                                <FileText className="h-4 w-4 mr-2" />
+                                Create Estimate
+                              </span>
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-red-600"
+                            onClick={() => handleDeleteClient(client.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="space-y-3">
+                      {client.email && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Mail className="h-4 w-4 mr-2" />
+                          {client.email}
+                        </div>
+                      )}
+                      {client.phone && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Phone className="h-4 w-4 mr-2" />
+                          {client.phone}
+                        </div>
+                      )}
+                      {client.address && (
+                        <div className="flex items-start text-sm text-gray-600">
+                          <MapPin className="h-4 w-4 mr-2 mt-0.5" />
+                          {client.address}
+                        </div>
+                      )}
+                      {client.notes && (
+                        <div className="text-sm text-gray-600">
+                          <p className="line-clamp-2">{client.notes}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Added {new Date(client.created_at).toLocaleDateString()}</span>
+                        <span>Updated {new Date(client.updated_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Client
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <FileText className="h-4 w-4 mr-2" />
-                          Create Estimate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Mail className="h-4 w-4 mr-2" />
-                      {client.email}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Phone className="h-4 w-4 mr-2" />
-                      {client.phone}
-                    </div>
-                    <div className="flex items-start text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 mr-2 mt-0.5" />
-                      {client.address}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        client.status === "Active" ? "bg-blue-100 text-blue-800" :
-                        client.status === "Lead" ? "bg-blue-100 text-blue-800" :
-                        "bg-orange-100 text-orange-800"
-                      }`}>
-                        {client.status}
-                      </span>
-                      <span className="text-sm font-semibold text-blue-600">
-                        ${client.totalValue.toLocaleString()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{client.totalProjects} projects</span>
-                      <span>Next: {new Date(client.nextFollowUp).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </main>
       </div>
