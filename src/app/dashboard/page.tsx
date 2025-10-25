@@ -10,6 +10,8 @@ import {
   LayoutDashboard, 
   Users, 
   FileText, 
+  DollarSign,
+  Calendar,
   Zap, 
   Settings, 
   Search,
@@ -26,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
+import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 
 type Lead = {
   id: string;
@@ -51,6 +54,8 @@ const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", active: true },
   { icon: Users, label: "Clients", href: "/clients" },
   { icon: FileText, label: "Estimates", href: "/estimates" },
+  { icon: DollarSign, label: "Invoices", href: "/invoices" },
+  { icon: Calendar, label: "Calendar", href: "/calendar" },
   { icon: Zap, label: "Automations", href: "/automations" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
@@ -97,7 +102,7 @@ export default function Dashboard() {
   }, [leads, searchQuery]);
 
   const maxColumnLen = useMemo(
-    () => Math.max(1, ...STAGES.map((s) => grouped[s].length)),
+    () => Math.max(1, ...STAGES.map((s) => grouped[s]?.length || 0)),
     [grouped]
   );
 
@@ -231,9 +236,8 @@ export default function Dashboard() {
                     <h3 className="font-semibold text-gray-900 mb-1">{stage}</h3>
                     <div className="text-2xl font-bold text-blue-600 mb-1">{grouped[stage].length}</div>
                     <div className="text-sm text-gray-500">
-                      ${grouped[stage]
-                        .reduce((sum, lead) => sum + (lead.value ?? 0), 0)
-                        .toLocaleString()}
+                      {formatCurrencyWithSymbol(grouped[stage]
+                        .reduce((sum, lead) => sum + (lead.value ?? 0), 0))}
                     </div>
                   </div>
                 </CardContent>
@@ -272,7 +276,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-semibold text-blue-600">
-                              ${client.value.toLocaleString()}
+                              {formatCurrencyWithSymbol(client.value)}
                             </div>
                             <div className="flex items-center gap-1 mt-2">
                               {(() => {

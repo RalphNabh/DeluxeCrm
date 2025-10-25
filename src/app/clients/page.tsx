@@ -10,6 +10,8 @@ import {
   LayoutDashboard, 
   Users, 
   FileText, 
+  DollarSign,
+  Calendar,
   Zap, 
   Settings, 
   Search,
@@ -20,8 +22,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  Calendar,
-  DollarSign,
   Eye,
   Edit,
   Trash2,
@@ -34,11 +34,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
+import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Users, label: "Clients", href: "/clients", active: true },
   { icon: FileText, label: "Estimates", href: "/estimates" },
+  { icon: DollarSign, label: "Invoices", href: "/invoices" },
+  { icon: Calendar, label: "Calendar", href: "/calendar" },
   { icon: Zap, label: "Automations", href: "/automations" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
@@ -274,7 +277,7 @@ export default function ClientsPage() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Total Value</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      ${clients.reduce((sum, c) => sum + Number(c.total_value || 0), 0).toLocaleString()}
+                      {formatCurrencyWithSymbol(clients.reduce((sum, c) => sum + Number(c.total_value || 0), 0))}
                     </p>
                   </div>
                 </div>

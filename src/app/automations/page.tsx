@@ -10,6 +10,7 @@ import {
   LayoutDashboard, 
   Users, 
   FileText, 
+  DollarSign,
   Zap, 
   Settings, 
   Bell,
@@ -39,6 +40,8 @@ const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Users, label: "Clients", href: "/clients" },
   { icon: FileText, label: "Estimates", href: "/estimates" },
+  { icon: DollarSign, label: "Invoices", href: "/invoices" },
+  { icon: Calendar, label: "Calendar", href: "/calendar" },
   { icon: Zap, label: "Automations", href: "/automations", active: true },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];

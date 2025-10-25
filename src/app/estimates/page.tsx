@@ -10,6 +10,8 @@ import {
   LayoutDashboard, 
   Users, 
   FileText, 
+  DollarSign,
+  Calendar,
   Zap, 
   Settings, 
   Search,
@@ -19,7 +21,6 @@ import {
   Check,
   X,
   Edit,
-  Calendar,
   Phone,
   Mail,
   MapPin,
@@ -33,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
+import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 
 interface Estimate {
   id: string;
@@ -63,6 +65,8 @@ const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Users, label: "Clients", href: "/clients" },
   { icon: FileText, label: "Estimates", href: "/estimates", active: true },
+  { icon: DollarSign, label: "Invoices", href: "/invoices" },
+  { icon: Calendar, label: "Calendar", href: "/calendar" },
   { icon: Zap, label: "Automations", href: "/automations" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
@@ -171,26 +175,18 @@ export default function EstimatePage() {
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-semibold text-gray-900">Estimate #{estimateData.id}</h1>
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                Pending Approval
-              </span>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Estimates</h1>
+              <p className="text-gray-600 mt-1">Manage your project estimates and track approval status.</p>
             </div>
             
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Download PDF
-              </Button>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                <Check className="h-4 w-4 mr-2" />
-                Approve Estimate
-              </Button>
+              <Link href="/estimates/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Estimate
+                </Button>
+              </Link>
               <Button variant="ghost" size="sm">
                 <Bell className="h-4 w-4" />
               </Button>
@@ -222,20 +218,6 @@ export default function EstimatePage() {
 
         {/* Estimates Content */}
         <main className="flex-1 p-6">
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Estimates</h1>
-                <p className="text-gray-600">Manage your project estimates and track approval status.</p>
-              </div>
-              <Link href="/estimates/new">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Estimate
-                </Button>
-              </Link>
-            </div>
-          </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -294,7 +276,7 @@ export default function EstimatePage() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Total Value</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      ${estimates.reduce((sum, e) => sum + e.total, 0).toLocaleString()}
+                      {formatCurrencyWithSymbol(estimates.reduce((sum, e) => sum + e.total, 0))}
                     </p>
                   </div>
                 </div>
@@ -333,7 +315,7 @@ export default function EstimatePage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Total</span>
-                        <span className="font-semibold text-gray-900">${estimate.total.toLocaleString()}</span>
+                        <span className="font-semibold text-gray-900">{formatCurrencyWithSymbol(estimate.total)}</span>
                       </div>
                       
                       <div className="flex items-center justify-between text-xs text-gray-500">

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// GET: list estimates
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -9,18 +8,18 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const clientId = searchParams.get('client_id')
+  const status = searchParams.get('status')
 
   let query = supabase
-    .from('estimates')
+    .from('invoices')
     .select(`
       *,
       clients (
         name,
         email,
-        phone,
-        address
+        phone
       ),
-      estimate_line_items (
+      invoice_line_items (
         id,
         description,
         quantity,
@@ -31,23 +30,21 @@ export async function GET(request: NextRequest) {
     `)
     .order('created_at', { ascending: false })
 
-  if (clientId) {
-    query = query.eq('client_id', clientId)
-  }
+  if (clientId) query = query.eq('client_id', clientId)
+  if (status) query = query.eq('status', status)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data)
 }
 
-// POST: create draft estimate (optionally send)
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { client_id, lead_id, lineItems = [], send = false, schedule = false, complete = false } = body
+  const { client_id, estimate_id, lineItems = [], due_date, notes, send = false } = body
 
   if (!client_id) return NextResponse.json({ error: 'client_id required' }, { status: 400 })
 
@@ -56,43 +53,41 @@ export async function POST(request: Request) {
   const tax = Math.round(subtotal * 0.13 * 100) / 100
   const total = subtotal + tax
 
-  const { data: estimate, error } = await supabase
-    .from('estimates')
-    .insert([{ user_id: user.id, client_id, lead_id, subtotal, tax, total, status: 'Draft' }])
+  // Generate invoice number
+  const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`
+
+  const { data: invoice, error } = await supabase
+    .from('invoices')
+    .insert([{ 
+      user_id: user.id, 
+      client_id, 
+      estimate_id,
+      invoice_number: invoiceNumber,
+      subtotal, 
+      tax, 
+      total, 
+      due_date,
+      notes,
+      status: send ? 'Sent' : 'Draft',
+      sent_at: send ? new Date().toISOString() : null
+    }])
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  // Add line items
   if (lineItems.length) {
     const items = lineItems.map((li: any) => ({
-      estimate_id: estimate.id,
+      invoice_id: invoice.id,
       description: li.description,
       quantity: li.quantity,
       unit: li.unit || 'unit',
       unit_price: li.unit_price,
       total: Number(li.quantity || 0) * Number(li.unit_price || 0)
     }))
-    await supabase.from('estimate_line_items').insert(items)
+    await supabase.from('invoice_line_items').insert(items)
   }
 
-  // Optionally send/schedule/complete with automatic lead stage updates
-  if (send) {
-    await supabase.from('estimates').update({ status: 'Sent' }).eq('id', estimate.id)
-    if (lead_id) await supabase.from('leads').update({ status: 'Estimate Sent' }).eq('id', lead_id)
-    // bump client's total_value to latest estimate total for quick display
-    await supabase.from('clients').update({ total_value: total }).eq('id', client_id)
-  }
-  if (schedule) {
-    await supabase.from('estimates').update({ status: 'Scheduled' }).eq('id', estimate.id)
-    if (lead_id) await supabase.from('leads').update({ status: 'Job Scheduled' }).eq('id', lead_id)
-  }
-  if (complete) {
-    await supabase.from('estimates').update({ status: 'Completed' }).eq('id', estimate.id)
-    if (lead_id) await supabase.from('leads').update({ status: 'Completed' }).eq('id', lead_id)
-  }
-
-  return NextResponse.json(estimate, { status: 201 })
+  return NextResponse.json(invoice, { status: 201 })
 }
-
-

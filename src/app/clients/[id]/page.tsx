@@ -65,7 +65,8 @@ export default function ClientDetailPage() {
       // fetch estimates for this client
       const eRes = await fetch(`/api/estimates?client_id=${params.id}`)
       if (eRes.ok) {
-        setEstimates(await eRes.json())
+        const estimatesData = await eRes.json()
+        setEstimates(estimatesData || [])
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load client')

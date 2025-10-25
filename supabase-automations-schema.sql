@@ -62,27 +62,27 @@ alter table public.email_templates enable row level security;
 alter table public.automation_runs enable row level security;
 
 -- Policies: users can manage their own rows
-create policy if not exists "Enable read own automations" on public.automations
+create policy "Enable read own automations" on public.automations
 for select using (auth.uid() = user_id);
-create policy if not exists "Enable insert own automations" on public.automations
+create policy "Enable insert own automations" on public.automations
 for insert with check (auth.uid() = user_id);
-create policy if not exists "Enable update own automations" on public.automations
+create policy "Enable update own automations" on public.automations
 for update using (auth.uid() = user_id);
-create policy if not exists "Enable delete own automations" on public.automations
+create policy "Enable delete own automations" on public.automations
 for delete using (auth.uid() = user_id);
 
-create policy if not exists "Enable read own email templates" on public.email_templates
+create policy "Enable read own email templates" on public.email_templates
 for select using (auth.uid() = user_id);
-create policy if not exists "Enable insert own email templates" on public.email_templates
+create policy "Enable insert own email templates" on public.email_templates
 for insert with check (auth.uid() = user_id);
-create policy if not exists "Enable update own email templates" on public.email_templates
+create policy "Enable update own email templates" on public.email_templates
 for update using (auth.uid() = user_id);
-create policy if not exists "Enable delete own email templates" on public.email_templates
+create policy "Enable delete own email templates" on public.email_templates
 for delete using (auth.uid() = user_id);
 
-create policy if not exists "Enable read own automation runs" on public.automation_runs
+create policy "Enable read own automation runs" on public.automation_runs
 for select using (auth.uid() = user_id);
-create policy if not exists "Enable insert own automation runs" on public.automation_runs
+create policy "Enable insert own automation runs" on public.automation_runs
 for insert with check (auth.uid() = user_id);
 -- no update/delete on runs for now
 

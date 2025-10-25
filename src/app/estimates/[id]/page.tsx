@@ -64,6 +64,7 @@ export default function EstimateDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -105,6 +106,43 @@ export default function EstimateDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to update estimate')
     } finally {
       setUpdating(false)
+    }
+  }
+
+  const sendEstimateEmail = async () => {
+    if (!estimate?.clients?.email) {
+      setError('Client email not found')
+      return
+    }
+
+    setSendingEmail(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/email/send-estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          estimateId: estimate.id,
+          clientEmail: estimate.clients.email,
+          clientName: estimate.clients.name
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send email')
+      }
+
+      const result = await response.json()
+      
+      // Refresh estimate data to get updated status
+      await fetchEstimate()
+      
+      alert('Estimate sent successfully!')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send email')
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -300,7 +338,7 @@ export default function EstimateDetailPage() {
                           <span className="font-medium">${estimate.subtotal.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Tax (7%):</span>
+                          <span className="text-gray-600">Tax (13%):</span>
                           <span className="font-medium">${estimate.tax.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-lg font-semibold border-t border-gray-300 pt-2">
@@ -326,10 +364,21 @@ export default function EstimateDetailPage() {
                     Download PDF
                   </Button>
                   
-                  <Button variant="outline" disabled={updating}>
+                  <Button 
+                    variant="outline" 
+                    onClick={sendEstimateEmail}
+                    disabled={updating || sendingEmail || !estimate?.clients?.email}
+                  >
                     <Mail className="h-4 w-4 mr-2" />
-                    Email to Client
+                    {sendingEmail ? 'Sending...' : 'Email to Client'}
                   </Button>
+
+                  <Link href={`/invoices/new?estimateId=${estimate.id}&clientId=${estimate.client_id}`}>
+                    <Button disabled={updating}>
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Create Invoice
+                    </Button>
+                  </Link>
 
                   {estimate.status === 'Sent' && (
                     <Button 
