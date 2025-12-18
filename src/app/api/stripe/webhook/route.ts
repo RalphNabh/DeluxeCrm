@@ -2,29 +2,51 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-})
-
-// Use service role for webhook to bypass RLS
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-)
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
-
 // Disable body parsing, we need the raw body for signature verification
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  // Initialize Stripe client (lazy initialization to avoid build-time errors)
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    return NextResponse.json(
+      { error: 'STRIPE_SECRET_KEY is not configured. Please set it in your environment variables.' },
+      { status: 500 }
+    );
+  }
+  const stripe = new Stripe(stripeSecretKey, {
+    apiVersion: '2024-12-18.acacia',
+  });
+
+  // Use service role for webhook to bypass RLS
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    return NextResponse.json(
+      { error: 'Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' },
+      { status: 500 }
+    );
+  }
+  const supabaseAdmin = createClient(
+    supabaseUrl,
+    supabaseServiceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { error: 'STRIPE_WEBHOOK_SECRET is not configured. Please set it in your environment variables.' },
+      { status: 500 }
+    );
+  }
+
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')
 
