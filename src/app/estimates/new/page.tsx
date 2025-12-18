@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import MaterialSelector from "@/components/estimates/material-selector";
 
 type Client = { id: string; name: string; email?: string; phone?: string };
 
-export default function NewEstimatePage() {
+function NewEstimateContent() {
   const router = useRouter();
   const params = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
@@ -415,6 +415,22 @@ export default function NewEstimatePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewEstimatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-12">
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <NewEstimateContent />
+    </Suspense>
   );
 }
 

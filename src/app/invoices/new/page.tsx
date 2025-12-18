@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,7 @@ interface LineItem {
   total: number;
 }
 
-export default function CreateInvoicePage() {
+function CreateInvoiceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const estimateId = searchParams.get('estimateId')
@@ -540,4 +540,20 @@ export default function CreateInvoicePage() {
       </div>
     </div>
   )
+}
+
+export default function CreateInvoicePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-12">
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <CreateInvoiceContent />
+    </Suspense>
+  );
 }
