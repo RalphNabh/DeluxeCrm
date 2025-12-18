@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkAndExecuteAutomations } from '@/lib/automations/executor'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,11 +12,23 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
     
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // First, get the estimate to find the user_id (clients don't need to be authenticated)
+    const { data: estimate, error: estimateError } = await supabase
+      .from('estimates')
+      .select('user_id, clients(email)')
+      .eq('id', estimateId)
+      .single()
+
+    if (estimateError || !estimate) {
+      return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
     }
+
+    // Verify client email matches if provided
+    if (clientEmail && estimate.clients?.email && estimate.clients.email !== clientEmail) {
+      return NextResponse.json({ error: 'Invalid client email' }, { status: 403 })
+    }
+
+    const userId = estimate.user_id
 
     // Update estimate status based on action
     let newStatus = ''
@@ -42,7 +55,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString()
       })
       .eq('id', estimateId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
     if (updateError) {
       console.error('Error updating estimate:', updateError)
@@ -104,20 +117,64 @@ export async function POST(request: NextRequest) {
       </html>
     `
 
-    // Send confirmation email to client (with fallback for testing mode)
-    // For now, always send to your verified email for testing
-    const recipientEmail = 'nabhanralph@gmail.com'; // Your verified email for testing
+    // Send confirmation email
+    // Use RESEND_FROM_EMAIL environment variable, fallback to test domain
+    // Once dyluxepro.com is verified in Resend, set RESEND_FROM_EMAIL=noreply@dyluxepro.com
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'DyluxePro <onboarding@resend.dev>';
     
-    const { data: emailData, error: emailError } = await resend.emails.send({
-      from: 'DyluxePro <onboarding@resend.dev>',
-      to: [recipientEmail],
-      subject: emailSubject,
-      html: confirmationEmailHtml,
-    })
+    // For prototype: send to verified email; in production: send to client
+    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL || 'nabhanralph@gmail.com';
+    const recipientEmail = process.env.NODE_ENV === 'development' 
+      ? verifiedEmail 
+      : clientEmail;
+          
+          const { data: emailData, error: emailError } = await resend.emails.send({
+            from: fromEmail,
+            to: [recipientEmail],
+            subject: emailSubject,
+            html: confirmationEmailHtml,
+          })
 
     if (emailError) {
       console.error('Error sending confirmation email:', emailError)
       // Don't fail the request if email fails
+    }
+
+    // Trigger automations for estimate_approved event if approved
+    if (action === 'approve') {
+      // Get client info for automation context
+      const { data: estimateData } = await supabase
+        .from('estimates')
+        .select('clients(name, email)')
+        .eq('id', estimateId)
+        .single()
+
+      console.log(`[EMAIL ACTION] ========== TRIGGERING AUTOMATIONS ==========`)
+      console.log(`[EMAIL ACTION] Event: estimate_approved`)
+      console.log(`[EMAIL ACTION] user_id: ${userId}`)
+      console.log(`[EMAIL ACTION] estimate_id: ${estimateId}`)
+      console.log(`[EMAIL ACTION] client_name: ${clientName || estimateData?.clients?.name || 'Client'}`)
+      console.log(`[EMAIL ACTION] client_email: ${clientEmail || estimateData?.clients?.email || 'N/A'}`)
+      console.log(`[EMAIL ACTION] Service Role Key available: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`)
+      
+      try {
+        const result = await checkAndExecuteAutomations('estimate_approved', {
+          event: 'estimate_approved',
+          user_id: userId,
+          estimate_id: estimateId,
+          client_name: clientName || estimateData?.clients?.name || 'Client',
+          client_email: clientEmail || estimateData?.clients?.email || undefined
+        })
+        console.log(`[EMAIL ACTION] Automation execution completed successfully`)
+      } catch (error) {
+        console.error('[EMAIL ACTION] ========== AUTOMATION ERROR ==========')
+        console.error('[EMAIL ACTION] Error triggering automations:', error)
+        console.error('[EMAIL ACTION] Error type:', error instanceof Error ? error.constructor.name : typeof error)
+        console.error('[EMAIL ACTION] Error message:', error instanceof Error ? error.message : String(error))
+        console.error('[EMAIL ACTION] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+        console.error('[EMAIL ACTION] =========================================')
+        // Don't fail the request if automation fails
+      }
     }
 
     return NextResponse.json({ 

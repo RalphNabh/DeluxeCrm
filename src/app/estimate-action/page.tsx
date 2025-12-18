@@ -144,7 +144,7 @@ export default function EstimateActionPage() {
                   onClick={() => router.push('/')} 
                   className="w-full"
                 >
-                  Go to Dashboard
+                  Go to Home
                 </Button>
                 <Button 
                   onClick={() => window.close()} 

@@ -54,7 +54,7 @@ create index idx_clients_user_id on public.clients(user_id);
 /*
 insert into public.clients (user_id, name, email, phone, address, notes) values
   ((select auth.uid()), 'John Smith', 'john@example.com', '555-0123', '123 Main St, City, State', 'Regular customer, prefers morning appointments'),
-  ((select auth.uid()), 'Sarah Johnson', 'sarah@example.com', '555-0456', '456 Oak Ave, City, State', 'New customer, interested in landscaping'),
+  ((select auth.uid()), 'Sarah Johnson', 'sarah@example.com', '555-0456', '456 Oak Ave, City, State', 'New customer, interested in our services'),
   ((select auth.uid()), 'Mike Wilson', 'mike@example.com', '555-0789', '789 Pine Rd, City, State', 'Commercial property owner');
 */
 

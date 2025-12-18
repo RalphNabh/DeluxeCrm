@@ -12,6 +12,7 @@ import {
   FileText, 
   DollarSign,
   Calendar,
+  BarChart3,
   Zap, 
   Settings, 
   Search,
@@ -25,7 +26,11 @@ import {
   Eye,
   Edit,
   Trash2,
-  CheckCircle
+  CheckCircle,
+  Tag,
+  Folder,
+  CheckSquare,
+  Gift
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,7 +39,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
+import UserProfile from "@/components/layout/user-profile";
+import PageSidebar from "@/components/layout/page-sidebar";
+import PageHeader from "@/components/layout/page-header";
+import StatsCards from "@/components/ui/stats-cards";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+import FolderManager from "@/components/clients/folder-manager";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -42,9 +60,20 @@ const sidebarItems = [
   { icon: FileText, label: "Estimates", href: "/estimates" },
   { icon: DollarSign, label: "Invoices", href: "/invoices" },
   { icon: Calendar, label: "Calendar", href: "/calendar" },
+  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
+  { icon: BarChart3, label: "Reports", href: "/reports" },
+  { icon: Users, label: "Team", href: "/team" },
   { icon: Zap, label: "Automations", href: "/automations" },
+  { icon: Gift, label: "Affiliates", href: "/affiliates" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
+
+interface ClientFolder {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+}
 
 interface Client {
   id: string;
@@ -53,21 +82,29 @@ interface Client {
   phone?: string;
   address?: string;
   notes?: string;
+  tags?: string[];
+  folder_id?: string;
   total_value?: number;
   created_at: string;
   updated_at: string;
+  client_folders?: ClientFolder;
 }
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [folders, setFolders] = useState<ClientFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   useEffect(() => {
     fetchClients();
-  }, [debouncedQuery]);
+    fetchFolders();
+  }, [debouncedQuery, selectedFolderId, selectedTag]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 300);
@@ -82,11 +119,47 @@ export default function ClientsPage() {
         throw new Error('Failed to fetch clients');
       }
       const data = await response.json();
-      setClients(data);
+      
+      // Extract all unique tags from clients
+      const allTags = new Set<string>()
+      data.forEach((client: Client) => {
+        if (client.tags && Array.isArray(client.tags)) {
+          client.tags.forEach(tag => allTags.add(tag))
+        }
+      })
+      setAvailableTags(Array.from(allTags).sort())
+
+      // Filter by folder if selected
+      let filteredData = data;
+      if (selectedFolderId) {
+        filteredData = filteredData.filter((client: Client) => client.folder_id === selectedFolderId);
+      }
+
+      // Filter by tag if selected
+      if (selectedTag) {
+        filteredData = filteredData.filter((client: Client) => 
+          client.tags && Array.isArray(client.tags) && client.tags.includes(selectedTag)
+        );
+      }
+      
+      setClients(filteredData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFolders = async () => {
+    try {
+      const response = await fetch('/api/client-folders');
+      if (response.ok) {
+        const data = await response.json();
+        setFolders(data || []);
+      }
+    } catch (err) {
+      // Silently fail if folders don't exist yet
+      console.log('Folders not available:', err);
     }
   };
 
@@ -110,9 +183,28 @@ export default function ClientsPage() {
     }
   };
 
+  const handleMoveToFolder = async (clientId: string, folderId: string | null) => {
+    try {
+      const response = await fetch(`/api/clients/${clientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_id: folderId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to move client');
+      }
+
+      // Refresh clients list
+      fetchClients();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to move client');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading clients...</p>
@@ -123,7 +215,7 @@ export default function ClientsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error: {error}</p>
           <Button onClick={fetchClients}>Try Again</Button>
@@ -133,171 +225,125 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6">
-          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
-        </div>
-        
-        <nav className="flex-1 px-4">
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    item.active
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder-avatar.jpg" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">John Doe</p>
-              <p className="text-xs text-gray-500 truncate">john@dyluxepro.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageSidebar items={sidebarItems.map(item => ({
+        ...item,
+        active: item.active || false
+      }))} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 flex-1">
-              <div className="relative max-w-md flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search clients..."
-                  className="pl-10"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </div>
+        <PageHeader
+          title="Clients"
+          description="Manage your client relationships and track project history."
+          searchPlaceholder="Search clients..."
+          searchValue={query}
+          onSearchChange={setQuery}
+          showSearch={true}
+          primaryAction={
+            <Link href="/clients/new">
               <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
+                <Plus className="h-4 w-4 mr-2" />
+                New Client
               </Button>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link href="/clients/new">
-                <Button variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Client
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm">
-                <Bell className="h-4 w-4" />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="/placeholder-avatar.jpg" />
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile">Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">Settings</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <SignOutButton />
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </header>
+            </Link>
+          }
+          filters={
+            <Button variant="outline" size="sm">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
+          }
+        />
 
-        {/* Clients Content */}
+          {/* Clients Content */}
         <main className="flex-1 p-6">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Clients</h1>
-            <p className="text-gray-600">Manage your client relationships and track project history.</p>
+
+          {/* Folder Manager */}
+          <div className="mb-6 space-y-4">
+            <FolderManager
+              folders={folders}
+              onFoldersChange={() => {
+                fetchFolders();
+                fetchClients();
+              }}
+              selectedFolderId={selectedFolderId}
+              onFolderSelect={setSelectedFolderId}
+            />
+
+            {/* Tag Filter */}
+            {availableTags.length > 0 && (
+              <div className="flex items-center space-x-2 flex-wrap gap-2">
+                <span className="text-sm font-medium text-gray-700">Filter by Tag:</span>
+                <Button
+                  variant={selectedTag === null ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTag(null)}
+                  className="whitespace-nowrap"
+                >
+                  All Tags
+                </Button>
+                {availableTags.map((tag) => (
+                  <Button
+                    key={tag}
+                    variant={selectedTag === tag ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                    className="whitespace-nowrap"
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    {tag}
+                  </Button>
+                ))}
+                {selectedTag && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTag(null)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Users className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Clients</p>
-                    <p className="text-2xl font-bold text-gray-900">{clients.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Active Clients</p>
-                    <p className="text-2xl font-bold text-gray-900">{clients.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <DollarSign className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Value</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrencyWithSymbol(clients.reduce((sum, c) => sum + Number(c.total_value || 0), 0))}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Calendar className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Follow-ups Due</p>
-                    <p className="text-2xl font-bold text-gray-900">0</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <StatsCards
+            stats={[
+              {
+                label: "Total Clients",
+                value: clients.length,
+                icon: Users,
+                iconColor: "text-blue-600",
+                iconBg: "bg-blue-100"
+              },
+              {
+                label: "Active Clients",
+                value: clients.length,
+                icon: CheckCircle,
+                iconColor: "text-blue-600",
+                iconBg: "bg-blue-100"
+              },
+              {
+                label: "Total Value",
+                value: formatCurrencyWithSymbol(clients.reduce((sum, c) => sum + Number(c.total_value || 0), 0)),
+                icon: DollarSign,
+                iconColor: "text-orange-600",
+                iconBg: "bg-orange-100"
+              },
+              {
+                label: "Follow-ups Due",
+                value: 0,
+                icon: Calendar,
+                iconColor: "text-purple-600",
+                iconBg: "bg-purple-100"
+              }
+            ]}
+          />
 
           {/* Clients Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -318,14 +364,39 @@ export default function ClientsPage() {
                 <Card key={client.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-1">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src="/placeholder-avatar.jpg" />
                           <AvatarFallback>{client.name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{client.name}</h3>
-                          <p className="text-sm text-gray-600">Client</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
+                            {client.client_folders && (
+                              <span
+                                className="px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap"
+                                style={{
+                                  backgroundColor: `${client.client_folders.color}20`,
+                                  color: client.client_folders.color,
+                                }}
+                              >
+                                {client.client_folders.name}
+                              </span>
+                            )}
+                          </div>
+                          {client.tags && client.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {client.tags.map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700"
+                                >
+                                  <Tag className="h-3 w-3 mr-1" />
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <DropdownMenu>
@@ -368,6 +439,35 @@ export default function ClientsPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      
+                      {/* Quick Move Folder Dropdown */}
+                      {folders.length > 0 && (
+                        <div className="mt-2">
+                          <Select
+                            value={client.folder_id || "none"}
+                            onValueChange={(value) => handleMoveToFolder(client.id, value === "none" ? null : value)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <Folder className="h-3 w-3 mr-2" />
+                              <SelectValue placeholder="Move to folder" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Folder</SelectItem>
+                              {folders.map((folder) => (
+                                <SelectItem key={folder.id} value={folder.id}>
+                                  <div className="flex items-center space-x-2">
+                                    <div
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: folder.color }}
+                                    />
+                                    <span>{folder.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-3">

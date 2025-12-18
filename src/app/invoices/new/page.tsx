@@ -7,7 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Plus, Trash2, DollarSign } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, DollarSign, CreditCard, Mail } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Client {
   id: string;
@@ -36,7 +43,7 @@ interface LineItem {
   description: string;
   quantity: number;
   unit: string;
-  unit_price: number;
+  unit_price: number | string;
   total: number;
 }
 
@@ -44,6 +51,7 @@ export default function CreateInvoicePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const estimateId = searchParams.get('estimateId')
+  const jobId = searchParams.get('jobId')
   const clientId = searchParams.get('clientId')
   
   const [clients, setClients] = useState<Client[]>([])
@@ -51,21 +59,38 @@ export default function CreateInvoicePage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null)
   const [lineItems, setLineItems] = useState<LineItem[]>([])
+  const [userEmail, setUserEmail] = useState<string>('')
   const [form, setForm] = useState({
     client_id: clientId || '',
     estimate_id: estimateId || '',
+    job_id: jobId || '',
     due_date: '',
-    notes: ''
+    notes: '',
+    payment_method: '',
+    payment_email: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchClients()
+    fetchUserEmail()
     if (estimateId) {
       fetchEstimates()
     }
   }, [estimateId])
+
+  const fetchUserEmail = async () => {
+    try {
+      const response = await fetch('/api/user/profile')
+      if (response.ok) {
+        const data = await response.json()
+        setUserEmail(data.email || '')
+      }
+    } catch (err) {
+      console.error('Failed to fetch user email:', err)
+    }
+  }
 
   useEffect(() => {
     if (form.client_id) {
@@ -111,7 +136,7 @@ export default function CreateInvoicePage() {
       description: '',
       quantity: 1,
       unit: 'unit',
-      unit_price: 0,
+      unit_price: 0 as number,
       total: 0
     }])
   }
@@ -121,7 +146,10 @@ export default function CreateInvoicePage() {
     updated[index] = { ...updated[index], [field]: value }
     
     if (field === 'quantity' || field === 'unit_price') {
-      updated[index].total = Number(updated[index].quantity) * Number(updated[index].unit_price)
+      const price = typeof updated[index].unit_price === 'string' 
+        ? parseFloat(updated[index].unit_price) || 0 
+        : updated[index].unit_price;
+      updated[index].total = Number(updated[index].quantity) * price;
     }
     
     setLineItems(updated)
@@ -149,15 +177,31 @@ export default function CreateInvoicePage() {
     setError(null)
 
     try {
+      // Convert string prices to numbers before sending
+      const processedLineItems = lineItems.map(item => ({
+        ...item,
+        unit_price: typeof item.unit_price === 'string' ? parseFloat(item.unit_price) || 0 : item.unit_price
+      }));
+      
+      // Build notes with payment information
+      let notesWithPayment = form.notes || ''
+      if (form.payment_method) {
+        const paymentInfo = `\n\nPayment Method: ${form.payment_method}${form.payment_email ? `\nPayment Email: ${form.payment_email}` : ''}`
+        notesWithPayment = notesWithPayment ? notesWithPayment + paymentInfo : paymentInfo.trim()
+      }
+
       const response = await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           client_id: form.client_id,
-          estimate_id: form.estimate_id || null,
-          lineItems,
+          estimate_id: form.estimate_id && form.estimate_id !== 'none' ? form.estimate_id : null,
+          job_id: form.job_id || null,
+          lineItems: processedLineItems,
           due_date: form.due_date || null,
-          notes: form.notes || null
+          notes: notesWithPayment || null,
+          payment_method: form.payment_method || null,
+          payment_email: form.payment_email || null
         })
       })
 
@@ -200,19 +244,22 @@ export default function CreateInvoicePage() {
             <CardContent className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Client *</label>
-                <div className="relative">
-                  <select
-                    value={form.client_id}
-                    onChange={(e) => setForm(prev => ({ ...prev, client_id: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    required
-                  >
-                    <option value="">Select a client</option>
+                <Select
+                  value={form.client_id}
+                  onValueChange={(value) => setForm(prev => ({ ...prev, client_id: value }))}
+                  required
+                >
+                  <SelectTrigger className="w-full h-12">
+                    <SelectValue placeholder="Select a client" />
+                  </SelectTrigger>
+                  <SelectContent>
                     {clients.map(client => (
-                      <option key={client.id} value={client.id}>{client.name}</option>
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
 
               {selectedClient && (
@@ -232,20 +279,22 @@ export default function CreateInvoicePage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Estimate (Optional)</label>
-                <div className="relative">
-                  <select
-                    value={form.estimate_id}
-                    onChange={(e) => setForm(prev => ({ ...prev, estimate_id: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  >
-                    <option value="">No estimate</option>
+                <Select
+                  value={form.estimate_id || undefined}
+                  onValueChange={(value) => setForm(prev => ({ ...prev, estimate_id: value || '' }))}
+                >
+                  <SelectTrigger className="w-full h-12">
+                    <SelectValue placeholder="No estimate" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No estimate</SelectItem>
                     {estimates.filter(e => e.client_id === form.client_id).map(estimate => (
-                      <option key={estimate.id} value={estimate.id}>
+                      <SelectItem key={estimate.id} value={estimate.id}>
                         #{estimate.id.slice(0, 8)} - ${estimate.total.toLocaleString()}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -258,13 +307,76 @@ export default function CreateInvoicePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Notes</label>
-                  <Textarea
-                    value={form.notes}
-                    onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Additional notes..."
-                  />
+                  <label className="block text-sm font-medium mb-2">Payment Method</label>
+                  <Select
+                    value={form.payment_method}
+                    onValueChange={(value) => setForm(prev => ({ ...prev, payment_method: value, payment_email: value !== 'Email Transfer' && value !== 'Bank Transfer' ? '' : prev.payment_email }))}
+                  >
+                    <SelectTrigger className="w-full h-12">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Check">Check</SelectItem>
+                      <SelectItem value="Credit Card">Credit Card</SelectItem>
+                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="Email Transfer">Email Transfer</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
+
+              {/* Payment Email Field - shown only for Email Transfer or Bank Transfer */}
+              {(form.payment_method === 'Email Transfer' || form.payment_method === 'Bank Transfer') && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {form.payment_method === 'Email Transfer' ? 'Email Address for Transfer' : 'Bank Email Address'}
+                  </label>
+                  
+                  {/* User Email Dropdown */}
+                  {userEmail && (
+                    <div className="mb-2">
+                      <Select
+                        value={form.payment_email === userEmail ? userEmail : undefined}
+                        onValueChange={(value) => {
+                          setForm(prev => ({ ...prev, payment_email: value }))
+                        }}
+                      >
+                        <SelectTrigger className="w-full h-10 bg-gray-50">
+                          <SelectValue placeholder="Select your email address" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={userEmail}>{userEmail}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      type="email"
+                      value={form.payment_email}
+                      onChange={(e) => setForm(prev => ({ ...prev, payment_email: e.target.value }))}
+                      placeholder="Or enter email address manually"
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    This email will be included in the invoice email to the client.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Notes</label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional notes..."
+                  rows={3}
+                />
               </div>
             </CardContent>
           </Card>
@@ -283,7 +395,7 @@ export default function CreateInvoicePage() {
             <CardContent>
               {lineItems.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No line items added yet. Click "Add Item" to get started.
+                  No line items added yet. Click &quot;Add Item&quot; to get started.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -323,8 +435,45 @@ export default function CreateInvoicePage() {
                           <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                           <Input
                             type="text"
-                            value={item.unit_price}
-                            onChange={(e) => updateLineItem(index, 'unit_price', Number(e.target.value))}
+                            value={typeof item.unit_price === 'string' ? item.unit_price : (item.unit_price === 0 ? '' : item.unit_price.toString())}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Allow empty, numbers, and decimals with max 2 decimal places (including partial like "10." or ".")
+                              if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                                // If it's just "." or ends with ".", store as string to allow typing
+                                if (value === '.' || (value.endsWith('.') && !value.includes('..'))) {
+                                  // Store as string temporarily while user is typing
+                                  updateLineItem(index, 'unit_price', value);
+                                } else if (value === '') {
+                                  updateLineItem(index, 'unit_price', 0);
+                                } else {
+                                  // Convert to number only when complete, round to 2 decimal places
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue)) {
+                                    const rounded = Math.round(numValue * 100) / 100;
+                                    updateLineItem(index, 'unit_price', rounded);
+                                  } else {
+                                    updateLineItem(index, 'unit_price', 0);
+                                  }
+                                }
+                              }
+                            }}
+                            onBlur={(e) => {
+                              // When user leaves the field, convert any partial decimal to number
+                              const value = e.target.value;
+                              if (value === '.' || value === '') {
+                                updateLineItem(index, 'unit_price', 0);
+                              } else {
+                                const numValue = parseFloat(value);
+                                if (!isNaN(numValue)) {
+                                  // Round to 2 decimal places
+                                  const rounded = Math.round(numValue * 100) / 100;
+                                  updateLineItem(index, 'unit_price', rounded);
+                                } else {
+                                  updateLineItem(index, 'unit_price', 0);
+                                }
+                              }
+                            }}
                             placeholder="0.00"
                             className="pl-10"
                             required

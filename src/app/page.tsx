@@ -31,9 +31,6 @@ export default function Home() {
                 <Link href="#features" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                   Features
                 </Link>
-                <Link href="#pricing" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
-                  Pricing
-                </Link>
                 <Link href="#contact" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                   Contact
                 </Link>
@@ -42,12 +39,12 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <Link href="/login">
                 <Button variant="outline" size="sm">
-                  Sign In
+                  Login
                 </Button>
               </Link>
-              <Link href="/dashboard">
+              <Link href="/signup">
                 <Button size="sm">
-                  Try Demo
+                  Get Started
                 </Button>
               </Link>
             </div>
@@ -60,23 +57,25 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Close more landscaping jobs,{" "}
+              Close more jobs,{" "}
               <span className="text-blue-600">faster.</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               Organize clients, send estimates, and automate follow-ups — all in one place. 
-              The CRM built specifically for landscaping professionals.
+              The CRM built specifically for contractors.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/dashboard">
+              <Link href="/signup">
                 <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-                  Try Demo
+                  Get Started Free
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline">
-                Book a Call
-              </Button>
+              <Link href="/login">
+                <Button size="lg" variant="outline">
+                  Sign In
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -90,7 +89,7 @@ export default function Home() {
               Everything you need to grow your business
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Streamline your landscaping operations with powerful tools designed for your industry.
+              Streamline your contractor operations with powerful tools designed for your trade.
             </p>
           </div>
           
@@ -196,7 +195,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8 text-white">
             <div>
               <div className="text-3xl font-bold mb-2">500+</div>
-              <div className="text-blue-100">Landscaping Companies</div>
+              <div className="text-blue-100">Contractor Companies</div>
             </div>
             <div>
               <div className="text-3xl font-bold mb-2">$2M+</div>
@@ -217,23 +216,23 @@ export default function Home() {
             <div>
               <h3 className="text-xl font-bold text-blue-400 mb-4">DyluxePro</h3>
               <p className="text-gray-400">
-                The CRM built specifically for landscaping professionals.
+                The CRM built specifically for contractors and trade professionals.
               </p>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="/dashboard" className="hover:text-white">Features</Link></li>
-                <li><Link href="#" className="hover:text-white">Pricing</Link></li>
-                <li><Link href="#" className="hover:text-white">Integrations</Link></li>
+                <li><Link href="#features" className="hover:text-white">Features</Link></li>
+                <li><Link href="/login" className="hover:text-white">Login</Link></li>
+                <li><Link href="/signup" className="hover:text-white">Sign Up</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Company</h4>
+              <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="#" className="hover:text-white">About</Link></li>
-                <li><Link href="#" className="hover:text-white">Contact</Link></li>
-                <li><Link href="#" className="hover:text-white">Support</Link></li>
+                <li><Link href="/dashboard" className="hover:text-white">Dashboard</Link></li>
+                <li><Link href="#contact" className="hover:text-white">Contact</Link></li>
+                <li><Link href="/settings" className="hover:text-white">Settings</Link></li>
               </ul>
             </div>
             <div>

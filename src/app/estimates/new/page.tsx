@@ -6,7 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { DollarSign, Search, User, ChevronDown, Check } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Search, User, ChevronDown, Check } from "lucide-react";
+import MaterialSelector from "@/components/estimates/material-selector";
 
 type Client = { id: string; name: string; email?: string; phone?: string };
 
@@ -16,9 +19,17 @@ export default function NewEstimatePage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState("");
   const [leadId, setLeadId] = useState<string | null>(null);
-  const [items, setItems] = useState([
+  const [items, setItems] = useState<Array<{
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number | string;
+    material_id?: string;
+  }>>([
     { description: "", quantity: 1, unit: "unit", unit_price: 0 },
   ]);
+  const [materialIds, setMaterialIds] = useState<Record<number, string>>({});
+  const [contractMessage, setContractMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -71,12 +82,12 @@ export default function NewEstimatePage() {
     }
   }, [isClientDropdownOpen]);
 
-  function updateItem(idx: number, key: string, value: any) {
+  function updateItem(idx: number, key: string, value: string | number) {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [key]: value } : it)));
   }
 
   function addItem() {
-    setItems((prev) => [...prev, { description: "", quantity: 1, unit: "unit", unit_price: 0 }]);
+    setItems((prev) => [...prev, { description: "", quantity: 1, unit: "unit", unit_price: 0 as number }]);
   }
 
   function handleClientSelect(client: Client) {
@@ -90,10 +101,16 @@ export default function NewEstimatePage() {
     try {
       setSending(true);
       setError(null);
+      // Convert string prices to numbers before sending
+      const lineItems = items.map(item => ({
+        ...item,
+        unit_price: typeof item.unit_price === 'string' ? parseFloat(item.unit_price) || 0 : item.unit_price
+      }));
       const body = {
         client_id: clientId,
         lead_id: leadId,
-        lineItems: items,
+        lineItems,
+        contract_message: contractMessage || null,
         send,
       };
       const res = await fetch("/api/estimates", {
@@ -111,7 +128,10 @@ export default function NewEstimatePage() {
   }
 
   const subtotal = items.reduce(
-    (sum, it) => sum + Number(it.quantity || 0) * Number(it.unit_price || 0),
+    (sum, it) => {
+      const price = typeof it.unit_price === 'string' ? parseFloat(it.unit_price) || 0 : it.unit_price;
+      return sum + Number(it.quantity || 0) * price;
+    },
     0
   );
   const tax = Math.round(subtotal * 0.13 * 100) / 100;
@@ -226,11 +246,45 @@ export default function NewEstimatePage() {
           <CardContent className="space-y-3">
             {items.map((it, i) => (
               <div key={i} className="grid grid-cols-12 gap-2">
-                <div className="col-span-6">
+                <div className="col-span-6 space-y-2">
+                  <MaterialSelector
+                    value={materialIds[i]}
+                    onSelect={(material) => {
+                      if (material) {
+                        // Pre-fill from material catalog
+                        updateItem(i, "description", material.name);
+                        updateItem(i, "unit", material.unit);
+                        updateItem(i, "unit_price", material.default_price);
+                        setMaterialIds(prev => ({ ...prev, [i]: material.id }));
+                      } else {
+                        // Custom entry - allow manual input
+                        setMaterialIds(prev => {
+                          const newIds = { ...prev };
+                          delete newIds[i];
+                          return newIds;
+                        });
+                        // Clear description if switching from material to custom
+                        if (materialIds[i]) {
+                          updateItem(i, "description", "");
+                        }
+                      }
+                    }}
+                    onCustomEntry={() => {
+                      setMaterialIds(prev => {
+                        const newIds = { ...prev };
+                        delete newIds[i];
+                        return newIds;
+                      });
+                    }}
+                  />
+                  {/* Always show description input - will be pre-filled if material selected, but can be edited */}
                   <Input
-                    placeholder="Description"
+                    placeholder="Description (type manually or select from catalog above)"
                     value={it.description}
-                    onChange={(e) => updateItem(i, "description", e.target.value)}
+                    onChange={(e) => {
+                      // Allow manual typing - always update description
+                      updateItem(i, "description", e.target.value);
+                    }}
                   />
                 </div>
                 <div className="col-span-2">
@@ -249,21 +303,79 @@ export default function NewEstimatePage() {
                     onChange={(e) => updateItem(i, "unit", e.target.value)}
                   />
                 </div>
-                <div className="col-span-2 relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    type="text"
-                    placeholder="0.00"
-                    value={it.unit_price}
-                    onChange={(e) => updateItem(i, "unit_price", Number(e.target.value))}
-                    className="pl-10"
-                  />
+                <div className="col-span-2">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium pointer-events-none z-10">$</span>
+                    <Input
+                      type="text"
+                      placeholder="0.00"
+                      value={typeof it.unit_price === 'string' ? it.unit_price : (it.unit_price === 0 ? '' : it.unit_price.toString())}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow empty, numbers, and decimals with max 2 decimal places (including partial like "10." or ".")
+                        if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                          // If it's just "." or ends with ".", store as string to allow typing
+                          if (value === '.' || (value.endsWith('.') && !value.includes('..'))) {
+                            // Store as string temporarily while user is typing
+                            updateItem(i, "unit_price", value);
+                          } else if (value === '') {
+                            updateItem(i, "unit_price", 0);
+                          } else {
+                            // Convert to number only when complete, round to 2 decimal places
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                              const rounded = Math.round(numValue * 100) / 100;
+                              updateItem(i, "unit_price", rounded);
+                            } else {
+                              updateItem(i, "unit_price", 0);
+                            }
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // When user leaves the field, convert any partial decimal to number
+                        const value = e.target.value;
+                        if (value === '.' || value === '') {
+                          updateItem(i, "unit_price", 0);
+                        } else {
+                          const numValue = parseFloat(value);
+                          if (!isNaN(numValue) && numValue > 0) {
+                            // Round to 2 decimal places
+                            const rounded = Math.round(numValue * 100) / 100;
+                            updateItem(i, "unit_price", rounded);
+                          } else {
+                            updateItem(i, "unit_price", 0);
+                          }
+                        }
+                      }}
+                      className="pl-7"
+                    />
+                  </div>
                 </div>
               </div>
             ))}
             <Button variant="outline" onClick={addItem}>
               Add Item
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Contract Message (Optional)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="contract-message" className="text-sm text-gray-600 mb-2 block">
+              Add a custom message or terms to include in the estimate contract
+            </Label>
+            <Textarea
+              id="contract-message"
+              placeholder="e.g., Payment terms, warranty information, special conditions..."
+              value={contractMessage}
+              onChange={(e) => setContractMessage(e.target.value)}
+              rows={4}
+              className="w-full"
+            />
           </CardContent>
         </Card>
 

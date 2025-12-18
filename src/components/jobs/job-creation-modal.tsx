@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar, Clock, MapPin, User, X } from "lucide-react";
+import TeamMemberSelector from "./team-member-selector";
+import TimePicker from "@/components/ui/time-picker";
 
 interface Client {
   id: string;
@@ -30,19 +32,30 @@ interface Client {
   address?: string;
 }
 
+interface Estimate {
+  id: string;
+  client_id: string;
+  title?: string;
+  description?: string;
+  total?: number;
+}
+
 interface JobCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onJobCreated: (job: any) => void;
+  estimate?: Estimate | null; // Optional estimate to pre-fill job data
 }
 
-export default function JobCreationModal({ isOpen, onClose, onJobCreated }: JobCreationModalProps) {
+export default function JobCreationModal({ isOpen, onClose, onJobCreated, estimate }: JobCreationModalProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     client_id: "",
+    start_date: "",
     start_time: "",
+    end_date: "",
     end_time: "",
     status: "Scheduled",
     location: "",
@@ -50,8 +63,21 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated }: JobC
     estimated_duration: "",
     team_members: "",
     equipment: "",
-    notes: ""
+    notes: "",
+    tags: ""
   });
+
+  // Pre-fill form data when estimate is provided
+  useEffect(() => {
+    if (estimate && isOpen) {
+      setFormData(prev => ({
+        ...prev,
+        client_id: estimate.client_id,
+        title: estimate.title || prev.title,
+        description: estimate.description || prev.description
+      }));
+    }
+  }, [estimate, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -76,16 +102,54 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated }: JobC
     setLoading(true);
 
     try {
+      // Convert date and time to ISO format for database
+      const formatDateTimeISO = (dateStr: string, timeStr: string) => {
+        if (!dateStr || !timeStr) return null;
+        try {
+          // Parse the date and time components
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          
+          // Create a date object in local timezone (this is what the user selected)
+          const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+          
+          // Convert to ISO string
+          return localDate.toISOString();
+        } catch (error) {
+          console.error('Error formatting date/time:', error);
+          // Fallback: send as local datetime string
+          return `${dateStr}T${timeStr}:00`;
+        }
+      };
+
+      const startTimeISO = formatDateTimeISO(formData.start_date, formData.start_time);
+      const endTimeISO = formatDateTimeISO(formData.end_date, formData.end_time);
+
+      if (!startTimeISO || !endTimeISO) {
+        alert('Please fill in both start and end date/time');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/jobs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
+          title: formData.title,
+          client_id: formData.client_id,
+          estimate_id: estimate?.id || null,
+          start_time: startTimeISO,
+          end_time: endTimeISO,
+          status: formData.status,
+          location: formData.location,
+          description: formData.description,
           estimated_duration: parseFloat(formData.estimated_duration) || 0,
           team_members: formData.team_members ? formData.team_members.split(',').map(m => m.trim()) : [],
-          equipment: formData.equipment ? formData.equipment.split(',').map(e => e.trim()) : []
+          equipment: formData.equipment ? formData.equipment.split(',').map(e => e.trim()) : [],
+          notes: formData.notes,
+          tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t.length > 0) : []
         }),
       });
 
@@ -96,7 +160,9 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated }: JobC
         setFormData({
           title: "",
           client_id: "",
+          start_date: "",
           start_time: "",
+          end_date: "",
           end_time: "",
           status: "Scheduled",
           location: "",
@@ -190,27 +256,67 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated }: JobC
               </div>
             )}
 
+            {/* Start Date */}
+            <div>
+              <Label htmlFor="start_date">Start Date *</Label>
+              <Input
+                id="start_date"
+                type="date"
+                value={formData.start_date}
+                onChange={(e) => {
+                  handleInputChange('start_date', e.target.value);
+                  // Auto-set end date if not set or if it's before start date
+                  if (!formData.end_date || (e.target.value && e.target.value > formData.end_date)) {
+                    handleInputChange('end_date', e.target.value);
+                  }
+                }}
+                required
+                className="w-full"
+              />
+            </div>
+
             {/* Start Time */}
             <div>
-              <Label htmlFor="start_time">Start Time *</Label>
-              <Input
-                id="start_time"
-                type="datetime-local"
+              <TimePicker
                 value={formData.start_time}
-                onChange={(e) => handleInputChange('start_time', e.target.value)}
+                onChange={(value) => {
+                  handleInputChange('start_time', value);
+                  // Auto-set end time if it's before start time
+                  if (formData.end_date === formData.start_date && value && formData.end_time && value > formData.end_time) {
+                    const [startHour, startMinute] = value.split(':').map(Number);
+                    const newEndDate = new Date(formData.start_date);
+                    newEndDate.setHours(startHour + 2, startMinute); // Default 2 hours duration
+                    handleInputChange('end_date', newEndDate.toISOString().split('T')[0]);
+                    handleInputChange('end_time', newEndDate.toTimeString().slice(0, 5));
+                  }
+                }}
+                label="Start Time"
                 required
+              />
+            </div>
+
+            {/* End Date */}
+            <div>
+              <Label htmlFor="end_date">End Date *</Label>
+              <Input
+                id="end_date"
+                type="date"
+                value={formData.end_date}
+                onChange={(e) => handleInputChange('end_date', e.target.value)}
+                required
+                className="w-full"
+                min={formData.start_date || undefined}
               />
             </div>
 
             {/* End Time */}
             <div>
-              <Label htmlFor="end_time">End Time *</Label>
-              <Input
-                id="end_time"
-                type="datetime-local"
+              <TimePicker
                 value={formData.end_time}
-                onChange={(e) => handleInputChange('end_time', e.target.value)}
+                onChange={(value) => handleInputChange('end_time', value)}
+                label="End Time"
                 required
+                min={formData.start_date === formData.end_date ? formData.start_time : undefined}
               />
             </div>
 
@@ -271,13 +377,12 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated }: JobC
             </div>
 
             {/* Team Members */}
-            <div>
-              <Label htmlFor="team_members">Team Members</Label>
-              <Input
-                id="team_members"
+            <div className="md:col-span-2">
+              <TeamMemberSelector
                 value={formData.team_members}
-                onChange={(e) => handleInputChange('team_members', e.target.value)}
-                placeholder="John, Mike, Sarah (comma separated)"
+                onChange={(value) => handleInputChange('team_members', value)}
+                label="Team Members"
+                placeholder="Select team members or type names manually"
               />
             </div>
 
@@ -290,6 +395,19 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated }: JobC
                 onChange={(e) => handleInputChange('equipment', e.target.value)}
                 placeholder="Mower, Trimmer, Blower (comma separated)"
               />
+            </div>
+
+            {/* Tags */}
+            <div>
+              <Label htmlFor="tags">Tags</Label>
+              <Input
+                id="tags"
+                value={formData.tags}
+                onChange={(e) => handleInputChange('tags', e.target.value)}
+                placeholder="e.g., urgent, follow-up, maintenance (comma-separated)"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
             </div>
 
             {/* Notes */}

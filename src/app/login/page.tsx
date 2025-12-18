@@ -30,7 +30,14 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.push("/dashboard");
+        // Check if email is verified
+        if (data.user && !data.user.email_confirmed_at) {
+          // Email not verified, redirect to verification page
+          router.push("/verify-email");
+        } else {
+          // Email verified, go to dashboard
+          router.push("/dashboard");
+        }
       }
     } catch (err) {
       setError("An unexpected error occurred");
@@ -47,16 +54,19 @@ export default function LoginPage() {
             Sign in to DyluxePro
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Or{" "}
+            Manage your contracting business with our professional CRM
+          </p>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Don't have an account?{" "}
             <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-              create a new account
+              Create a new account
             </Link>
           </p>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Enter your credentials to access your CRM</CardDescription>
+            <CardTitle>Contractor Login</CardTitle>
+            <CardDescription>Enter your credentials to access your CRM dashboard</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">

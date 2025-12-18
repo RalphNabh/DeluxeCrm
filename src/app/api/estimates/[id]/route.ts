@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkAndExecuteAutomations } from '@/lib/automations/executor'
 
 export async function GET(
   request: NextRequest,
@@ -57,7 +58,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
@@ -68,6 +69,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const { status } = body
 
@@ -82,7 +84,7 @@ export async function PUT(
         status,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .select(`
         *,
@@ -143,6 +145,23 @@ export async function PUT(
           console.error('Error updating lead status:', leadError)
           // Don't fail the request, just log the error
         }
+      }
+    }
+
+    // Trigger automations if estimate was approved
+    if (status === 'Approved') {
+      try {
+        await checkAndExecuteAutomations('estimate_approved', {
+          event: 'estimate_approved',
+          user_id: user.id,
+          estimate_id: id,
+          client_name: updatedEstimate.clients?.name || 'Client',
+          client_email: updatedEstimate.clients?.email || undefined,
+          user_email: user.email || undefined
+        })
+      } catch (automationError) {
+        console.error('Error triggering automations:', automationError)
+        // Don't fail the request if automation fails
       }
     }
 

@@ -1,6 +1,6 @@
 # DyluxePro CRM
 
-A modern, responsive landscaping CRM demo built with Next.js, Tailwind CSS, and Shadcn/UI components.
+A modern, responsive contractor CRM built with Next.js, Tailwind CSS, and Shadcn/UI components.
 
 ## Features
 
@@ -81,4 +81,4 @@ The design system is easily customizable through:
 - Component variants in Shadcn/UI
 - Color scheme and spacing variables
 
-Built for landscaping professionals who need a modern, efficient CRM solution.
+Built for contractors and trade professionals who need a modern, efficient CRM solution.

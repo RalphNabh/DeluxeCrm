@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   DollarSign, 
   CreditCard, 
@@ -181,20 +188,24 @@ export default function PaymentTracker({
                   </div>
                   <div>
                     <label className="text-sm font-medium">Method</label>
-                    <select
-                      className="w-full p-2 border rounded-md"
+                    <Select
                       value={newPayment.method}
-                      onChange={(e) => setNewPayment(prev => ({ 
+                      onValueChange={(value) => setNewPayment(prev => ({ 
                         ...prev, 
-                        method: e.target.value 
+                        method: value 
                       }))}
                     >
-                      <option value="Cash">Cash</option>
-                      <option value="Check">Check</option>
-                      <option value="Credit Card">Credit Card</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Other">Other</option>
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Check">Check</SelectItem>
+                        <SelectItem value="Credit Card">Credit Card</SelectItem>
+                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 

@@ -12,6 +12,7 @@ import {
   FileText, 
   DollarSign,
   Calendar,
+  BarChart3,
   Zap, 
   Settings, 
   Search,
@@ -25,7 +26,10 @@ import {
   Mail,
   MapPin,
   Plus,
-  Eye
+  Eye,
+  Clock,
+  CheckSquare,
+  Gift
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,7 +38,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
+import UserProfile from "@/components/layout/user-profile";
+import PageSidebar from "@/components/layout/page-sidebar";
+import PageHeader from "@/components/layout/page-header";
+import StatsCards from "@/components/ui/stats-cards";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+import { Package } from "lucide-react";
 
 interface Estimate {
   id: string;
@@ -67,7 +77,11 @@ const sidebarItems = [
   { icon: FileText, label: "Estimates", href: "/estimates", active: true },
   { icon: DollarSign, label: "Invoices", href: "/invoices" },
   { icon: Calendar, label: "Calendar", href: "/calendar" },
+  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
+  { icon: BarChart3, label: "Reports", href: "/reports" },
+  { icon: Users, label: "Team", href: "/team" },
   { icon: Zap, label: "Automations", href: "/automations" },
+  { icon: Gift, label: "Affiliates", href: "/affiliates" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
@@ -75,6 +89,7 @@ export default function EstimatePage() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [linkedJobsMap, setLinkedJobsMap] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     fetchEstimates();
@@ -88,6 +103,27 @@ export default function EstimatePage() {
       }
       const data = await response.json();
       setEstimates(data);
+      
+      // Fetch linked jobs for all estimates
+      try {
+        const jobsResponse = await fetch('/api/jobs');
+        if (jobsResponse.ok) {
+          const jobs = await jobsResponse.json();
+          const jobsMap: Record<string, any[]> = {};
+          data.forEach((estimate: Estimate) => {
+            const linked = jobs.filter((job: Record<string, unknown>) => 
+              job.estimate_id === estimate.id
+            );
+            if (linked.length > 0) {
+              jobsMap[estimate.id] = linked;
+            }
+          });
+          setLinkedJobsMap(jobsMap);
+        }
+      } catch (e) {
+        // Column may not exist yet, ignore
+        console.log('Could not fetch linked jobs:', e);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -109,7 +145,7 @@ export default function EstimatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading estimates...</p>
@@ -120,7 +156,7 @@ export default function EstimatePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error: {error}</p>
           <Button onClick={fetchEstimates}>Try Again</Button>
@@ -129,160 +165,72 @@ export default function EstimatePage() {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6">
-          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
-        </div>
-        
-        <nav className="flex-1 px-4">
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    item.active
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder-avatar.jpg" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">John Doe</p>
-              <p className="text-xs text-gray-500 truncate">john@dyluxepro.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageSidebar items={sidebarItems.map(item => ({
+        ...item,
+        active: item.active || false
+      }))} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Estimates</h1>
-              <p className="text-gray-600 mt-1">Manage your project estimates and track approval status.</p>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link href="/estimates/new">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Estimate
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm">
-                <Bell className="h-4 w-4" />
+        <PageHeader
+          title="Estimates"
+          description="Manage your project estimates and track approval status."
+          primaryAction={
+            <Link href="/estimates/new">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Estimate
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="/placeholder-avatar.jpg" />
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile">Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">Settings</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <SignOutButton />
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </header>
+            </Link>
+          }
+          secondaryActions={
+            <Link href="/materials">
+              <Button variant="outline">
+                <Package className="h-4 w-4 mr-2" />
+                Materials Catalog
+              </Button>
+            </Link>
+          }
+        />
 
         {/* Estimates Content */}
         <main className="flex-1 p-6">
-
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Estimates</p>
-                    <p className="text-2xl font-bold text-gray-900">{estimates.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Check className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Approved</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {estimates.filter(e => e.status === 'Approved').length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Calendar className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {estimates.filter(e => e.status === 'Sent').length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <DollarSign className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Value</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrencyWithSymbol(estimates.reduce((sum, e) => sum + e.total, 0))}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <StatsCards
+            stats={[
+              {
+                label: "Total Estimates",
+                value: estimates.length,
+                icon: FileText,
+                iconColor: "text-blue-600",
+                iconBg: "bg-blue-100"
+              },
+              {
+                label: "Approved",
+                value: estimates.filter(e => e.status === 'Approved').length,
+                icon: Check,
+                iconColor: "text-green-600",
+                iconBg: "bg-green-100"
+              },
+              {
+                label: "Pending",
+                value: estimates.filter(e => e.status === 'Sent').length,
+                icon: Calendar,
+                iconColor: "text-orange-600",
+                iconBg: "bg-orange-100"
+              },
+              {
+                label: "Total Value",
+                value: formatCurrencyWithSymbol(estimates.reduce((sum, e) => sum + e.total, 0)),
+                icon: DollarSign,
+                iconColor: "text-purple-600",
+                iconBg: "bg-purple-100"
+              }
+            ]}
+          />
 
           {/* Estimates List */}
           {estimates.length === 0 ? (
@@ -303,8 +251,16 @@ export default function EstimatePage() {
                 <Card key={estimate.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">#{estimate.id.slice(0, 8)}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">#{estimate.id.slice(0, 8)}</h3>
+                          {linkedJobsMap[estimate.id] && linkedJobsMap[estimate.id].length > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title="Has linked job">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              Job
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-600">{estimate.clients?.name || 'Unknown Client'}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(estimate.status)}`}>
