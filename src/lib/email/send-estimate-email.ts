@@ -2,8 +2,6 @@ import { Resend } from 'resend';
 import { createClient } from '@/lib/supabase/server';
 import { checkAndExecuteAutomations } from '@/lib/automations/executor';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function sendEstimateEmail(
   estimateId: string,
   clientEmail: string,
@@ -156,6 +154,14 @@ export async function sendEstimateEmail(
     // Use RESEND_FROM_EMAIL environment variable, fallback to test domain
     // Once dyluxepro.com is verified in Resend, set RESEND_FROM_EMAIL=noreply@dyluxepro.com
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'DyluxePro <onboarding@resend.dev>';
+    
+    // Initialize Resend client (lazy initialization to avoid build-time errors)
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: 'RESEND_API_KEY is not configured. Please set it in your environment variables.' };
+    }
+    const resend = new Resend(apiKey);
+    
     
     const { data, error } = await resend.emails.send({
       from: fromEmail,
