@@ -13,6 +13,7 @@ interface PageHeaderProps {
   showSearch?: boolean;
   primaryAction?: ReactNode;
   secondaryActions?: ReactNode;
+  filters?: ReactNode;
 }
 
 export default function PageHeader({
@@ -24,6 +25,7 @@ export default function PageHeader({
   showSearch = false,
   primaryAction,
   secondaryActions,
+  filters,
 }: PageHeaderProps) {
   return (
     <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 transition-colors">
@@ -46,6 +48,12 @@ export default function PageHeader({
                 onChange={(e) => onSearchChange?.(e.target.value)}
                 className="pl-10 w-full md:w-64"
               />
+            </div>
+          )}
+          
+          {filters && (
+            <div className="flex items-center space-x-2">
+              {filters}
             </div>
           )}
           
