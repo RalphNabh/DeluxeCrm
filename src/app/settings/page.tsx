@@ -99,7 +99,6 @@ export default function SettingsPage() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [portalLoading, setPortalLoading] = useState(false)
-  const supabase = createClient()
 
   useEffect(() => {
     // Load user settings from localStorage
@@ -204,7 +203,8 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      // Update password using Supabase
+      // Update password using Supabase (create client inside function to avoid build-time errors)
+      const supabase = createClient()
       const { error } = await supabase.auth.updateUser({
         password: passwordData.newPassword
       })
@@ -279,7 +279,8 @@ export default function SettingsPage() {
         setMessage(errorData.error || 'Failed to delete account. Please contact support.')
       } else {
         setMessage('Account deleted successfully. Redirecting...')
-        // Sign out and redirect
+        // Sign out and redirect (create client inside function to avoid build-time errors)
+        const supabase = createClient()
         await supabase.auth.signOut()
         setTimeout(() => {
           router.push('/login')
