@@ -12,7 +12,6 @@ export default function SignupConfirmPage() {
   const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [showResendForm, setShowResendForm] = useState(false)
   const [email, setEmail] = useState('')
-  const supabase = createClient()
 
   const handleResendConfirmation = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -26,6 +25,8 @@ export default function SignupConfirmPage() {
     setResendMessage(null)
     
     try {
+      // Create Supabase client inside function to avoid build-time errors
+      const supabase = createClient()
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email.trim(),
