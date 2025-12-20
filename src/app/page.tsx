@@ -37,16 +37,16 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/login">
-                <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/login">
                   Login
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button size="sm">
+                </Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/signup">
                   Get Started
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -65,17 +65,17 @@ export default function Home() {
               The CRM built specifically for contractors.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup">
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700" asChild>
+                <Link href="/signup">
                   Get Started Free
                   <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button size="lg" variant="outline">
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/login">
                   Sign In
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -244,7 +244,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center">
                   <Phone className="h-4 w-4 mr-2" />
-                  (555) 123-4567
+                  (613) 262-1422
                 </div>
               </div>
             </div>
