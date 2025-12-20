@@ -9,21 +9,22 @@ export function NotificationToast() {
   const { notifications, markAsRead } = useNotifications()
   const [visible, setVisible] = useState(false)
   const [currentToastId, setCurrentToastId] = useState<string | null>(null)
-  const [shownToastIds, setShownToastIds] = useState<Set<string>>(new Set())
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   
-  // Show toast for the most recent unread notification that hasn't been shown yet
-  const latestUnread = notifications.find(n => !n.read && !shownToastIds.has(n.id))
+  // Show toast for the most recent unread notification that hasn't been dismissed in this session
+  const latestUnread = notifications.find(n => !n.read && !dismissedIds.has(n.id))
 
   useEffect(() => {
-    if (latestUnread && !visible && currentToastId === null) {
+    // Only show if we have an unread notification and no toast is currently visible
+    if (latestUnread && currentToastId !== latestUnread.id) {
       setCurrentToastId(latestUnread.id)
-      setShownToastIds(prev => new Set(prev).add(latestUnread.id))
       setVisible(true)
       
       // Auto-dismiss after 5 seconds
       const timer = setTimeout(() => {
         setVisible(false)
         markAsRead(latestUnread.id)
+        setDismissedIds(prev => new Set(prev).add(latestUnread.id))
         setTimeout(() => {
           setCurrentToastId(null)
         }, 300) // Reset after animation
@@ -37,9 +38,9 @@ export function NotificationToast() {
         setCurrentToastId(null)
       }, 300)
     }
-  }, [latestUnread, visible, currentToastId, markAsRead])
+  }, [notifications, latestUnread?.id, visible, currentToastId, markAsRead])
 
-  if (!latestUnread || !visible) return null
+  if (!latestUnread || !visible || currentToastId !== latestUnread.id) return null
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -85,6 +86,7 @@ export function NotificationToast() {
             onClick={() => {
               setVisible(false)
               markAsRead(latestUnread.id)
+              setDismissedIds(prev => new Set(prev).add(latestUnread.id))
               setTimeout(() => {
                 setCurrentToastId(null)
               }, 300)
