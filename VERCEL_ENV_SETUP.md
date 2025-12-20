@@ -78,18 +78,33 @@ Follow these steps to get all your API keys and set them up in Vercel.
 2. Click on **"Webhooks"** in the left sidebar
 3. **Make sure you're in Test Mode** (the toggle at the top of the Stripe dashboard)
 4. Click **"Add endpoint"** button
-5. Set endpoint URL to: `https://dyluxepro.com/api/stripe/webhook`
-6. Select events to listen to:
+
+**Configure the webhook:**
+5. **Endpoint URL:** Enter `https://dyluxepro.com/api/stripe/webhook`
+
+6. **Events from:** Select **"Your account"** (not "Connected and v2 accounts")
+
+7. **API version:** Leave as default (e.g., `2025-11-17.clover`)
+
+8. **Events:** Select **"Selected events"** (not "All events"), then add these specific events:
    - `checkout.session.completed`
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
    - `invoice.payment_succeeded`
    - `invoice.payment_failed`
-7. Click **"Add endpoint"**
-8. Click on the endpoint you just created
-9. In the **"Signing secret"** section, click **"Reveal"**
-10. Copy the signing secret (starts with `whsec_...`)
-11. This is your `STRIPE_WEBHOOK_SECRET`
+   
+   You can search for each event in the search box or scroll through the list to find them.
+
+9. Click **"Add endpoint"**
+
+10. After the endpoint is created, click on it to view details
+
+11. In the **"Signing secret"** section, click **"Reveal"** or **"Click to reveal"**
+
+12. Copy the signing secret (starts with `whsec_test_...` for test mode)
+    - ⚠️ **You can only see this once!** Save it immediately.
+
+13. This is your `STRIPE_WEBHOOK_SECRET`
 
 **Note:** These are test mode keys for development/testing. No real payments will be processed. When ready for production, you'll need to complete Stripe's business verification and get live mode keys.
 
