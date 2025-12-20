@@ -80,13 +80,15 @@ Follow these steps to get all your API keys and set them up in Vercel.
 4. Click **"Add endpoint"** button
 
 **Configure the webhook:**
-5. **Endpoint URL:** Enter `https://dyluxepro.com/api/stripe/webhook`
+5. **Destination type:** Select **"Webhook endpoint"** (or just "Webhook" - this is the standard option)
 
-6. **Events from:** Select **"Your account"** (not "Connected and v2 accounts")
+6. **Endpoint URL:** Enter `https://dyluxepro.com/api/stripe/webhook`
 
-7. **API version:** Leave as default (e.g., `2025-11-17.clover`)
+7. **Events from:** Select **"Your account"** (not "Connected and v2 accounts")
 
-8. **Events:** Select **"Selected events"** (not "All events"), then add these specific events:
+8. **API version:** Leave as default (e.g., `2025-11-17.clover`)
+
+9. **Events:** Select **"Selected events"** (not "All events"), then add these specific events:
    - `checkout.session.completed`
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
@@ -95,16 +97,16 @@ Follow these steps to get all your API keys and set them up in Vercel.
    
    You can search for each event in the search box or scroll through the list to find them.
 
-9. Click **"Add endpoint"**
+10. Click **"Add endpoint"** button
 
-10. After the endpoint is created, click on it to view details
+11. After the endpoint is created, click on it to view details
 
-11. In the **"Signing secret"** section, click **"Reveal"** or **"Click to reveal"**
+12. In the **"Signing secret"** section, click **"Reveal"** or **"Click to reveal"**
 
-12. Copy the signing secret (starts with `whsec_test_...` for test mode)
+13. Copy the signing secret (starts with `whsec_test_...` for test mode)
     - ⚠️ **You can only see this once!** Save it immediately.
 
-13. This is your `STRIPE_WEBHOOK_SECRET`
+14. This is your `STRIPE_WEBHOOK_SECRET`
 
 **Note:** These are test mode keys for development/testing. No real payments will be processed. When ready for production, you'll need to complete Stripe's business verification and get live mode keys.
 
