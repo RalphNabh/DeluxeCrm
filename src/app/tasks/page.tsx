@@ -131,8 +131,8 @@ export default function TasksPage() {
     priority: "Medium" as Task['priority'],
     due_date: "",
     tags: "",
-    client_id: "",
-    job_id: "",
+    client_id: "none",
+    job_id: "none",
     assigned_to: ""
   });
 
@@ -245,8 +245,8 @@ export default function TasksPage() {
         body: JSON.stringify({
           ...formData,
           tags: tagsArray,
-          client_id: formData.client_id || null,
-          job_id: formData.job_id || null,
+          client_id: formData.client_id && formData.client_id !== "none" ? formData.client_id : null,
+          job_id: formData.job_id && formData.job_id !== "none" ? formData.job_id : null,
           due_date: formData.due_date || null
         })
       });
@@ -275,8 +275,8 @@ export default function TasksPage() {
         body: JSON.stringify({
           ...formData,
           tags: tagsArray,
-          client_id: formData.client_id || null,
-          job_id: formData.job_id || null,
+          client_id: formData.client_id && formData.client_id !== "none" ? formData.client_id : null,
+          job_id: formData.job_id && formData.job_id !== "none" ? formData.job_id : null,
           due_date: formData.due_date || null
         })
       });
@@ -347,8 +347,8 @@ export default function TasksPage() {
       priority: task.priority,
       due_date: task.due_date ? task.due_date.split('T')[0] : "",
       tags: task.tags?.join(', ') || "",
-      client_id: task.client_id || "",
-      job_id: task.job_id || "",
+      client_id: task.client_id || "none",
+      job_id: task.job_id || "none",
       assigned_to: task.assigned_to || ""
     });
     setShowTaskDialog(true);
@@ -706,12 +706,12 @@ export default function TasksPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="client_id">Linked Client (Optional)</Label>
-                <Select value={formData.client_id} onValueChange={(value) => setFormData({ ...formData, client_id: value })}>
+                <Select value={formData.client_id || "none"} onValueChange={(value) => setFormData({ ...formData, client_id: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a client" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.name}
@@ -723,7 +723,7 @@ export default function TasksPage() {
 
               <div>
                 <Label htmlFor="job_id">Linked Job (Optional)</Label>
-                <Select value={formData.job_id} onValueChange={(value) => setFormData({ ...formData, job_id: value })}>
+                <Select value={formData.job_id || "none"} onValueChange={(value) => setFormData({ ...formData, job_id: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a job" />
                   </SelectTrigger>
