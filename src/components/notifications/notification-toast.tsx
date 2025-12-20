@@ -9,25 +9,35 @@ export function NotificationToast() {
   const { notifications, markAsRead } = useNotifications()
   const [visible, setVisible] = useState(false)
   const [currentToastId, setCurrentToastId] = useState<string | null>(null)
+  const [shownToastIds, setShownToastIds] = useState<Set<string>>(new Set())
   
-  // Show toast for the most recent unread notification
-  const latestUnread = notifications.find(n => !n.read && n.id !== currentToastId)
+  // Show toast for the most recent unread notification that hasn't been shown yet
+  const latestUnread = notifications.find(n => !n.read && !shownToastIds.has(n.id))
 
   useEffect(() => {
-    if (latestUnread) {
-      setVisible(true)
+    if (latestUnread && !visible && currentToastId === null) {
       setCurrentToastId(latestUnread.id)
+      setShownToastIds(prev => new Set(prev).add(latestUnread.id))
+      setVisible(true)
+      
       // Auto-dismiss after 5 seconds
       const timer = setTimeout(() => {
         setVisible(false)
         markAsRead(latestUnread.id)
-        setTimeout(() => setCurrentToastId(null), 300) // Reset after animation
+        setTimeout(() => {
+          setCurrentToastId(null)
+        }, 300) // Reset after animation
       }, 5000)
+      
       return () => clearTimeout(timer)
-    } else {
+    } else if (!latestUnread && visible) {
+      // No more notifications to show, hide the toast
       setVisible(false)
+      setTimeout(() => {
+        setCurrentToastId(null)
+      }, 300)
     }
-  }, [latestUnread, markAsRead])
+  }, [latestUnread, visible, currentToastId, markAsRead])
 
   if (!latestUnread || !visible) return null
 
@@ -75,7 +85,9 @@ export function NotificationToast() {
             onClick={() => {
               setVisible(false)
               markAsRead(latestUnread.id)
-              setTimeout(() => setCurrentToastId(null), 300)
+              setTimeout(() => {
+                setCurrentToastId(null)
+              }, 300)
             }}
           >
             <X className="h-4 w-4" />
