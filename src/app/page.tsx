@@ -159,30 +159,33 @@ export default function Home() {
                 <div className="text-sm text-gray-500">DyluxePro CRM Dashboard</div>
               </div>
             </div>
-            <div className="p-8">
-              <div className="grid grid-cols-5 gap-6">
-                {['New Leads', 'Estimate Sent', 'Approved', 'Job Scheduled', 'Completed'].map((stage, index) => (
-                  <div key={stage} className="space-y-4">
-                    <div className="text-center">
-                      <h3 className="font-semibold text-gray-900 mb-2">{stage}</h3>
-                      <div className="w-full h-1 bg-gray-200 rounded-full">
-                        <div 
-                          className="h-1 bg-blue-500 rounded-full transition-all duration-300"
-                          style={{ width: `${(index + 1) * 20}%` }}
-                        ></div>
+            <div className="p-4 md:p-8">
+              {/* Horizontal scroll on mobile, grid on desktop */}
+              <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+                <div className="grid grid-cols-5 gap-4 md:gap-6 min-w-[800px] md:min-w-0">
+                  {['New Leads', 'Estimate Sent', 'Approved', 'Job Scheduled', 'Completed'].map((stage, index) => (
+                    <div key={stage} className="space-y-4 min-w-[140px]">
+                      <div className="text-center">
+                        <h3 className="font-semibold text-gray-900 mb-2 text-sm md:text-base whitespace-nowrap">{stage}</h3>
+                        <div className="w-full h-1 bg-gray-200 rounded-full">
+                          <div 
+                            className="h-1 bg-blue-500 rounded-full transition-all duration-300"
+                            style={{ width: `${(index + 1) * 20}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        {index < 3 && (
+                          <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer">
+                            <div className="text-sm font-medium text-gray-900 break-words">Johnson Residence</div>
+                            <div className="text-xs text-gray-500 break-words">123 Oak Street</div>
+                            <div className="text-sm font-semibold text-blue-600 mt-1">$2,450</div>
+                          </Card>
+                        )}
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {index < 3 && (
-                        <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer">
-                          <div className="text-sm font-medium text-gray-900">Johnson Residence</div>
-                          <div className="text-xs text-gray-500">123 Oak Street</div>
-                          <div className="text-sm font-semibold text-blue-600 mt-1">$2,450</div>
-                        </Card>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
