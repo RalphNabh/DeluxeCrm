@@ -30,7 +30,8 @@ import {
   User,
   Calendar as CalendarIcon,
   X,
-  Gift
+  Gift,
+  Menu
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -123,6 +124,7 @@ export default function TasksPage() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -396,38 +398,33 @@ export default function TasksPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
-        <div className="p-6 flex-shrink-0">
-          <h1 className="text-xl font-bold text-blue-600">DyluxePro</h1>
-        </div>
-        
-        <nav className="flex-1 px-4 overflow-y-auto min-h-0">
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    item.active
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="flex-shrink-0 mt-auto">
-          <UserProfile />
-        </div>
-      </div>
+      <PageSidebar 
+        items={sidebarItems.map(item => ({
+          ...item,
+          active: item.active || false
+        }))}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Menu Button */}
+        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="mr-3"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <Link href="/" className="text-lg font-bold text-blue-600">
+            DyluxePro
+          </Link>
+        </div>
+
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
