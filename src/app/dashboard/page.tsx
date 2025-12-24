@@ -47,7 +47,8 @@ import {
   X,
   Tag,
   CheckSquare,
-  Gift
+  Gift,
+  Menu
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -359,6 +360,8 @@ export default function Dashboard() {
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const { startTutorial, isTutorialCompleted } = useTutorial();
   const { addNotification } = useNotifications();
+  // Sidebar open state - closed on mobile, open on desktop
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -668,16 +671,36 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors h-screen">
         {/* Sidebar */}
         <div data-tutorial="navigation" className="flex-shrink-0">
-          <PageSidebar items={sidebarItems.map(item => ({
-            ...item,
-            active: item.active || false
-          }))} />
-      </div>
+          <PageSidebar 
+            items={sidebarItems.map(item => ({
+              ...item,
+              active: item.active || false
+            }))}
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <PageHeader
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Mobile Menu Button */}
+          <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(true)}
+              className="mr-3"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <Link href="/" className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              DyluxePro
+            </Link>
+          </div>
+
+          {/* Top Bar */}
+          <PageHeader
           title="Sales Pipeline"
           description="Track and manage your projects from lead to completion."
           searchPlaceholder="Search clients, estimates..."

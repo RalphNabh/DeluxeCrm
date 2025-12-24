@@ -30,7 +30,8 @@ import {
   Tag,
   Folder,
   CheckSquare,
-  Gift
+  Gift,
+  Menu
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -100,6 +101,7 @@ export default function ClientsPage() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -227,13 +229,33 @@ export default function ClientsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors">
       {/* Sidebar */}
-      <PageSidebar items={sidebarItems.map(item => ({
-        ...item,
-        active: item.active || false
-      }))} />
+      <PageSidebar 
+        items={sidebarItems.map(item => ({
+          ...item,
+          active: item.active || false
+        }))}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Menu Button */}
+        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="mr-3"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <Link href="/" className="text-lg font-bold text-blue-600 dark:text-blue-400">
+            DyluxePro
+          </Link>
+        </div>
+
         {/* Top Bar */}
         <PageHeader
           title="Clients"
