@@ -38,33 +38,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.error('Failed to load notifications:', e)
         }
-      } else {
-        // Add placeholder notifications
-        const placeholders: Notification[] = [
-          {
-            id: '1',
-            type: 'success',
-            title: 'Welcome to DyluxePro!',
-            message: 'Your CRM is ready to use. Start by adding your first client.',
-            timestamp: new Date().toISOString(),
-            read: false,
-            actionUrl: '/clients/new',
-            actionLabel: 'Add Client'
-          },
-          {
-            id: '2',
-            type: 'info',
-            title: 'New Feature Available',
-            message: 'Check out the new Reports section to track your business performance.',
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            read: false,
-            actionUrl: '/reports',
-            actionLabel: 'View Reports'
-          }
-        ]
-        setNotifications(placeholders)
-        localStorage.setItem('notifications', JSON.stringify(placeholders))
       }
+      // Don't automatically add placeholder notifications - they'll be added after login/signup
     }
   }, [])
 

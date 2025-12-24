@@ -80,7 +80,7 @@ type Automation = {
   is_active: boolean;
   trigger_event: string;
   action_type: string;
-  action_payload?: Record<string, any>;
+  action_payload?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };

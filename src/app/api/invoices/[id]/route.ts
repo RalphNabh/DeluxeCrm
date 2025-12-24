@@ -47,7 +47,7 @@ export async function GET(
   const totalPaid = (invoice.payments || []).reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
   
   // Calculate overdue status
-  let invoiceWithStatus = { ...invoice }
+    const invoiceWithStatus = { ...invoice }
   if (invoice.due_date && invoice.status !== 'Paid' && invoice.status !== 'Cancelled') {
     const dueDate = new Date(invoice.due_date)
     const today = new Date()
@@ -149,7 +149,7 @@ export async function PUT(
   const totalPaid = ((updatedInvoice?.payments as Array<{ amount: number }>) || []).reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
   
   // Check overdue status
-  let invoiceWithStatus = { ...updatedInvoice }
+    const invoiceWithStatus = { ...updatedInvoice }
   if (updatedInvoice && updatedInvoice.due_date && updatedInvoice.status !== 'Paid' && updatedInvoice.status !== 'Cancelled') {
     const dueDate = new Date(updatedInvoice.due_date as string)
     const today = new Date()

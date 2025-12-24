@@ -64,6 +64,7 @@ export default function SignupPage() {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
       
       // Sign up the user
+      console.log('Attempting to sign up user with email:', email);
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -80,34 +81,76 @@ export default function SignupPage() {
         }
       });
 
+      console.log('Signup response:', { 
+        hasUser: !!data?.user, 
+        userId: data?.user?.id,
+        hasError: !!signUpError,
+        error: signUpError,
+        emailConfirmed: data?.user?.email_confirmed_at
+      });
+
       if (signUpError) {
+        console.error('Signup error:', signUpError);
         setError(signUpError.message);
         setLoading(false);
         return;
       }
 
       if (data.user) {
-        // Create user profile with additional information
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: data.user.id,
-            user_id: data.user.id,
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            full_name: fullName,
-            phone: phone.trim() || null,
-            company_name: companyName.trim() || null,
-            business_type: businessType && businessType !== 'none' ? businessType : null,
-          }, {
-            onConflict: 'id'
-          });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          // Don't fail signup if profile creation fails - it will be created by trigger
+        console.log('User created successfully:', data.user.id);
+        // Try to update user profile with additional information
+        // Note: A trigger automatically creates a basic profile, so we update it
+        // Use retry logic since the session might not be fully established immediately
+        let profileError = null;
+        const maxRetries = 3;
+        
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          if (attempt > 0) {
+            // Wait before retry (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+          }
+          
+          const { error } = await supabase
+            .from('user_profiles')
+            .upsert({
+              id: data.user.id,
+              user_id: data.user.id,
+              first_name: firstName.trim() || null,
+              last_name: lastName.trim() || null,
+              full_name: fullName,
+              phone: phone.trim() || null,
+              company_name: companyName.trim() || null,
+              business_type: businessType && businessType !== 'none' ? businessType : null,
+            }, {
+              onConflict: 'id'
+            });
+            
+          if (!error) {
+            // Success, break out of retry loop
+            profileError = null;
+            break;
+          } else {
+            profileError = error;
+          }
         }
 
+        if (profileError) {
+          // Log detailed error information for debugging
+          console.warn('Could not update profile immediately after signup (attempted', maxRetries, 'times):', {
+            message: profileError.message || 'Unknown error',
+            details: profileError.details,
+            hint: profileError.hint,
+            code: profileError.code,
+          });
+          // Don't fail signup - basic profile was created by trigger
+          // User can update their profile with additional details from settings page
+        }
+
+        // Set flag to show welcome notification after email verification
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('showWelcomeNotification', 'true');
+        }
+        
         // Redirect to verification page
         router.push("/verify-email");
       }

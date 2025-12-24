@@ -80,6 +80,7 @@ import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { DashboardTour } from "@/components/tutorial/dashboard-tour";
 import { HelpCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useNotifications } from "@/components/notifications/notification-provider";
 
 type Lead = {
   id: string;
@@ -357,6 +358,7 @@ export default function Dashboard() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const { startTutorial, isTutorialCompleted } = useTutorial();
+  const { addNotification } = useNotifications();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -404,6 +406,38 @@ export default function Dashboard() {
     };
     fetchData();
   }, []);
+
+  // Show welcome notification after login/signup
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Check for sessionStorage flag (from login/signup)
+      const showWelcome = sessionStorage.getItem('showWelcomeNotification');
+      // Check for URL query parameter (from email verification callback)
+      const urlParams = new URLSearchParams(window.location.search);
+      const welcomeParam = urlParams.get('welcome');
+      
+      if (showWelcome === 'true' || welcomeParam === 'true') {
+        // Clear the flag
+        sessionStorage.removeItem('showWelcomeNotification');
+        
+        // Remove query parameter from URL without reload
+        if (welcomeParam === 'true') {
+          urlParams.delete('welcome');
+          const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+          window.history.replaceState({}, '', newUrl);
+        }
+        
+        // Add welcome notification
+        addNotification({
+          type: 'success',
+          title: 'Welcome to DyluxePro!',
+          message: 'Your CRM is ready to use. Start by adding your first client.',
+          actionUrl: '/clients/new',
+          actionLabel: 'Add Client'
+        });
+      }
+    }
+  }, [addNotification]);
 
   const grouped = useMemo(() => {
     const map: Record<string, Lead[]> = {};

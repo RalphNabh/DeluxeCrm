@@ -11,11 +11,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get or create affiliate record for the user
-    let { data: affiliate, error: affiliateError } = await supabase
+    const { data: affiliateData, error: affiliateError } = await supabase
       .from('affiliates')
       .select('*')
       .eq('user_id', user.id)
       .single();
+
+    let affiliate = affiliateData;
 
     // If no affiliate record exists, create one
     // Check for both PGRST116 (no rows) and other table-related errors
@@ -89,12 +91,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate statistics
+    interface Referral {
+      status: string;
+      commission_paid?: boolean;
+      commission_earned?: number;
+    }
+    
     const stats = {
       total_referrals: referrals.length || 0,
-      active_referrals: referrals.filter((r: any) => r.status === 'Active' || r.status === 'Converted').length || 0,
+      active_referrals: referrals.filter((r: Referral) => r.status === 'Active' || r.status === 'Converted').length || 0,
       total_earnings: affiliate?.total_earnings || 0,
-      pending_earnings: referrals.filter((r: any) => r.status === 'Active' && !r.commission_paid)
-        .reduce((sum: number, r: any) => sum + (r.commission_earned || 0), 0) || 0,
+      pending_earnings: referrals.filter((r: Referral) => r.status === 'Active' && !r.commission_paid)
+        .reduce((sum: number, r: Referral) => sum + (r.commission_earned || 0), 0) || 0,
       commission_rate: affiliate?.commission_rate || 30.00
     };
 

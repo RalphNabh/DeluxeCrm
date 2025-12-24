@@ -14,8 +14,8 @@ export async function GET(request: Request) {
       // Check if email is verified after exchange
       const { data: { user } } = await supabase.auth.getUser()
       if (user?.email_confirmed_at) {
-        // Email is verified, redirect to dashboard
-        return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
+        // Email is verified, redirect to account verified page
+        return NextResponse.redirect(new URL('/account-verified', requestUrl.origin))
       }
     }
   }

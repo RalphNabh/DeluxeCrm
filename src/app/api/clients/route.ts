@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get('q')?.trim()
 
     // Try to fetch with folder information, gracefully handle if folder_id column doesn't exist
-    let baseQuery = supabase
+    const baseQuery = supabase
       .from('clients')
       .select(`
         *,

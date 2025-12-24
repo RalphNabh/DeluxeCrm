@@ -38,7 +38,7 @@ export default function VerifyEmailPage() {
           setVerified(true);
           setMessage('Email verified successfully! Redirecting...');
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push('/account-verified');
           }, 2000);
         } else {
           setVerified(false);
@@ -63,7 +63,7 @@ export default function VerifyEmailPage() {
           setVerified(true);
           setMessage('Email verified successfully! Redirecting...');
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push('/account-verified');
           }, 2000);
         }
       }
@@ -99,9 +99,9 @@ export default function VerifyEmailPage() {
       if (user.email_confirmed_at) {
         setVerified(true);
         setMessage('Email verified successfully! Redirecting...');
-        // Redirect to dashboard after 2 seconds
+        // Redirect to account verified page after 2 seconds
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/account-verified');
         }, 2000);
       } else {
         setVerified(false);

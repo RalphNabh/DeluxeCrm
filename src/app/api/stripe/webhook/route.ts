@@ -130,7 +130,10 @@ export async function POST(request: NextRequest) {
               const subscriptionValue = priceAmount / 100 // Convert cents to dollars
 
               // Get commission rate from referrer's affiliate record
-              const commissionRate = (referral.referrer as any)?.commission_rate || 30.00
+              interface ReferrerData {
+                commission_rate?: number;
+              }
+              const commissionRate = (referral.referrer as ReferrerData)?.commission_rate || 30.00
               const commissionEarned = (subscriptionValue * commissionRate) / 100
 
               // Update referral record with subscription info and commission
