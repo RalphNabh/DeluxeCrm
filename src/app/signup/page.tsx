@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -25,10 +25,15 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [businessType, setBusinessType] = useState("");
+  const [businessType, setBusinessType] = useState("none");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +75,7 @@ export default function SignupPage() {
             full_name: fullName,
             phone: phone.trim() || undefined,
             company_name: companyName.trim() || undefined,
-            business_type: businessType || undefined,
+            business_type: businessType && businessType !== 'none' ? businessType : undefined,
           }
         }
       });
@@ -93,7 +98,7 @@ export default function SignupPage() {
             full_name: fullName,
             phone: phone.trim() || null,
             company_name: companyName.trim() || null,
-            business_type: businessType || null,
+            business_type: businessType && businessType !== 'none' ? businessType : null,
           }, {
             onConflict: 'id'
           });
@@ -242,12 +247,13 @@ export default function SignupPage() {
                   <Label htmlFor="businessType" className="text-sm font-medium text-gray-700">
                     Business Type
                   </Label>
-                  <Select value={businessType} onValueChange={setBusinessType}>
+                  {mounted && (
+                  <Select value={businessType || "none"} onValueChange={(value) => setBusinessType(value || "none")}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Select business type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       <SelectItem value="General Contractor">General Contractor</SelectItem>
                       <SelectItem value="Plumbing">Plumbing</SelectItem>
                       <SelectItem value="Electrical">Electrical</SelectItem>
@@ -260,6 +266,7 @@ export default function SignupPage() {
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  )}
                 </div>
               </div>
 

@@ -388,7 +388,11 @@ export default function Dashboard() {
         const allTags = new Set<string>();
         leadsData.forEach((lead: Lead) => {
           if (lead.tags && Array.isArray(lead.tags)) {
-            lead.tags.forEach(tag => allTags.add(tag));
+            lead.tags.forEach(tag => {
+              if (tag && tag.trim() !== '') {
+                allTags.add(tag);
+              }
+            });
           }
         });
         setAvailableTags(Array.from(allTags).sort());

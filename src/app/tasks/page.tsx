@@ -156,11 +156,15 @@ export default function TasksPage() {
       const data = await response.json();
       setTasks(data);
 
-      // Extract all unique tags
+      // Extract all unique tags (filter out empty strings)
       const allTags = new Set<string>();
       data.forEach((task: Task) => {
         if (task.tags && Array.isArray(task.tags)) {
-          task.tags.forEach(tag => allTags.add(tag));
+          task.tags.forEach(tag => {
+            if (tag && tag.trim() !== '') {
+              allTags.add(tag);
+            }
+          });
         }
       });
       setAvailableTags(Array.from(allTags).sort());
@@ -332,8 +336,8 @@ export default function TasksPage() {
       priority: "Medium",
       due_date: "",
       tags: "",
-      client_id: "",
-      job_id: "",
+      client_id: "none",
+      job_id: "none",
       assigned_to: ""
     });
   };
@@ -728,7 +732,7 @@ export default function TasksPage() {
                     <SelectValue placeholder="Select a job" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {jobs.map((job) => (
                       <SelectItem key={job.id} value={job.id}>
                         {job.title}

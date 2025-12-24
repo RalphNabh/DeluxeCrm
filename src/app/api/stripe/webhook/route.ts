@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Update or create subscription record
-          await supabaseAdmin
+          const { data: upsertData, error: upsertError } = await supabaseAdmin
             .from('subscriptions')
             .upsert({
               user_id: userId,
@@ -98,6 +98,93 @@ export async function POST(request: NextRequest) {
             }, {
               onConflict: 'user_id'
             })
+
+          if (upsertError) {
+            console.error('Error upserting subscription:', upsertError)
+            console.error('Subscription data:', {
+              user_id: userId,
+              stripe_customer_id: subscription.customer,
+              stripe_subscription_id: subscription.id,
+            })
+            throw upsertError
+          }
+
+          console.log('Subscription successfully saved to database:', {
+            user_id: userId,
+            subscription_id: subscription.id,
+          })
+
+          // Process affiliate commission if user was referred
+          try {
+            // Check if this user was referred
+            const { data: referral, error: referralFetchError } = await supabaseAdmin
+              .from('referrals')
+              .select('*, referrer:referrer_id(commission_rate)')
+              .eq('referred_user_id', userId)
+              .eq('status', 'Pending')
+              .single()
+
+            if (referral && !referralFetchError) {
+              // Get subscription price amount (in cents, convert to dollars)
+              const priceAmount = subscription.items.data[0]?.price.unit_amount || 0
+              const subscriptionValue = priceAmount / 100 // Convert cents to dollars
+
+              // Get commission rate from referrer's affiliate record
+              const commissionRate = (referral.referrer as any)?.commission_rate || 30.00
+              const commissionEarned = (subscriptionValue * commissionRate) / 100
+
+              // Update referral record with subscription info and commission
+              const { error: referralUpdateError } = await supabaseAdmin
+                .from('referrals')
+                .update({
+                  status: 'Active',
+                  subscription_value: subscriptionValue,
+                  commission_earned: commissionEarned,
+                  converted_at: new Date().toISOString(),
+                })
+                .eq('id', referral.id)
+
+              if (referralUpdateError) {
+                console.error('Error updating referral with commission:', referralUpdateError)
+              } else {
+                console.log('Referral commission processed:', {
+                  referral_id: referral.id,
+                  referrer_id: referral.referrer_id,
+                  subscription_value: subscriptionValue,
+                  commission_earned: commissionEarned,
+                })
+
+                // Update referrer's total earnings in affiliates table
+                const { data: referrerAffiliate, error: affiliateFetchError } = await supabaseAdmin
+                  .from('affiliates')
+                  .select('total_earnings')
+                  .eq('user_id', referral.referrer_id)
+                  .single()
+
+                if (referrerAffiliate && !affiliateFetchError) {
+                  const currentEarnings = Number(referrerAffiliate.total_earnings) || 0
+                  const newTotalEarnings = currentEarnings + commissionEarned
+
+                  const { error: affiliateUpdateError } = await supabaseAdmin
+                    .from('affiliates')
+                    .update({ total_earnings: newTotalEarnings })
+                    .eq('user_id', referral.referrer_id)
+
+                  if (affiliateUpdateError) {
+                    console.error('Error updating referrer total earnings:', affiliateUpdateError)
+                  } else {
+                    console.log('Referrer total earnings updated:', {
+                      referrer_id: referral.referrer_id,
+                      new_total_earnings: newTotalEarnings,
+                    })
+                  }
+                }
+              }
+            }
+          } catch (affiliateError) {
+            // Log but don't fail the webhook if affiliate processing fails
+            console.error('Error processing affiliate commission (non-fatal):', affiliateError)
+          }
         }
         break
       }
@@ -106,7 +193,7 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
 
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from('subscriptions')
           .update({
             status: subscription.status,
@@ -115,6 +202,11 @@ export async function POST(request: NextRequest) {
             cancel_at_period_end: subscription.cancel_at_period_end,
           })
           .eq('stripe_subscription_id', subscription.id)
+
+        if (updateError) {
+          console.error('Error updating subscription:', updateError)
+          throw updateError
+        }
         break
       }
 
@@ -126,7 +218,7 @@ export async function POST(request: NextRequest) {
             invoice.subscription as string
           )
 
-          await supabaseAdmin
+          const { error: updateError } = await supabaseAdmin
             .from('subscriptions')
             .update({
               status: subscription.status,
@@ -134,6 +226,11 @@ export async function POST(request: NextRequest) {
               current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
             })
             .eq('stripe_subscription_id', subscription.id)
+
+          if (updateError) {
+            console.error('Error updating subscription from invoice:', updateError)
+            throw updateError
+          }
         }
         break
       }
@@ -142,12 +239,17 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice
         
         if (invoice.subscription) {
-          await supabaseAdmin
+          const { error: updateError } = await supabaseAdmin
             .from('subscriptions')
             .update({
               status: 'past_due',
             })
             .eq('stripe_subscription_id', invoice.subscription as string)
+
+          if (updateError) {
+            console.error('Error updating subscription status to past_due:', updateError)
+            throw updateError
+          }
         }
         break
       }
