@@ -38,7 +38,8 @@ import {
   CheckSquare,
   Gift,
   CreditCard,
-  Loader2
+  Loader2,
+  Menu
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -49,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
+import PageSidebar from "@/components/layout/page-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from 'lucide-react'
 
@@ -96,6 +98,7 @@ export default function SettingsPage() {
   })
   const [changingPassword, setChangingPassword] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [portalLoading, setPortalLoading] = useState(false)
@@ -298,38 +301,33 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen transition-colors">
-        <div className="p-6 flex-shrink-0">
-          <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">DyluxePro</Link>
-        </div>
-        
-        <nav className="flex-1 px-4 overflow-y-auto min-h-0">
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    item.active
-                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-r-2 border-blue-600 dark:border-blue-400"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="flex-shrink-0 mt-auto">
-          <UserProfile />
-        </div>
-      </div>
+      <PageSidebar 
+        items={sidebarItems.map(item => ({
+          ...item,
+          active: item.active || false
+        }))}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Menu Button */}
+        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="mr-3"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <Link href="/" className="text-lg font-bold text-blue-600 dark:text-blue-400">
+            DyluxePro
+          </Link>
+        </div>
+
         {/* Header */}
         <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 transition-colors">
           <div className="flex items-center justify-between">
