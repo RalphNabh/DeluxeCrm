@@ -58,6 +58,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
+import PageSidebar from "@/components/layout/page-sidebar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const sidebarItems = [
