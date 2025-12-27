@@ -31,7 +31,7 @@ export default function Home() {
                 <Link href="#features" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                   Features
                 </Link>
-                <Link href="#contact" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/contact" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                   Contact
                 </Link>
               </div>
@@ -234,7 +234,7 @@ export default function Home() {
               <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-gray-400">
                 <li><Link href="/dashboard" className="hover:text-white">Dashboard</Link></li>
-                <li><Link href="#contact" className="hover:text-white">Contact</Link></li>
+                <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
                 <li><Link href="/settings" className="hover:text-white">Settings</Link></li>
               </ul>
             </div>
@@ -243,7 +243,7 @@ export default function Home() {
               <div className="space-y-2 text-gray-400">
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 mr-2" />
-                  hello@dyluxepro.com
+                  support@dyluxepro.com
                 </div>
                 <div className="flex items-center">
                   <Phone className="h-4 w-4 mr-2" />
