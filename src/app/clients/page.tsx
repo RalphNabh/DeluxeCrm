@@ -386,23 +386,24 @@ export default function ClientsPage() {
                 <Card key={client.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3 flex-1">
-                        <Avatar className="h-10 w-10">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
                           <AvatarImage src="/placeholder-avatar.jpg" />
                           <AvatarFallback>{client.name.split(' ').map(n => n[0]).join('').toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-col gap-1.5">
                             <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
                             {client.client_folders && (
                               <span
-                                className="px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap"
+                                className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full w-fit"
                                 style={{
                                   backgroundColor: `${client.client_folders.color}20`,
                                   color: client.client_folders.color,
                                 }}
                               >
-                                {client.client_folders.name}
+                                <Folder className="h-3 w-3 mr-1" />
+                                <span className="truncate max-w-[120px]">{client.client_folders.name}</span>
                               </span>
                             )}
                           </div>
