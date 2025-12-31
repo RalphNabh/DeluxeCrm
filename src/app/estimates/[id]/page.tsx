@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,8 @@ import {
   Plus,
   Eye,
   Save,
-  X as XIcon
+  X as XIcon,
+  Edit
 } from 'lucide-react'
 import JobCreationModal from '@/components/jobs/job-creation-modal'
 import UserProfile from '@/components/layout/user-profile'
@@ -33,6 +34,8 @@ import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 interface Estimate {
   id: string;
@@ -103,6 +106,8 @@ function EstimateDetailContent() {
   }>>([])
   const [editedContractMessage, setEditedContractMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [generatingPDF, setGeneratingPDF] = useState(false)
+  const estimateContentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (params.id) {
@@ -246,6 +251,61 @@ function EstimateDetailContent() {
       setTimeout(() => {
         sendEstimateEmail()
       }, 300)
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    if (!estimateContentRef.current || !estimate) return
+
+    setGeneratingPDF(true)
+    try {
+      // Wait a bit for any dynamic content to render
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Capture the estimate content as canvas
+      const canvas = await html2canvas(estimateContentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: estimateContentRef.current.scrollWidth,
+        windowHeight: estimateContentRef.current.scrollHeight
+      })
+
+      // Calculate PDF dimensions
+      const imgWidth = 210 // A4 width in mm
+      const pageHeight = 297 // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      let position = 0
+
+      // Add first page
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      // Add additional pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      // Generate filename
+      const clientName = estimate.clients?.name || 'Client'
+      const estimateId = estimate.id.slice(0, 8)
+      const filename = `Estimate-${estimateId}-${clientName.replace(/[^a-z0-9]/gi, '_')}.pdf`
+
+      // Download the PDF
+      pdf.save(filename)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      setError('Failed to generate PDF. Please try again.')
+    } finally {
+      setGeneratingPDF(false)
     }
   }
 
@@ -462,7 +522,7 @@ function EstimateDetailContent() {
 
         {/* Estimate Content */}
         <main className="flex-1 p-6">
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div ref={estimateContentRef} className="max-w-4xl mx-auto space-y-6 bg-white p-6">
             {/* Client Info */}
             <Card>
               <CardHeader>
@@ -737,21 +797,11 @@ function EstimateDetailContent() {
                 <div className="flex flex-wrap gap-3">
                   <Button 
                     variant="outline" 
-                    disabled={updating || isEditing}
-                    onClick={() => {
-                      // Create a new window for printing/downloading
-                      const printWindow = window.open(`/estimates/${params.id}?print=true`, '_blank')
-                      if (printWindow) {
-                        printWindow.onload = () => {
-                          setTimeout(() => {
-                            printWindow.print()
-                          }, 500)
-                        }
-                      }
-                    }}
+                    disabled={updating || isEditing || generatingPDF}
+                    onClick={handleDownloadPDF}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Download PDF
+                    {generatingPDF ? 'Generating PDF...' : 'Download PDF'}
                   </Button>
                   
                   <Button 

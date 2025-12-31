@@ -317,19 +317,12 @@ export default function EstimatePage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              // Open estimate in new window and trigger print (which allows Save as PDF)
-                              const printWindow = window.open(`/estimates/${estimate.id}?print=true`, '_blank');
-                              if (printWindow) {
-                                printWindow.onload = () => {
-                                  setTimeout(() => {
-                                    printWindow.print();
-                                  }, 500);
-                                };
-                              }
+                              // Navigate to estimate page - user can download PDF from there
+                              window.location.href = `/estimates/${estimate.id}`;
                             }}
-                            title="Download as PDF"
+                            title="View Estimate"
                           >
-                            <Download className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
                           <Link href={`/estimates/${estimate.id}?edit=true`} onClick={(e) => e.stopPropagation()}>
                             <Button 
