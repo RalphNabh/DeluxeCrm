@@ -13,10 +13,10 @@ export async function POST(request: NextRequest) {
     // Use service role client to bypass RLS since clients aren't authenticated
     const supabase = createServiceRoleClient()
     
-    // First, get the estimate to find the user_id (clients don't need to be authenticated)
+    // First, get the estimate to find the user_id and get contractor email (clients don't need to be authenticated)
     const { data: estimate, error: estimateError } = await supabase
       .from('estimates')
-      .select('user_id, clients(email)')
+      .select('user_id, clients(email, name)')
       .eq('id', estimateId)
       .single()
 
@@ -32,19 +32,46 @@ export async function POST(request: NextRequest) {
 
     const userId = estimate.user_id
 
+    // Get contractor's (user's) email from auth.users using admin API
+    // Service role client allows access to auth.admin methods
+    let contractorEmail = ''
+    try {
+      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId)
+      if (authError) {
+        console.error('Error fetching contractor email:', authError)
+      } else {
+        contractorEmail = authUser?.user?.email || ''
+      }
+    } catch (error) {
+      console.error('Failed to get contractor email:', error)
+    }
+
+    if (!contractorEmail && action === 'approve') {
+      console.error('Contractor email not found for user:', userId)
+      // Continue anyway, just log the error
+    }
+
     // Update estimate status based on action
     let newStatus = ''
     let emailSubject = ''
     let emailMessage = ''
+    let recipientEmail = ''
+    let recipientName = ''
 
     if (action === 'approve') {
       newStatus = 'Approved'
-      emailSubject = `Estimate Approved - ${estimateId.slice(0, 8)}`
-      emailMessage = `Great news! Your estimate has been approved. We'll be in touch soon to schedule the work.`
+      // When client approves, notify the contractor (not the client)
+      emailSubject = `Estimate Approved by ${clientName || estimate.clients?.name || 'Client'} - ${estimateId.slice(0, 8)}`
+      emailMessage = `Great news! Your estimate has been approved by ${clientName || estimate.clients?.name || 'your client'}.`
+      recipientEmail = contractorEmail || ''
+      recipientName = 'Contractor' // We don't have contractor name easily accessible here
     } else if (action === 'request_changes') {
       newStatus = 'Changes Requested'
+      // When client requests changes, notify both contractor and send confirmation to client
       emailSubject = `Estimate Changes Requested - ${estimateId.slice(0, 8)}`
       emailMessage = `Thank you for your feedback. We'll review your requested changes and get back to you with an updated estimate.`
+      recipientEmail = clientEmail || estimate.clients?.email || ''
+      recipientName = clientName || estimate.clients?.name || 'Client'
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
@@ -98,7 +125,13 @@ export async function POST(request: NextRequest) {
           </div>
           
           <div class="content">
-            <h2>Hello ${clientName},</h2>
+            ${action === 'approve' 
+              ? `<h2>Estimate Approved</h2>
+                 <p><strong>Client:</strong> ${clientName || estimate.clients?.name || 'Client'}</p>
+                 <p><strong>Client Email:</strong> ${clientEmail || estimate.clients?.email || 'N/A'}</p>
+                 <p><strong>Estimate ID:</strong> ${estimateId.slice(0, 8)}</p>`
+              : `<h2>Hello ${clientName},</h2>`
+            }
             
             <div class="status-badge">
               ${newStatus}
@@ -106,7 +139,11 @@ export async function POST(request: NextRequest) {
             
             <p>${emailMessage}</p>
             
-            <p>If you have any questions, please don't hesitate to contact us.</p>
+            ${action === 'approve' 
+              ? `<p>You can now proceed with scheduling the work and creating an invoice for this approved estimate.</p>
+                 <p>Login to your DyluxePro dashboard to manage this estimate: <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://dyluxepro.com'}/estimates/${estimateId}" style="color: #2563eb;">View Estimate</a></p>`
+              : `<p>If you have any questions, please don't hesitate to contact us.</p>`
+            }
             
             <p>Best regards,<br>DyluxePro Team</p>
           </div>
@@ -119,27 +156,41 @@ export async function POST(request: NextRequest) {
       </html>
     `
 
-    // Send confirmation email
+    // Send notification email
     // Use RESEND_FROM_EMAIL environment variable, fallback to test domain
     // Once dyluxepro.com is verified in Resend, set RESEND_FROM_EMAIL=noreply@dyluxepro.com
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'DyluxePro <onboarding@resend.dev>';
     
-    // For prototype: send to verified email; in production: send to client
-    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL || 'nabhanralph@gmail.com';
-    const recipientEmail = process.env.NODE_ENV === 'development' 
-      ? verifiedEmail 
-      : clientEmail;
+    // For approve: send to contractor. For request_changes: send confirmation to client
+    let emailToSend = recipientEmail
+    
+    // For development/prototype: send to verified email instead of actual recipient
+    if (process.env.NODE_ENV === 'development') {
+      const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL || 'nabhanralph@gmail.com';
+      emailToSend = verifiedEmail
+    }
+    
+    // Only send email if we have a recipient
+    if (emailToSend) {
+      // Update email template based on who's receiving it
+      const updatedEmailHtml = action === 'approve' 
+        ? confirmationEmailHtml.replace(`Hello ${clientName},`, `Hello,`)
+            .replace(emailMessage, emailMessage)
+        : confirmationEmailHtml
           
-          const { data: emailData, error: emailError } = await resend.emails.send({
-            from: fromEmail,
-            to: [recipientEmail],
-            subject: emailSubject,
-            html: confirmationEmailHtml,
-          })
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: fromEmail,
+        to: [emailToSend],
+        subject: emailSubject,
+        html: updatedEmailHtml,
+      })
 
-    if (emailError) {
-      console.error('Error sending confirmation email:', emailError)
-      // Don't fail the request if email fails
+      if (emailError) {
+        console.error('Error sending notification email:', emailError)
+        // Don't fail the request if email fails
+      }
+    } else {
+      console.warn('No recipient email available, skipping email notification')
     }
 
     // Trigger automations for estimate_approved event if approved
