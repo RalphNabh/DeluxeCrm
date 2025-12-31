@@ -13,10 +13,10 @@ export async function POST(request: NextRequest) {
     // Use service role client to bypass RLS since clients aren't authenticated
     const supabase = createServiceRoleClient()
     
-    // First, get the estimate to find the user_id and get contractor email (clients don't need to be authenticated)
+    // First, get the estimate to find the user_id, lead_id and get contractor email (clients don't need to be authenticated)
     const { data: estimate, error: estimateError } = await supabase
       .from('estimates')
-      .select('user_id, clients(email, name)')
+      .select('user_id, lead_id, clients(email, name)')
       .eq('id', estimateId)
       .single()
 
@@ -89,6 +89,25 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error('Error updating estimate:', updateError)
       return NextResponse.json({ error: 'Failed to update estimate' }, { status: 500 })
+    }
+
+    // If estimate is approved and has a linked lead, update the lead status to "Approved"
+    if (action === 'approve' && estimate.lead_id) {
+      const { error: leadUpdateError } = await supabase
+        .from('leads')
+        .update({
+          status: 'Approved',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', estimate.lead_id)
+        .eq('user_id', userId)
+
+      if (leadUpdateError) {
+        console.error('Error updating lead status:', leadUpdateError)
+        // Don't fail the request if lead update fails, just log it
+      } else {
+        console.log(`Lead ${estimate.lead_id} status updated to "Approved"`)
+      }
     }
 
     // Send confirmation email to client
