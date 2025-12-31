@@ -579,6 +579,15 @@ export default function Dashboard() {
         }
         const leadsData = await leadsRes.json();
         
+        // Debug: Log folder_id values to help troubleshoot filtering
+        if (leadsData.length > 0) {
+          console.log('Sample lead folder_ids:', leadsData.slice(0, 3).map((l: Lead) => ({ 
+            name: l.name, 
+            folder_id: l.folder_id,
+            hasFolder: !!l.folder_id 
+          })));
+        }
+        
         // Fetch folders
         if (foldersRes.ok) {
           const foldersData = await foldersRes.json();
@@ -708,8 +717,8 @@ export default function Dashboard() {
       );
     }
     
-    // Filter by folder if selected
-    if (selectedFolderId !== null) {
+    // Filter by folder if selected (same logic as clients page)
+    if (selectedFolderId) {
       filtered = filtered.filter(lead => lead.folder_id === selectedFolderId);
     }
     
