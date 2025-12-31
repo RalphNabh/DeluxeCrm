@@ -119,10 +119,10 @@ function EstimateDetailContent() {
       // Check if download is requested via URL param
       const downloadParam = searchParams.get('download')
       if (downloadParam === 'true' && estimate) {
-        // Wait for content to load, then trigger download
+        // Wait longer for content to fully load and render
         setTimeout(() => {
           handleDownloadPDF()
-        }, 1500)
+        }, 2000)
       }
       
       // Check if print mode is requested
@@ -310,6 +310,56 @@ function EstimateDetailContent() {
       // Wait a bit for any dynamic content to render
       await new Promise(resolve => setTimeout(resolve, 500))
 
+      // Function to convert oklch to rgb (basic conversion)
+      const convertOklchToRgb = (oklchStr: string): string => {
+        // This is a simple fallback - html2canvas should handle most colors
+        // but we'll convert known problematic ones
+        if (oklchStr.includes('oklch')) {
+          // Extract values from oklch() if possible
+          // For now, return a safe fallback color
+          return '#ffffff'
+        }
+        return oklchStr
+      }
+
+      // Clone the element and convert oklch colors to rgb for html2canvas compatibility
+      const clone = element.cloneNode(true) as HTMLElement
+      clone.style.position = 'absolute'
+      clone.style.left = '-9999px'
+      clone.style.top = '0'
+      clone.style.width = `${element.scrollWidth}px`
+      clone.style.height = `${element.scrollHeight}px`
+      clone.style.backgroundColor = '#ffffff'
+      clone.style.color = '#000000'
+      
+      // Append clone to body temporarily
+      document.body.appendChild(clone)
+
+      // Convert oklch colors in computed styles
+      const allElements = clone.querySelectorAll('*')
+      allElements.forEach((el) => {
+        const htmlEl = el as HTMLElement
+        const computedStyle = window.getComputedStyle(htmlEl)
+        
+        // Convert background colors
+        const bgColor = computedStyle.backgroundColor
+        if (bgColor.includes('oklch') || bgColor === 'rgba(0, 0, 0, 0)') {
+          htmlEl.style.backgroundColor = '#ffffff'
+        }
+        
+        // Convert text colors
+        const textColor = computedStyle.color
+        if (textColor.includes('oklch')) {
+          htmlEl.style.color = '#000000'
+        }
+        
+        // Convert border colors
+        const borderColor = computedStyle.borderColor
+        if (borderColor.includes('oklch')) {
+          htmlEl.style.borderColor = '#e5e7eb'
+        }
+      })
+
       // Temporarily ensure element is in viewport and visible
       const originalStyle = {
         position: element.style.position,
@@ -318,34 +368,48 @@ function EstimateDetailContent() {
         display: element.style.display
       }
       
-      // Make sure element is visible for capture
+      // Make sure original element is visible for fallback
       element.style.position = 'relative'
       element.style.visibility = 'visible'
       element.style.opacity = '1'
       element.style.display = 'block'
 
-      // Capture the estimate content as canvas with simplified options
+      // Capture the cloned element as canvas (better compatibility)
       let canvas
       try {
-        canvas = await html2canvas(element, {
+        // Wait for clone to render
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        canvas = await html2canvas(clone, {
           scale: 1.5,
           useCORS: true,
-          logging: true, // Enable logging to debug
+          logging: false,
           backgroundColor: '#ffffff',
           allowTaint: false,
-          removeContainer: false,
+          removeContainer: true,
           imageTimeout: 15000,
-          foreignObjectRendering: false,
-          x: 0,
-          y: 0,
-          width: element.scrollWidth || element.offsetWidth,
-          height: element.scrollHeight || element.offsetHeight
+          foreignObjectRendering: false
+        }).catch(() => {
+          // If clone fails, try original element
+          return html2canvas(element, {
+            scale: 1.5,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            allowTaint: false,
+            removeContainer: false,
+            imageTimeout: 15000
+          })
         })
       } catch (canvasError: any) {
         console.error('html2canvas detailed error:', canvasError)
         const errorMsg = canvasError?.message || 'Unknown error'
         throw new Error(`Failed to capture estimate content: ${errorMsg}`)
       } finally {
+        // Remove clone
+        if (document.body.contains(clone)) {
+          document.body.removeChild(clone)
+        }
         // Restore original styles
         element.style.position = originalStyle.position
         element.style.visibility = originalStyle.visibility
