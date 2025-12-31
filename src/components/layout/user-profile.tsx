@@ -67,7 +67,9 @@ export default function UserProfile() {
         <DropdownMenuTrigger asChild>
           <button className="w-full flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 transition-colors">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
+              {user.user_metadata?.avatar_url ? (
+                <AvatarImage src={user.user_metadata.avatar_url} alt={user.email} />
+              ) : null}
               <AvatarFallback className="bg-blue-600 text-white">
                 {getInitials(user.email)}
               </AvatarFallback>
