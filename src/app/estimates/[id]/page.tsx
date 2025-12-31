@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,11 +23,16 @@ import {
   MapPin,
   X,
   Plus,
-  Eye
+  Eye,
+  Save,
+  X as XIcon
 } from 'lucide-react'
 import JobCreationModal from '@/components/jobs/job-creation-modal'
 import UserProfile from '@/components/layout/user-profile'
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 
 interface Estimate {
   id: string;
@@ -76,9 +81,10 @@ const sidebarItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-export default function EstimateDetailPage() {
+function EstimateDetailContent() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [estimate, setEstimate] = useState<Estimate | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -86,12 +92,37 @@ export default function EstimateDetailPage() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showCreateJobModal, setShowCreateJobModal] = useState(false)
   const [linkedJobs, setLinkedJobs] = useState<LinkedJob[]>([])
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedItems, setEditedItems] = useState<Array<{
+    id?: string;
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    total: number;
+  }>>([])
+  const [editedContractMessage, setEditedContractMessage] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (params.id) {
       fetchEstimate()
+      // Check if edit mode is requested via URL param
+      const editParam = searchParams.get('edit')
+      if (editParam === 'true') {
+        setIsEditing(true)
+      }
+      
+      // Check if print mode is requested
+      const printParam = searchParams.get('print')
+      if (printParam === 'true') {
+        // Add print styles and trigger print when page loads
+        setTimeout(() => {
+          window.print()
+        }, 1000)
+      }
     }
-  }, [params.id])
+  }, [params.id, searchParams])
 
   const fetchEstimate = async () => {
     try {
@@ -101,6 +132,9 @@ export default function EstimateDetailPage() {
       }
       const data = await response.json()
       setEstimate(data)
+      // Initialize edited items and contract message
+      setEditedItems(data.estimate_line_items || [])
+      setEditedContractMessage(data.contract_message || '')
       
       // Fetch linked jobs if estimate_id column exists
       try {
@@ -146,6 +180,97 @@ export default function EstimateDetailPage() {
     }
   }
 
+  const handleSaveEstimate = async () => {
+    if (!estimate) return
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      // Calculate totals from edited items
+      const subtotal = editedItems.reduce((sum, item) => {
+        const total = item.quantity * item.unit_price
+        return sum + total
+      }, 0)
+      const tax = Math.round(subtotal * 0.13 * 100) / 100
+      const total = subtotal + tax
+
+      const response = await fetch(`/api/estimates/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lineItems: editedItems.map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unit_price: item.unit_price
+          })),
+          contract_message: editedContractMessage
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to save estimate' }))
+        throw new Error(errorData.error || 'Failed to save estimate')
+      }
+
+      const updated = await response.json()
+      setEstimate(updated)
+      // Update edited items to match saved data
+      setEditedItems(updated.estimate_line_items || [])
+      setEditedContractMessage(updated.contract_message || '')
+      
+      // Don't close edit mode automatically - let user decide
+      // setIsEditing(false)
+      
+      // Return success so calling function knows it worked
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save estimate')
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveAndSend = async () => {
+    const saved = await handleSaveEstimate()
+    if (saved && estimate?.clients?.email) {
+      // Small delay to ensure estimate is fully saved
+      setTimeout(() => {
+        sendEstimateEmail()
+      }, 300)
+    }
+  }
+
+  const updateItem = (index: number, field: string, value: string | number) => {
+    setEditedItems(prev => prev.map((item, i) => {
+      if (i === index) {
+        const updated = { ...item, [field]: value }
+        // Recalculate total if quantity or unit_price changed
+        if (field === 'quantity' || field === 'unit_price') {
+          updated.total = updated.quantity * updated.unit_price
+        }
+        return updated
+      }
+      return item
+    }))
+  }
+
+  const addItem = () => {
+    setEditedItems(prev => [...prev, {
+      description: '',
+      quantity: 1,
+      unit: 'unit',
+      unit_price: 0,
+      total: 0
+    }])
+  }
+
+  const removeItem = (index: number) => {
+    setEditedItems(prev => prev.filter((_, i) => i !== index))
+  }
+
   const sendEstimateEmail = async () => {
     if (!estimate?.clients?.email) {
       setError('Client email not found')
@@ -175,6 +300,18 @@ export default function EstimateDetailPage() {
       
       // Refresh estimate data to get updated status
       await fetchEstimate()
+      
+      // Update edited items if in edit mode
+      const refreshed = await fetch(`/api/estimates/${params.id}`)
+      if (refreshed.ok) {
+        const refreshedData = await refreshed.json()
+        setEditedItems(refreshedData.estimate_line_items || [])
+        setEditedContractMessage(refreshedData.contract_message || '')
+      }
+      
+      if (isEditing) {
+        setIsEditing(false)
+      }
       
       alert('Estimate sent successfully!')
     } catch (err) {
@@ -270,6 +407,40 @@ export default function EstimateDetailPage() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              {!isEditing ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Estimate
+                </Button>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditing(false)
+                      // Reset edited data
+                      setEditedItems(estimate?.estimate_line_items || [])
+                      setEditedContractMessage(estimate?.contract_message || '')
+                    }}
+                  >
+                    <XIcon className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveEstimate}
+                    disabled={saving}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              )}
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(estimate.status)}`}>
                 {estimate.status}
               </span>
@@ -333,10 +504,18 @@ export default function EstimateDetailPage() {
             </Card>
 
             {/* Line Items */}
-            {estimate.estimate_line_items && estimate.estimate_line_items.length > 0 && (
+            {(isEditing ? editedItems : estimate.estimate_line_items) && (isEditing ? editedItems : estimate.estimate_line_items).length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Line Items</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Line Items</CardTitle>
+                    {isEditing && (
+                      <Button variant="outline" size="sm" onClick={addItem}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Item
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -345,25 +524,80 @@ export default function EstimateDetailPage() {
                         <tr>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Description</th>
                           <th className="px-4 py-3 text-right text-sm font-medium text-gray-900">Quantity</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium text-gray-900">Unit</th>
                           <th className="px-4 py-3 text-right text-sm font-medium text-gray-900">Unit Price</th>
                           <th className="px-4 py-3 text-right text-sm font-medium text-gray-900">Total</th>
+                          {isEditing && <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">Actions</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {estimate.estimate_line_items.map((item) => (
-                          <tr key={item.id} className="hover:bg-gray-50">
+                        {(isEditing ? editedItems : estimate.estimate_line_items).map((item, index) => (
+                          <tr key={isEditing ? index : item.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">
-                              <div className="font-medium text-gray-900">{item.description}</div>
+                              {isEditing ? (
+                                <Input
+                                  value={item.description}
+                                  onChange={(e) => updateItem(index, 'description', e.target.value)}
+                                  className="min-w-[200px]"
+                                  placeholder="Item description"
+                                />
+                              ) : (
+                                <div className="font-medium text-gray-900">{item.description}</div>
+                              )}
                             </td>
-                            <td className="px-4 py-3 text-sm text-right text-gray-600">
-                              {item.quantity.toLocaleString()} {item.unit}
+                            <td className="px-4 py-3 text-sm text-right">
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                  className="w-20 ml-auto text-right"
+                                  min="0"
+                                  step="0.01"
+                                />
+                              ) : (
+                                <span className="text-gray-600">{item.quantity.toLocaleString()} {item.unit}</span>
+                              )}
                             </td>
-                            <td className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap">
-                              {formatCurrencyWithSymbol(item.unit_price)}
+                            {isEditing && (
+                              <td className="px-4 py-3 text-sm text-right">
+                                <Input
+                                  value={item.unit}
+                                  onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                                  className="w-20 ml-auto"
+                                  placeholder="unit"
+                                />
+                              </td>
+                            )}
+                            <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  value={item.unit_price}
+                                  onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                  className="w-24 ml-auto text-right"
+                                  min="0"
+                                  step="0.01"
+                                />
+                              ) : (
+                                <span className="text-gray-600">{formatCurrencyWithSymbol(item.unit_price)}</span>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 whitespace-nowrap">
                               {formatCurrencyWithSymbol(item.total)}
                             </td>
+                            {isEditing && (
+                              <td className="px-4 py-3 text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeItem(index)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -374,35 +608,71 @@ export default function EstimateDetailPage() {
                   <div className="bg-gray-50 px-4 py-4 mt-4">
                     <div className="flex justify-end">
                       <div className="w-64 space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Subtotal:</span>
-                          <span className="font-medium">{formatCurrencyWithSymbol(estimate.subtotal)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Tax (13%):</span>
-                          <span className="font-medium">{formatCurrencyWithSymbol(estimate.tax)}</span>
-                        </div>
-                        <div className="flex justify-between text-lg font-semibold border-t border-gray-300 pt-2">
-                          <span>Total:</span>
-                          <span className="text-blue-600">{formatCurrencyWithSymbol(estimate.total)}</span>
-                        </div>
+                        {(() => {
+                          const subtotal = isEditing 
+                            ? editedItems.reduce((sum, item) => sum + item.total, 0)
+                            : estimate.subtotal
+                          const tax = Math.round(subtotal * 0.13 * 100) / 100
+                          const total = subtotal + tax
+                          return (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Subtotal:</span>
+                                <span className="font-medium">{formatCurrencyWithSymbol(subtotal)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Tax (13%):</span>
+                                <span className="font-medium">{formatCurrencyWithSymbol(tax)}</span>
+                              </div>
+                              <div className="flex justify-between text-lg font-semibold border-t border-gray-300 pt-2">
+                                <span>Total:</span>
+                                <span className="text-blue-600">{formatCurrencyWithSymbol(total)}</span>
+                              </div>
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
+            
+            {isEditing && editedItems.length === 0 && (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <p className="text-gray-600 mb-4">No line items yet. Add your first item.</p>
+                  <Button onClick={addItem}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Item
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Contract Message */}
-            {estimate.contract_message && (
+            {(isEditing || estimate.contract_message) && (
               <Card>
                 <CardHeader>
                   <CardTitle>Contract Terms & Conditions</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="prose max-w-none">
-                    <p className="text-gray-700 whitespace-pre-wrap">{estimate.contract_message}</p>
-                  </div>
+                  {isEditing ? (
+                    <div>
+                      <Label htmlFor="contract-message">Contract Message</Label>
+                      <Textarea
+                        id="contract-message"
+                        value={editedContractMessage}
+                        onChange={(e) => setEditedContractMessage(e.target.value)}
+                        className="mt-2 min-h-[200px]"
+                        placeholder="Enter contract terms and conditions..."
+                      />
+                    </div>
+                  ) : (
+                    <div className="prose max-w-none">
+                      <p className="text-gray-700 whitespace-pre-wrap">{estimate.contract_message || 'No contract terms specified.'}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -453,7 +723,21 @@ export default function EstimateDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="outline" disabled={updating}>
+                  <Button 
+                    variant="outline" 
+                    disabled={updating || isEditing}
+                    onClick={() => {
+                      // Create a new window for printing/downloading
+                      const printWindow = window.open(`/estimates/${params.id}?print=true`, '_blank')
+                      if (printWindow) {
+                        printWindow.onload = () => {
+                          setTimeout(() => {
+                            printWindow.print()
+                          }, 500)
+                        }
+                      }
+                    }}
+                  >
                     <Download className="h-4 w-4 mr-2" />
                     Download PDF
                   </Button>
@@ -461,11 +745,37 @@ export default function EstimateDetailPage() {
                   <Button 
                     variant="outline" 
                     onClick={sendEstimateEmail}
-                    disabled={updating || sendingEmail || !estimate?.clients?.email}
+                    disabled={updating || sendingEmail || isEditing || !estimate?.clients?.email}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     {sendingEmail ? 'Sending...' : 'Email to Client'}
                   </Button>
+                  
+                  {isEditing && (
+                    <>
+                      <Button
+                        onClick={async () => {
+                          const saved = await handleSaveEstimate()
+                          if (saved) {
+                            setIsEditing(false)
+                            alert('Estimate saved successfully!')
+                          }
+                        }}
+                        disabled={saving}
+                        variant="outline"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                      <Button
+                        onClick={handleSaveAndSend}
+                        disabled={saving || sendingEmail || !estimate?.clients?.email}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        {saving ? 'Saving...' : sendingEmail ? 'Sending...' : 'Save & Send'}
+                      </Button>
+                    </>
+                  )}
 
                   <Link href={`/invoices/new?estimateId=${estimate.id}&clientId=${estimate.client_id}`}>
                     <Button disabled={updating}>
@@ -553,5 +863,20 @@ export default function EstimateDetailPage() {
         } : null}
       />
     </div>
+  )
+}
+
+export default function EstimateDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading estimate...</p>
+        </div>
+      </div>
+    }>
+      <EstimateDetailContent />
+    </Suspense>
   )
 }

@@ -71,19 +71,27 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { status } = body
+    const { status, lineItems, contract_message } = body
 
-    if (!status) {
-      return NextResponse.json({ error: 'Status is required' }, { status: 400 })
+    // Build update object
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString()
     }
 
-    // Update the estimate status
+    // Update status if provided
+    if (status) {
+      updateData.status = status
+    }
+
+    // Update contract message if provided
+    if (contract_message !== undefined) {
+      updateData.contract_message = contract_message || null
+    }
+
+    // Update the estimate
     const { data: updatedEstimate, error: updateError } = await supabase
       .from('estimates')
-      .update({ 
-        status,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select(`
@@ -110,8 +118,82 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update estimate' }, { status: 500 })
     }
 
+    // Update line items if provided
+    if (lineItems && Array.isArray(lineItems)) {
+      // Delete existing line items
+      await supabase
+        .from('estimate_line_items')
+        .delete()
+        .eq('estimate_id', id)
+
+      // Insert new line items
+      const itemsToInsert = lineItems.map((item: {
+        description: string;
+        quantity: number;
+        unit: string;
+        unit_price: number;
+      }) => ({
+        estimate_id: id,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_price: item.unit_price,
+        total: item.quantity * item.unit_price
+      }))
+
+      if (itemsToInsert.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('estimate_line_items')
+          .insert(itemsToInsert)
+
+        if (itemsError) {
+          console.error('Error updating line items:', itemsError)
+          return NextResponse.json({ error: 'Failed to update line items' }, { status: 500 })
+        }
+
+        // Recalculate totals
+        const subtotal = itemsToInsert.reduce((sum, item) => sum + item.total, 0)
+        const tax = Math.round(subtotal * 0.13 * 100) / 100
+        const total = subtotal + tax
+
+        await supabase
+          .from('estimates')
+          .update({ subtotal, tax, total })
+          .eq('id', id)
+      }
+    }
+
+    // Fetch updated estimate with all relations
+    const { data: finalEstimate, error: fetchError } = await supabase
+      .from('estimates')
+      .select(`
+        *,
+        clients (
+          name,
+          email,
+          phone,
+          address
+        ),
+        estimate_line_items (
+          id,
+          description,
+          quantity,
+          unit,
+          unit_price,
+          total
+        )
+      `)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching updated estimate:', fetchError)
+      return NextResponse.json({ error: 'Failed to fetch updated estimate' }, { status: 500 })
+    }
+
     // If there's a lead associated with this estimate, update its status
-    if (updatedEstimate.lead_id) {
+    if (finalEstimate.lead_id && status) {
       let leadStatus = ''
       
       switch (status) {
@@ -138,7 +220,7 @@ export async function PUT(
             status: leadStatus,
             updated_at: new Date().toISOString()
           })
-          .eq('id', updatedEstimate.lead_id)
+          .eq('id', finalEstimate.lead_id)
           .eq('user_id', user.id)
 
         if (leadError) {
@@ -155,8 +237,8 @@ export async function PUT(
           event: 'estimate_approved',
           user_id: user.id,
           estimate_id: id,
-          client_name: updatedEstimate.clients?.name || 'Client',
-          client_email: updatedEstimate.clients?.email || undefined,
+          client_name: finalEstimate.clients?.name || 'Client',
+          client_email: finalEstimate.clients?.email || undefined,
           user_email: user.email || undefined
         })
       } catch (automationError) {
@@ -165,7 +247,7 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json(updatedEstimate)
+    return NextResponse.json(finalEstimate || updatedEstimate)
   } catch (error) {
     console.error('Error in PUT /api/estimates/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
