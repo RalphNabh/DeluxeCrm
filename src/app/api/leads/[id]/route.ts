@@ -36,29 +36,42 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .single()
 
   // If the join fails (likely folder_id column doesn't exist), fall back to simple query
-  if (error && (error.message.includes('column') || error.message.includes('does not exist'))) {
-    const simpleQuery = await supabase
-      .from('leads')
-      .update(updates)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select('*')
-      .single()
-    
-    if (simpleQuery.error) {
-      return NextResponse.json({ error: simpleQuery.error.message }, { status: 400 })
+  if (error) {
+    const errorMsg = error.message || String(error);
+    if (errorMsg.includes('column') || errorMsg.includes('does not exist') || errorMsg.includes('relation') || errorMsg.includes('foreign key')) {
+      console.log('Folder join failed in update, falling back to simple query:', errorMsg);
+      const simpleQuery = await supabase
+        .from('leads')
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select('*')
+        .single()
+      
+      if (simpleQuery.error) {
+        console.error('Simple update query also failed:', simpleQuery.error);
+        return NextResponse.json({ error: simpleQuery.error.message }, { status: 400 })
+      }
+      
+      // Add null folder info to match expected structure
+      data = simpleQuery.data ? {
+        ...simpleQuery.data,
+        client_folders: null
+      } : null;
+      error = null; // Clear error since fallback succeeded
+    } else {
+      console.error('Unexpected error updating lead:', error);
+      return NextResponse.json({ error: errorMsg }, { status: 400 })
     }
-    
-    // Add null folder info to match expected structure
-    data = simpleQuery.data ? {
-      ...simpleQuery.data,
-      client_folders: null
-    } : null
-  } else if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) {
+    return NextResponse.json({ error: error.message || 'Failed to update lead' }, { status: 400 })
+  }
+  
+  if (!data) {
+    return NextResponse.json({ error: 'Lead not found or update failed' }, { status: 404 })
+  }
 
   // Trigger automations if status changed
   if (updates.status && oldLead && oldLead.status !== updates.status) {

@@ -785,11 +785,19 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error("Failed to update lead");
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Failed to update lead:', errorData);
+        throw new Error(errorData.error || "Failed to update lead");
+      }
+      
       const updated = (await res.json()) as Lead;
-      setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)));
+      setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updated } : l)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update lead");
+      const errorMessage = e instanceof Error ? e.message : "Failed to update lead";
+      console.error('Error updating lead status:', e);
+      setError(errorMessage);
     }
   }
 
