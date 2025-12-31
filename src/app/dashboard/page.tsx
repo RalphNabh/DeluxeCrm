@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,6 +95,7 @@ type Lead = {
   tags?: string[];
   created_at: string;
   updated_at: string;
+  client_id?: string; // Link to client if exists
 };
 
 type PipelineStage = {
@@ -129,6 +131,10 @@ function DraggableLeadCard({
   stages: PipelineStage[];
   onStatusChange: (leadId: string, newStatus: string) => void;
 }) {
+  const router = useRouter();
+  const [clientId, setClientId] = useState<string | null>(lead.client_id || null);
+  const [findingClient, setFindingClient] = useState(false);
+
   const {
     attributes,
     listeners,
@@ -151,6 +157,48 @@ function DraggableLeadCard({
   // Calculate progress percentage
   const progress = stages.length > 0 && currentStageIndex !== -1 ? Math.round(((currentStageIndex + 1) / stages.length) * 100) : 0;
 
+  // Find client by email/name when card is clicked (if not already linked)
+  const handleCardClick = async (e: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) {
+      return;
+    }
+
+    if (clientId) {
+      router.push(`/clients/${clientId}`);
+      return;
+    }
+
+    // Try to find client by email or name
+    if (!lead.email && !lead.name) return;
+
+    setFindingClient(true);
+    try {
+      const searchParam = lead.email || lead.name;
+      const response = await fetch(`/api/clients?q=${encodeURIComponent(searchParam)}`);
+      if (response.ok) {
+        const clients = await response.json();
+        // Try to match by email first, then by name
+        const matched = clients.find((c: { email?: string; name?: string }) => 
+          (lead.email && c.email && c.email.toLowerCase() === lead.email.toLowerCase()) ||
+          (!lead.email && c.name && c.name.toLowerCase() === lead.name.toLowerCase())
+        );
+        
+        if (matched) {
+          router.push(`/clients/${matched.id}`);
+        } else {
+          // No match found, maybe create a client or show error?
+          console.log('No matching client found for lead');
+        }
+      }
+    } catch (error) {
+      console.error('Error finding client:', error);
+    } finally {
+      setFindingClient(false);
+    }
+  };
+
   return (
     <Card
       ref={setNodeRef}
@@ -158,18 +206,28 @@ function DraggableLeadCard({
       className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 group dark:bg-gray-800 min-w-[280px] w-full"
       {...attributes}
       {...listeners}
+      onClick={handleCardClick}
     >
       <div className="space-y-2">
         <div className="flex items-start justify-between">
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-700 dark:group-hover:text-blue-400 break-words">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-700 dark:group-hover:text-blue-400 break-words cursor-pointer">
               {lead.name}
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">{lead.address}</p>
+            {clientId && (
+              <Link 
+                href={`/clients/${clientId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+              >
+                View Client Details →
+              </Link>
+            )}
           </div>
-          <div className="text-right">
-            <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-              {formatCurrencyWithSymbol(lead.value)}
+          <div className="text-right flex-shrink-0 ml-2">
+            <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+              {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '—'}
             </div>
             <div className="flex items-center gap-1 mt-2">
               <Button
@@ -383,10 +441,45 @@ export default function Dashboard() {
         const stagesData = await stagesRes.json();
         setStages(stagesData.sort((a: PipelineStage, b: PipelineStage) => a.position - b.position));
 
-        // Then fetch leads
-        const leadsRes = await fetch("/api/leads");
+        // Then fetch leads and estimates to enrich with values
+        const [leadsRes, estimatesRes] = await Promise.all([
+          fetch("/api/leads"),
+          fetch("/api/estimates")
+        ]);
+        
         if (!leadsRes.ok) throw new Error("Failed to load leads");
         const leadsData = await leadsRes.json();
+        
+        // Fetch estimates to update lead values
+        if (estimatesRes.ok) {
+          const estimatesData = await estimatesRes.json();
+          // Match estimates to leads and update values
+          leadsData.forEach((lead: Lead) => {
+            // Find estimates for this lead by matching client email/name
+            const matchingEstimates = estimatesData.filter((est: any) => {
+              const clientEmail = est.clients?.email?.toLowerCase();
+              const clientName = est.clients?.name?.toLowerCase();
+              const leadEmail = lead.email?.toLowerCase();
+              const leadName = lead.name?.toLowerCase();
+              
+              return (leadEmail && clientEmail && clientEmail === leadEmail) ||
+                     (leadName && clientName && clientName === leadName);
+            });
+            
+            // Update lead value with latest estimate total if exists
+            if (matchingEstimates.length > 0) {
+              const latestEstimate = matchingEstimates.sort((a: any, b: any) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              )[0];
+              lead.value = latestEstimate.total || lead.value || 0;
+              // Store client_id if available
+              if (latestEstimate.client_id) {
+                lead.client_id = latestEstimate.client_id;
+              }
+            }
+          });
+        }
+        
         setLeads(leadsData);
         
         // Extract all unique tags from leads

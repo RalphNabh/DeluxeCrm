@@ -22,7 +22,8 @@ import {
   Edit,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react'
 import { LayoutDashboard, Users, Settings, BarChart3, Zap } from 'lucide-react'
 import UserProfile from '@/components/layout/user-profile'
@@ -565,22 +566,35 @@ export default function ClientDetailPage() {
                     ) : (
                       <div className="space-y-3">
                         {estimates.map((e) => (
-                          <div key={e.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2">
+                          <div 
+                            key={e.id} 
+                            onClick={() => router.push(`/estimates/${e.id}`)}
+                            className="flex items-center justify-between p-4 bg-gray-50 hover:bg-blue-50 rounded-lg hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-blue-200"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
                                 <span className="text-sm font-medium text-gray-900">#{e.id.slice(0, 8)}</span>
                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(e.status)}`}>
                                   {e.status}
                                 </span>
                               </div>
-                              <div className="text-sm text-gray-600 mt-1">
-                                {formatCurrencyWithSymbol(e.total)} • {new Date(e.created_at).toLocaleDateString()}
+                              <div className="flex items-center space-x-3">
+                                <div className="text-lg font-bold text-blue-600">
+                                  {formatCurrencyWithSymbol(e.total)}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {new Date(e.created_at).toLocaleDateString()}
+                                </div>
                               </div>
                             </div>
-                            <Link href={`/estimates/${e.id}`}>
+                            <Link 
+                              href={`/estimates/${e.id}`} 
+                              onClick={(e) => e.stopPropagation()}
+                              className="ml-4"
+                            >
                               <Button variant="outline" size="sm">
                                 <Eye className="h-4 w-4 mr-2" />
-                                View
+                                View Details
                               </Button>
                             </Link>
                           </div>
