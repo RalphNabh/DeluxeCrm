@@ -272,10 +272,13 @@ function EstimateDetailContent() {
     
     try {
       // Dynamically import libraries to avoid SSR issues
-      const [{ default: jsPDF }, html2canvas] = await Promise.all([
+      const [jsPDFModule, html2canvasModule] = await Promise.all([
         import('jspdf'),
         import('html2canvas')
       ])
+      
+      const jsPDF = jsPDFModule.default || (jsPDFModule as any)
+      const html2canvas = html2canvasModule.default || html2canvasModule
 
       // Ensure element is visible and rendered
       const element = estimateContentRef.current
@@ -287,7 +290,7 @@ function EstimateDetailContent() {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Capture the estimate content as canvas
-      const canvas = await html2canvas.default(element, {
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         logging: false,
@@ -314,7 +317,7 @@ function EstimateDetailContent() {
       let heightLeft = imgHeight
 
       // Create PDF
-      const pdf = new jsPDF.jsPDF('p', 'mm', 'a4')
+      const pdf = new jsPDF('p', 'mm', 'a4')
       let position = 0
 
       // Convert canvas to data URL
