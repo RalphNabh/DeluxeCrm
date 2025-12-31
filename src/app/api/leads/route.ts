@@ -22,24 +22,30 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   // If the join fails (likely folder_id column doesn't exist), fall back to simple query
-  if (error && (error.message.includes('column') || error.message.includes('does not exist'))) {
-    const simpleQuery = await supabase
-      .from('leads')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    
-    if (simpleQuery.error) {
-      return NextResponse.json({ error: simpleQuery.error.message }, { status: 400 })
+  if (error) {
+    const errorMsg = error.message || String(error);
+    if (errorMsg.includes('column') || errorMsg.includes('does not exist') || errorMsg.includes('relation') || errorMsg.includes('foreign key')) {
+      console.log('Folder join failed, falling back to simple query:', errorMsg);
+      const simpleQuery = await supabase
+        .from('leads')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      
+      if (simpleQuery.error) {
+        console.error('Simple query also failed:', simpleQuery.error);
+        return NextResponse.json({ error: simpleQuery.error.message }, { status: 400 })
+      }
+      
+      // Add null folder info to match expected structure
+      data = simpleQuery.data?.map((lead: any) => ({
+        ...lead,
+        client_folders: null
+      })) || []
+    } else {
+      console.error('Unexpected error fetching leads:', error);
+      return NextResponse.json({ error: errorMsg }, { status: 400 })
     }
-    
-    // Add null folder info to match expected structure
-    data = simpleQuery.data?.map((lead: any) => ({
-      ...lead,
-      client_folders: null
-    })) || []
-  } else if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
   return NextResponse.json(data)

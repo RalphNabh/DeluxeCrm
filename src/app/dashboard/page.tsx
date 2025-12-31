@@ -539,6 +539,7 @@ export default function Dashboard() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [folders, setFolders] = useState<LeadFolder[]>([]);
+  const [showFilters, setShowFilters] = useState(true);
   const { startTutorial, isTutorialCompleted } = useTutorial();
   const { addNotification } = useNotifications();
   // Sidebar open state - closed on mobile, open on desktop
@@ -571,7 +572,11 @@ export default function Dashboard() {
           fetch("/api/client-folders")
         ]);
         
-        if (!leadsRes.ok) throw new Error("Failed to load leads");
+        if (!leadsRes.ok) {
+          const errorData = await leadsRes.json().catch(() => ({}));
+          console.error('Failed to load leads:', errorData);
+          throw new Error(errorData.error || "Failed to load leads");
+        }
         const leadsData = await leadsRes.json();
         
         // Fetch folders
@@ -625,7 +630,9 @@ export default function Dashboard() {
         });
         setAvailableTags(Array.from(allTags).sort());
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Error loading data");
+        const errorMessage = e instanceof Error ? e.message : "Error loading data";
+        console.error('Error loading dashboard data:', e);
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -983,9 +990,13 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               )}
-              <Button variant="outline" size="sm">
+              <Button 
+                variant={showFilters ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
                 <Filter className="h-4 w-4 mr-2" />
-                Filter
+                Filters
               </Button>
             </>
           }
@@ -994,6 +1005,7 @@ export default function Dashboard() {
         {/* Dashboard Content */}
         <main className="flex-1 p-6">
           {/* Folder and Tag Filters */}
+          {showFilters && (
           <div className="mb-6 space-y-4">
             <FolderManager
               folders={folders}
