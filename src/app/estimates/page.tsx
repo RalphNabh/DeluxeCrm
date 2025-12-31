@@ -255,13 +255,6 @@ export default function EstimatePage() {
               }
             ]}
           />
-                icon: Calendar,
-                iconColor: "text-orange-600",
-                iconBg: "bg-orange-100"
-              },
-              {
-                label: "Total Value",
-                value: formatCurrencyWithSymbol(estimates.reduce((sum, e) => sum + e.total, 0)),
                 icon: DollarSign,
                 iconColor: "text-purple-600",
                 iconBg: "bg-purple-100"

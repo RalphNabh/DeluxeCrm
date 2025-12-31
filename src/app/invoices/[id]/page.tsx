@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   Download,
   Edit,
+  X,
   Trash2,
   Eye,
   FileText as FileTextIcon
