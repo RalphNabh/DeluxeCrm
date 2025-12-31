@@ -132,6 +132,19 @@ export async function sendEstimateEmail(
               </div>
             </div>
 
+            ${estimate.contract_message ? `
+            <div style="background: #f3f4f6; border: 2px solid #2563eb; border-radius: 8px; padding: 20px; margin: 30px 0;">
+              <h3 style="color: #1e40af; font-size: 18px; font-weight: bold; margin-top: 0; margin-bottom: 15px;">Contract Terms & Conditions</h3>
+              <div style="color: #374151; line-height: 1.6; white-space: pre-wrap;">${estimate.contract_message}</div>
+            </div>
+            ` : ''}
+
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0; color: #92400e; font-weight: 500;">
+                <strong>Important:</strong> By clicking "Approve Estimate" below, you agree to accept this estimate and ${estimate.contract_message ? 'the contract terms and conditions listed above' : 'proceed with this project'}.
+              </p>
+            </div>
+
             <div style="text-align: center; margin: 30px 0;">
               <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/estimate-action?estimateId=${estimate.id}&action=approve&clientEmail=${encodeURIComponent(clientEmail)}&clientName=${encodeURIComponent(clientName)}" class="button" style="background: #10b981; margin-right: 10px;">Approve Estimate</a>
               <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/estimate-action?estimateId=${estimate.id}&action=request_changes&clientEmail=${encodeURIComponent(clientEmail)}&clientName=${encodeURIComponent(clientName)}" class="button" style="background: #f59e0b;">Request Changes</a>

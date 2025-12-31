@@ -167,3 +167,8 @@ To test the affiliate flow:
 ---
 
 **Need Help?** Check the webhook logs in Stripe and Vercel for detailed error messages.
+
+
+
+
+

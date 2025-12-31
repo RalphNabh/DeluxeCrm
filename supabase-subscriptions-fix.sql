@@ -11,3 +11,8 @@ ADD CONSTRAINT subscriptions_user_id_unique UNIQUE (user_id);
 
 -- Verify the constraint was added
 -- You can check this in Supabase Table Editor → subscriptions → Constraints
+
+
+
+
+

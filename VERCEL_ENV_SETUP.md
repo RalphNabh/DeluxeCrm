@@ -106,7 +106,7 @@ Follow these steps to get all your API keys and set them up in Vercel.
 13. Copy the signing secret (starts with `whsec_test_...` for test mode)
     - ⚠️ **You can only see this once!** Save it immediately.
 
-14. This is your `STRIPE_WEBHOOK_SECRET`
+14. This is your ``STRIPE_WEBHOOK_SECRET``
 
 **Note:** These are test mode keys for development/testing. No real payments will be processed. When ready for production, you'll need to complete Stripe's business verification and get live mode keys.
 
@@ -260,3 +260,8 @@ NEXT_PUBLIC_APP_URL
 ---
 
 **Need Help?** If you get stuck on any step, let me know which service and I can guide you through it!
+
+
+
+
+

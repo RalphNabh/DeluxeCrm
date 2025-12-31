@@ -73,3 +73,8 @@ export default function AccountVerifiedPage() {
     </div>
   );
 }
+
+
+
+
+

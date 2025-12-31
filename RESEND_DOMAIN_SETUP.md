@@ -112,3 +112,8 @@ Emails are sent from:
 - General email actions (`api/email/action/route.ts`)
 
 All use the `RESEND_FROM_EMAIL` environment variable or fall back to the test domain.
+
+
+
+
+

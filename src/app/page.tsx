@@ -10,8 +10,7 @@ import {
   Star,
   BarChart3,
   Calendar,
-  Mail,
-  Phone
+  Mail
 } from "lucide-react";
 
 export default function Home() {
@@ -244,10 +243,6 @@ export default function Home() {
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 mr-2" />
                   support@dyluxepro.com
-                </div>
-                <div className="flex items-center">
-                  <Phone className="h-4 w-4 mr-2" />
-                  (613) 262-1422
                 </div>
               </div>
             </div>

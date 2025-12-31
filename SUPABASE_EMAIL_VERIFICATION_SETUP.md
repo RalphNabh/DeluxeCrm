@@ -97,3 +97,8 @@ Make sure these are set correctly in Vercel:
 3. Check Authentication → Users to see if user was created
 4. Check email inbox (including spam)
 5. If still not working, check Supabase logs for errors
+
+
+
+
+

@@ -15,20 +15,48 @@ function EstimateActionContent() {
     message: string;
     status?: string;
   } | null>(null);
+  const [contractAgreed, setContractAgreed] = useState(false);
+  const [estimate, setEstimate] = useState<{ contract_message?: string } | null>(null);
 
   const estimateId = searchParams.get('estimateId');
   const action = searchParams.get('action');
   const clientEmail = searchParams.get('clientEmail');
   const clientName = searchParams.get('clientName');
 
+  // Fetch estimate to get contract message (public endpoint, no auth required)
   useEffect(() => {
-    if (estimateId && action && (action === 'approve' || action === 'request_changes')) {
+    if (estimateId && action === 'approve') {
+      const url = new URL('/api/estimates/public', window.location.origin);
+      url.searchParams.set('estimateId', estimateId);
+      if (clientEmail) {
+        url.searchParams.set('clientEmail', clientEmail);
+      }
+      
+      fetch(url.toString())
+        .then(res => res.json())
+        .then(data => {
+          if (data.contract_message) {
+            setEstimate({ contract_message: data.contract_message });
+          }
+        })
+        .catch(err => console.error('Error fetching contract message:', err));
+    }
+  }, [estimateId, action, clientEmail]);
+
+  useEffect(() => {
+    // Only auto-submit for request_changes, not for approve (approve needs checkbox confirmation)
+    if (estimateId && action && action === 'request_changes') {
       handleAction();
     }
   }, [estimateId, action]);
 
   const handleAction = async () => {
     if (!estimateId || !action) return;
+    
+    // Require contract agreement for approval if contract exists
+    if (action === 'approve' && estimate?.contract_message && !contractAgreed) {
+      return; // Don't proceed without agreement
+    }
 
     setLoading(true);
     try {
@@ -158,12 +186,39 @@ function EstimateActionContent() {
           )}
 
           {!loading && !result && (
-            <div className="text-center">
-              <p className="text-gray-600 mb-4">{getActionDescription()}</p>
+            <div className="space-y-4">
+              {/* Show contract message if approving */}
+              {action === 'approve' && estimate?.contract_message && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
+                  <h4 className="font-semibold text-blue-900 mb-2">Contract Terms & Conditions</h4>
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap max-h-60 overflow-y-auto">
+                    {estimate.contract_message}
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-gray-600 text-center">{getActionDescription()}</p>
+              
+              {/* Contract agreement checkbox for approval */}
+              {action === 'approve' && estimate?.contract_message && (
+                <div className="flex items-start space-x-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="contract-agree"
+                    checked={contractAgreed}
+                    onChange={(e) => setContractAgreed(e.target.checked)}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="contract-agree" className="text-sm text-gray-700 cursor-pointer">
+                    <strong>I agree to the contract terms and conditions</strong> listed above. By approving this estimate, I acknowledge that I have read, understood, and agree to be bound by all terms and conditions.
+                  </label>
+                </div>
+              )}
+              
               <Button 
                 onClick={handleAction}
                 className="w-full"
-                disabled={loading}
+                disabled={loading || (action === 'approve' && estimate?.contract_message && !contractAgreed)}
               >
                 {action === 'approve' ? 'Approve Estimate' : 'Request Changes'}
               </Button>
