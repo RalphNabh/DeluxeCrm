@@ -34,8 +34,6 @@ import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 
 interface Estimate {
   id: string;
@@ -273,6 +271,12 @@ function EstimateDetailContent() {
     setError(null)
     
     try {
+      // Dynamically import libraries to avoid SSR issues
+      const [{ default: jsPDF }, html2canvas] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas')
+      ])
+
       // Ensure element is visible and rendered
       const element = estimateContentRef.current
       if (!element || element.offsetWidth === 0 || element.offsetHeight === 0) {
@@ -283,7 +287,7 @@ function EstimateDetailContent() {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Capture the estimate content as canvas
-      const canvas = await html2canvas(element, {
+      const canvas = await html2canvas.default(element, {
         scale: 2,
         useCORS: true,
         logging: false,
@@ -310,7 +314,7 @@ function EstimateDetailContent() {
       let heightLeft = imgHeight
 
       // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdf = new jsPDF.jsPDF('p', 'mm', 'a4')
       let position = 0
 
       // Convert canvas to data URL
