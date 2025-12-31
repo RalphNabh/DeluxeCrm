@@ -310,6 +310,20 @@ function EstimateDetailContent() {
       // Wait a bit for any dynamic content to render
       await new Promise(resolve => setTimeout(resolve, 500))
 
+      // Temporarily ensure element is in viewport and visible
+      const originalStyle = {
+        position: element.style.position,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity,
+        display: element.style.display
+      }
+      
+      // Make sure element is visible for capture
+      element.style.position = 'relative'
+      element.style.visibility = 'visible'
+      element.style.opacity = '1'
+      element.style.display = 'block'
+
       // Capture the estimate content as canvas with simplified options
       let canvas
       try {
@@ -321,12 +335,22 @@ function EstimateDetailContent() {
           allowTaint: false,
           removeContainer: false,
           imageTimeout: 15000,
-          foreignObjectRendering: false
+          foreignObjectRendering: false,
+          x: 0,
+          y: 0,
+          width: element.scrollWidth || element.offsetWidth,
+          height: element.scrollHeight || element.offsetHeight
         })
       } catch (canvasError: any) {
         console.error('html2canvas detailed error:', canvasError)
         const errorMsg = canvasError?.message || 'Unknown error'
         throw new Error(`Failed to capture estimate content: ${errorMsg}`)
+      } finally {
+        // Restore original styles
+        element.style.position = originalStyle.position
+        element.style.visibility = originalStyle.visibility
+        element.style.opacity = originalStyle.opacity
+        element.style.display = originalStyle.display
       }
 
       if (!canvas) {
