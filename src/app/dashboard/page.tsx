@@ -1064,6 +1064,8 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          )}
+
           {/* Undo Notification */}
           {deletedStage && (
             <div className="mb-4 fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-5">
