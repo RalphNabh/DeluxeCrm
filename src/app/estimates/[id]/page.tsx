@@ -351,14 +351,14 @@ function EstimateDetailContent() {
 
       // Remove buttons and action sections from clone for clean PDF
       
-      // Remove the entire "Actions" card section
+      // Remove the entire "Actions" and "Linked Jobs" card sections
       const allCards = clone.querySelectorAll('[class*="Card"]')
       allCards.forEach((card) => {
         const cardElement = card as HTMLElement
-        // Check if this card contains "Actions" in the header
+        // Check if this card contains "Actions" or "Linked Jobs" in the header
         const header = cardElement.querySelector('[class*="CardHeader"]')
         const headerText = header?.textContent?.toLowerCase() || ''
-        if (headerText.includes('action')) {
+        if (headerText.includes('action') || headerText.includes('linked job')) {
           cardElement.remove()
         }
       })
