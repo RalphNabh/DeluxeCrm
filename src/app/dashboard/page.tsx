@@ -126,14 +126,19 @@ function DraggableLeadCard({
   lead,
   stages,
   onStatusChange,
+  onValueChange,
 }: {
   lead: Lead;
   stages: PipelineStage[];
   onStatusChange: (leadId: string, newStatus: string) => void;
+  onValueChange?: (leadId: string, newValue: number) => void;
 }) {
   const router = useRouter();
   const [clientId, setClientId] = useState<string | null>(lead.client_id || null);
   const [findingClient, setFindingClient] = useState(false);
+  const [isEditingValue, setIsEditingValue] = useState(false);
+  const [valueInput, setValueInput] = useState(lead.value.toString());
+  const [isSaving, setIsSaving] = useState(false);
 
   const {
     attributes,
@@ -156,6 +161,32 @@ function DraggableLeadCard({
   
   // Calculate progress percentage
   const progress = stages.length > 0 && currentStageIndex !== -1 ? Math.round(((currentStageIndex + 1) / stages.length) * 100) : 0;
+
+  // Handle value update
+  const handleValueSave = async () => {
+    const numValue = parseFloat(valueInput) || 0;
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: numValue })
+      });
+      if (response.ok) {
+        if (onValueChange) {
+          onValueChange(lead.id, numValue);
+        }
+        setIsEditingValue(false);
+      } else {
+        alert('Failed to update value');
+      }
+    } catch (error) {
+      console.error('Error updating value:', error);
+      alert('Error updating value');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Find client by email/name when card is clicked (if not already linked)
   const handleCardClick = async (e: React.MouseEvent) => {
@@ -226,9 +257,73 @@ function DraggableLeadCard({
             )}
           </div>
           <div className="text-right flex-shrink-0 ml-2">
-            <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-              {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '—'}
-            </div>
+            <Dialog open={isEditingValue} onOpenChange={setIsEditingValue}>
+              <div className="flex items-center gap-1 justify-end">
+                <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                  {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '—'}
+                </div>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setValueInput(lead.value.toString());
+                      setIsEditingValue(true);
+                    }}
+                    title="Edit value"
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                </DialogTrigger>
+              </div>
+              <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>Edit Lead Value</DialogTitle>
+                  <DialogDescription>
+                    Update the dollar value for {lead.name}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="value-input">Value ($)</Label>
+                    <Input
+                      id="value-input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={valueInput}
+                      onChange={(e) => setValueInput(e.target.value)}
+                      placeholder="0.00"
+                      className="mt-1"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleValueSave();
+                        } else if (e.key === 'Escape') {
+                          setIsEditingValue(false);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingValue(false)}
+                      disabled={isSaving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleValueSave}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             <div className="flex items-center gap-1 mt-2">
               <Button
                 variant="outline"
@@ -310,6 +405,7 @@ function DroppableStage({
   leads,
   stages,
   onStatusChange,
+  onValueChange,
   onEditStage,
   onDeleteStage,
 }: {
@@ -317,6 +413,7 @@ function DroppableStage({
   leads: Lead[];
   stages: PipelineStage[];
   onStatusChange: (leadId: string, newStatus: string) => void;
+  onValueChange?: (leadId: string, newValue: number) => void;
   onEditStage?: (stage: PipelineStage) => void;
   onDeleteStage?: (stageId: string) => void;
 }) {
@@ -389,6 +486,7 @@ function DroppableStage({
                 lead={lead}
                 stages={stages}
                 onStatusChange={onStatusChange}
+                onValueChange={onValueChange}
               />
             ))}
           </SortableContext>
@@ -587,6 +685,14 @@ export default function Dashboard() {
     () => Math.max(1, ...stages.map((s) => grouped[s.name]?.length || 0)),
     [grouped, stages]
   );
+
+  const handleValueChange = async (leadId: string, newValue: number) => {
+    setLeads(prevLeads => 
+      prevLeads.map(lead => 
+        lead.id === leadId ? { ...lead, value: newValue } : lead
+      )
+    );
+  };
 
   async function changeLeadStatus(leadId: string, newStatus: string) {
     try {
@@ -970,6 +1076,7 @@ export default function Dashboard() {
                   stages={stages}
                   leads={grouped[stage.name] || []}
                   onStatusChange={changeLeadStatus}
+                  onValueChange={handleValueChange}
                   onEditStage={handleEditStage}
                   onDeleteStage={handleDeleteStage}
                 />
