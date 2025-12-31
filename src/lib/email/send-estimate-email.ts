@@ -210,22 +210,70 @@ export async function sendEstimateEmail(
       .eq('user_id', userId);
 
     // If estimate has a linked lead, update the lead status to "Estimate Sent"
-    if (estimate.lead_id) {
-      const { error: leadUpdateError } = await supabase
+    let leadToUpdate = estimate.lead_id
+
+    // If no lead_id, try to find lead by matching client email/name
+    if (!leadToUpdate && estimate.clients) {
+      const clientEmail = estimate.clients.email
+      const clientName = estimate.clients.name
+
+      if (clientEmail || clientName) {
+        let query = supabase
+          .from('leads')
+          .select('id')
+          .eq('user_id', userId)
+          .in('status', ['New Leads', 'Estimate Sent']) // Only update leads in these stages
+
+        if (clientEmail && clientName) {
+          query = query.or(`email.eq.${clientEmail},name.ilike.%${clientName}%`)
+        } else if (clientEmail) {
+          query = query.eq('email', clientEmail)
+        } else if (clientName) {
+          query = query.ilike('name', `%${clientName}%`)
+        }
+
+        const { data: matchingLeads, error: findError } = await query.limit(1)
+
+        if (!findError && matchingLeads && matchingLeads.length > 0) {
+          leadToUpdate = matchingLeads[0].id
+          console.log(`[SEND ESTIMATE] Found lead by client match: ${leadToUpdate}`)
+        } else {
+          console.log('[SEND ESTIMATE] No matching lead found by email/name')
+        }
+      }
+    }
+
+    if (leadToUpdate) {
+      const { data: updatedLead, error: leadUpdateError } = await supabase
         .from('leads')
         .update({
           status: 'Estimate Sent',
           updated_at: new Date().toISOString()
         })
-        .eq('id', estimate.lead_id)
+        .eq('id', leadToUpdate)
         .eq('user_id', userId)
+        .select()
 
       if (leadUpdateError) {
-        console.error('Error updating lead status to "Estimate Sent":', leadUpdateError)
+        console.error('[SEND ESTIMATE] Error updating lead status to "Estimate Sent":', leadUpdateError)
+        console.error('[SEND ESTIMATE] Lead ID:', leadToUpdate, 'User ID:', userId)
         // Don't fail the request if lead update fails, just log it
       } else {
-        console.log(`Lead ${estimate.lead_id} status updated to "Estimate Sent"`)
+        console.log(`[SEND ESTIMATE] Lead ${leadToUpdate} status updated to "Estimate Sent"`)
+        console.log('[SEND ESTIMATE] Updated lead:', updatedLead)
+        
+        // Also update the estimate with the lead_id if it wasn't set
+        if (!estimate.lead_id) {
+          await supabase
+            .from('estimates')
+            .update({ lead_id: leadToUpdate })
+            .eq('id', estimateId)
+            console.log(`[SEND ESTIMATE] Updated estimate with lead_id: ${leadToUpdate}`)
+        }
       }
+    } else {
+      console.log('[SEND ESTIMATE] No lead found to update')
+      console.log('[SEND ESTIMATE] Estimate ID:', estimateId, 'Client ID:', estimate.client_id, 'Lead ID:', estimate.lead_id)
     }
 
     // Trigger automations for estimate_sent event

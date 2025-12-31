@@ -91,22 +91,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update estimate' }, { status: 500 })
     }
 
-    // If estimate is approved and has a linked lead, update the lead status to "Approved"
-    if (action === 'approve' && estimate.lead_id) {
-      const { error: leadUpdateError } = await supabase
-        .from('leads')
-        .update({
-          status: 'Approved',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', estimate.lead_id)
-        .eq('user_id', userId)
+    // If estimate is approved, update the lead status to "Approved"
+    if (action === 'approve') {
+      let leadToUpdate = estimate.lead_id
 
-      if (leadUpdateError) {
-        console.error('Error updating lead status:', leadUpdateError)
-        // Don't fail the request if lead update fails, just log it
+      // If no lead_id, try to find lead by matching client email/name
+      if (!leadToUpdate && estimate.clients) {
+        const clientEmail = estimate.clients.email
+        const clientName = estimate.clients.name
+
+        if (clientEmail || clientName) {
+          const { data: matchingLeads } = await supabase
+            .from('leads')
+            .select('id')
+            .eq('user_id', userId)
+            .or(clientEmail && clientName 
+              ? `email.eq.${clientEmail},name.eq.${clientName}` 
+              : clientEmail 
+                ? `email.eq.${clientEmail}` 
+                : `name.eq.${clientName}`
+            )
+            .in('status', ['New Leads', 'Estimate Sent']) // Only update leads that haven't been approved yet
+            .limit(1)
+
+          if (matchingLeads && matchingLeads.length > 0) {
+            leadToUpdate = matchingLeads[0].id
+            console.log(`[ESTIMATE ACTION] Found lead by client match: ${leadToUpdate}`)
+            
+            // Update the estimate with the found lead_id
+            await supabase
+              .from('estimates')
+              .update({ lead_id: leadToUpdate })
+              .eq('id', estimateId)
+          }
+        }
+      }
+
+      if (leadToUpdate) {
+        const { data: updatedLead, error: leadUpdateError } = await supabase
+          .from('leads')
+          .update({
+            status: 'Approved',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', leadToUpdate)
+          .eq('user_id', userId)
+          .select()
+
+        if (leadUpdateError) {
+          console.error('[ESTIMATE ACTION] Error updating lead status to "Approved":', leadUpdateError)
+          console.error('[ESTIMATE ACTION] Lead ID:', leadToUpdate, 'User ID:', userId)
+          // Don't fail the request if lead update fails, just log it
+        } else {
+          console.log(`[ESTIMATE ACTION] Lead ${leadToUpdate} status updated to "Approved"`)
+          console.log('[ESTIMATE ACTION] Updated lead:', updatedLead)
+        }
       } else {
-        console.log(`Lead ${estimate.lead_id} status updated to "Approved"`)
+        console.log('[ESTIMATE ACTION] No lead found to update')
+        console.log('[ESTIMATE ACTION] Estimate ID:', estimateId, 'Client ID:', estimate.client_id, 'Lead ID:', estimate.lead_id)
       }
     }
 
