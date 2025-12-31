@@ -56,3 +56,27 @@ body {
   color: hsl(var(--foreground));
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* Print styles for estimates */
+@media print {
+  body.print-mode .w-64,
+  body.print-mode header,
+  body.print-mode [class*="sidebar"],
+  body.print-mode button,
+  body.print-mode .print-mode-hide {
+    display: none !important;
+  }
+  
+  body.print-mode {
+    background: white !important;
+  }
+  
+  body.print-mode main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  
+  body.print-mode .max-w-4xl {
+    max-width: 100% !important;
+  }
+}
