@@ -317,22 +317,18 @@ export default function EstimatePage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              window.open(`/estimates/${estimate.id}`, '_blank');
-                            }}
-                            onDoubleClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              // Trigger print dialog when double-clicked
-                              setTimeout(() => {
-                                const printWindow = window.open(`/estimates/${estimate.id}`, '_blank');
-                                if (printWindow) {
-                                  printWindow.onload = () => {
+                              // Open estimate in new tab for printing/downloading
+                              const printWindow = window.open(`/estimates/${estimate.id}`, '_blank');
+                              if (printWindow) {
+                                printWindow.onload = () => {
+                                  // Small delay to ensure page is fully loaded
+                                  setTimeout(() => {
                                     printWindow.print();
-                                  };
-                                }
-                              }, 100);
+                                  }, 500);
+                                };
+                              }
                             }}
-                            title="Download/Print Estimate (double-click to print)"
+                            title="Download/Print Estimate"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
