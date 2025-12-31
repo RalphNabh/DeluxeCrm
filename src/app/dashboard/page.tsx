@@ -155,17 +155,17 @@ function DraggableLeadCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 group dark:bg-gray-800"
+      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 group dark:bg-gray-800 min-w-[280px] w-full"
       {...attributes}
       {...listeners}
     >
       <div className="space-y-2">
         <div className="flex items-start justify-between">
           <div>
-            <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-700 dark:group-hover:text-blue-400">
+            <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-700 dark:group-hover:text-blue-400 break-words">
               {lead.name}
             </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{lead.address}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">{lead.address}</p>
           </div>
           <div className="text-right">
             <div className="text-sm font-semibold text-blue-600 dark:text-blue-400">
@@ -271,7 +271,7 @@ function DroppableStage({
   return (
     <div 
       ref={setNodeRef}
-      className={`space-y-4 ${isOver ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 transition-colors' : ''}`}
+      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 transition-colors' : ''}`}
     >
       <div className="text-center relative">
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -841,31 +841,35 @@ export default function Dashboard() {
               </DialogContent>
             </Dialog>
           </div>
-          <div className={`grid gap-6 mb-8`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
-            {stages.map((stage) => (
-              <Card key={stage.id} className="border-0 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1" style={{ color: stage.color }}>{stage.name}</h3>
-                    <div className="text-2xl font-bold mb-1" style={{ color: stage.color }}>{grouped[stage.name]?.length || 0}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {formatCurrencyWithSymbol((grouped[stage.name] || [])
-                        .reduce((sum, lead) => sum + (lead.value ?? 0), 0))}
+          {/* Pipeline stats cards - horizontal scroll when many stages */}
+          <div className="overflow-x-auto pb-4 mb-8 -mx-6 px-6">
+            <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 250px))` }}>
+              {stages.map((stage) => (
+                <Card key={stage.id} className="border-0 shadow-sm dark:bg-gray-800 dark:border-gray-700 min-w-[200px]">
+                  <CardContent className="p-4">
+                    <div className="text-center">
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-1 whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: stage.color }} title={stage.name}>{stage.name}</h3>
+                      <div className="text-2xl font-bold mb-1" style={{ color: stage.color }}>{grouped[stage.name]?.length || 0}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {formatCurrencyWithSymbol((grouped[stage.name] || [])
+                          .reduce((sum, lead) => sum + (lead.value ?? 0), 0))}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
 
-          {/* Sales Pipeline Board with Drag and Drop */}
+          {/* Sales Pipeline Board with Drag and Drop - horizontal scroll when many stages */}
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }} data-tutorial="pipeline">
+            <div className="overflow-x-auto pb-4 -mx-6 px-6">
+              <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(280px, 320px))` }} data-tutorial="pipeline">
               {stages.map((stage) => (
                 <DroppableStage
                   key={stage.id}
@@ -877,6 +881,7 @@ export default function Dashboard() {
                   onDeleteStage={handleDeleteStage}
                 />
               ))}
+              </div>
             </div>
             <DragOverlay>
               {activeId ? (
