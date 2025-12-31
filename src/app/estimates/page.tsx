@@ -303,37 +303,41 @@ export default function EstimatePage() {
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <Link href={`/estimates/${estimate.id}`}>
-                          <Button variant="outline" size="sm">
+                      <div className="flex items-center justify-end space-x-2">
+                        <Link href={`/estimates/${estimate.id}`} onClick={(e) => e.stopPropagation()}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            title="View Estimate"
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
                         </Link>
-                        <div className="flex space-x-2">
+                        <Link href={`/estimates/${estimate.id}?edit=true`} onClick={(e) => e.stopPropagation()}>
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              // Navigate to estimate page - user can download PDF from there
-                              window.location.href = `/estimates/${estimate.id}`;
-                            }}
-                            title="View Estimate"
+                            title="Edit Estimate"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
                           </Button>
-                          <Link href={`/estimates/${estimate.id}?edit=true`} onClick={(e) => e.stopPropagation()}>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              title="Edit Estimate"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </div>
+                        </Link>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Navigate to estimate page with download intent
+                            window.location.href = `/estimates/${estimate.id}?download=true`;
+                          }}
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
                       </div>
                     </div>
                   </CardContent>

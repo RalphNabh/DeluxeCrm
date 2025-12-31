@@ -118,6 +118,15 @@ function EstimateDetailContent() {
         setIsEditing(true)
       }
       
+      // Check if download is requested via URL param
+      const downloadParam = searchParams.get('download')
+      if (downloadParam === 'true' && estimate) {
+        // Wait for content to load, then trigger download
+        setTimeout(() => {
+          handleDownloadPDF()
+        }, 1500)
+      }
+      
       // Check if print mode is requested
       const printParam = searchParams.get('print')
       if (printParam === 'true') {
@@ -133,7 +142,7 @@ function EstimateDetailContent() {
         }, 1000)
       }
     }
-  }, [params.id, searchParams])
+  }, [params.id, searchParams, estimate])
 
   const fetchEstimate = async () => {
     try {
@@ -255,22 +264,44 @@ function EstimateDetailContent() {
   }
 
   const handleDownloadPDF = async () => {
-    if (!estimateContentRef.current || !estimate) return
+    if (!estimateContentRef.current || !estimate) {
+      setError('Estimate content not ready. Please try again.')
+      return
+    }
 
     setGeneratingPDF(true)
+    setError(null)
+    
     try {
+      // Ensure element is visible and rendered
+      const element = estimateContentRef.current
+      if (!element || element.offsetWidth === 0 || element.offsetHeight === 0) {
+        throw new Error('Element is not visible')
+      }
+
       // Wait a bit for any dynamic content to render
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Capture the estimate content as canvas
-      const canvas = await html2canvas(estimateContentRef.current, {
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
-        windowWidth: estimateContentRef.current.scrollWidth,
-        windowHeight: estimateContentRef.current.scrollHeight
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight
+      }).catch((err) => {
+        console.error('html2canvas error:', err)
+        throw new Error('Failed to capture estimate content')
       })
+
+      if (!canvas) {
+        throw new Error('Failed to create canvas')
+      }
 
       // Calculate PDF dimensions
       const imgWidth = 210 // A4 width in mm
@@ -282,15 +313,18 @@ function EstimateDetailContent() {
       const pdf = new jsPDF('p', 'mm', 'a4')
       let position = 0
 
+      // Convert canvas to data URL
+      const imgData = canvas.toDataURL('image/png', 1.0)
+      
       // Add first page
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
       // Add additional pages if content is longer than one page
       while (heightLeft > 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
 
@@ -301,9 +335,16 @@ function EstimateDetailContent() {
 
       // Download the PDF
       pdf.save(filename)
+      
+      // Remove download param from URL if present
+      if (searchParams.get('download') === 'true') {
+        window.history.replaceState({}, '', `/estimates/${params.id}`)
+      }
     } catch (error) {
       console.error('Error generating PDF:', error)
-      setError('Failed to generate PDF. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF. Please try again.'
+      setError(errorMessage)
+      alert(`PDF Generation Error: ${errorMessage}`)
     } finally {
       setGeneratingPDF(false)
     }
