@@ -11,7 +11,7 @@ export async function sendEstimateEmail(
   try {
     const supabase = await createClient();
 
-    // Fetch estimate details
+    // Fetch estimate details (including lead_id for pipeline updates)
     const { data: estimate, error: estimateError } = await supabase
       .from('estimates')
       .select(`
@@ -208,6 +208,25 @@ export async function sendEstimateEmail(
       })
       .eq('id', estimateId)
       .eq('user_id', userId);
+
+    // If estimate has a linked lead, update the lead status to "Estimate Sent"
+    if (estimate.lead_id) {
+      const { error: leadUpdateError } = await supabase
+        .from('leads')
+        .update({
+          status: 'Estimate Sent',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', estimate.lead_id)
+        .eq('user_id', userId)
+
+      if (leadUpdateError) {
+        console.error('Error updating lead status to "Estimate Sent":', leadUpdateError)
+        // Don't fail the request if lead update fails, just log it
+      } else {
+        console.log(`Lead ${estimate.lead_id} status updated to "Estimate Sent"`)
+      }
+    }
 
     // Trigger automations for estimate_sent event
     await checkAndExecuteAutomations('estimate_sent', {
