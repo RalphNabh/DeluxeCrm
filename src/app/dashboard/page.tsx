@@ -540,6 +540,7 @@ export default function Dashboard() {
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [folders, setFolders] = useState<LeadFolder[]>([]);
   const [showFilters, setShowFilters] = useState(true);
+  const [tasks, setTasks] = useState<any[]>([]);
   const { startTutorial, isTutorialCompleted } = useTutorial();
   const { addNotification } = useNotifications();
   // Sidebar open state - closed on mobile, open on desktop
@@ -565,12 +566,13 @@ export default function Dashboard() {
         const stagesData = await stagesRes.json();
         setStages(stagesData.sort((a: PipelineStage, b: PipelineStage) => a.position - b.position));
 
-        // Then fetch leads, estimates, folders, and clients to enrich with values and folder info
-        const [leadsRes, estimatesRes, foldersRes, clientsRes] = await Promise.all([
+        // Then fetch leads, estimates, folders, clients, and tasks to enrich with values and folder info
+        const [leadsRes, estimatesRes, foldersRes, clientsRes, tasksRes] = await Promise.all([
           fetch("/api/leads"),
           fetch("/api/estimates"),
           fetch("/api/client-folders"),
-          fetch("/api/clients")
+          fetch("/api/clients"),
+          fetch("/api/tasks")
         ]);
         
         if (!leadsRes.ok) {
@@ -1113,6 +1115,108 @@ export default function Dashboard() {
             )}
           </div>
           )}
+
+          {/* Task Widget */}
+          <Card className="mb-6 border-0 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <CheckSquare className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Tasks</h2>
+                </div>
+                <Link href="/tasks">
+                  <Button variant="ghost" size="sm">
+                    View All
+                    <ChevronDown className="h-4 w-4 ml-1 rotate-[-90deg]" />
+                  </Button>
+                </Link>
+              </div>
+              
+              {tasks.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <CheckSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No tasks yet</p>
+                  <Link href="/tasks">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Task
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.slice(0, 5).map((task) => {
+                    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'Completed';
+                    const isDueSoon = task.due_date && !isOverdue && new Date(task.due_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                    
+                    return (
+                      <Link 
+                        key={task.id} 
+                        href={`/tasks`}
+                        className="block p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-medium text-gray-900 dark:text-white truncate">{task.title}</h4>
+                              {isOverdue && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                  Overdue
+                                </span>
+                              )}
+                              {isDueSoon && !isOverdue && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                  Due Soon
+                                </span>
+                              )}
+                            </div>
+                            {task.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                                {task.description}
+                              </p>
+                            )}
+                            <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                              <span className={`px-2 py-0.5 rounded ${
+                                task.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                task.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              }`}>
+                                {task.status}
+                              </span>
+                              {task.due_date && (
+                                <span className="flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {new Date(task.due_date).toLocaleDateString()}
+                                </span>
+                              )}
+                              {task.priority && (
+                                <span className={`px-2 py-0.5 rounded ${
+                                  task.priority === 'High' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                  task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {task.priority}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  {tasks.length > 5 && (
+                    <div className="text-center pt-2">
+                      <Link href="/tasks">
+                        <Button variant="ghost" size="sm">
+                          View {tasks.length - 5} more tasks
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Undo Notification */}
           {deletedStage && (
