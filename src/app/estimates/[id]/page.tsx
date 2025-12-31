@@ -119,10 +119,19 @@ function EstimateDetailContent() {
       // Check if download is requested via URL param
       const downloadParam = searchParams.get('download')
       if (downloadParam === 'true' && estimate) {
-        // Wait longer for content to fully load and render
-        setTimeout(() => {
-          handleDownloadPDF()
-        }, 2000)
+        // Wait for content to fully load and render before downloading
+        const checkAndDownload = () => {
+          if (estimateContentRef.current && 
+              estimateContentRef.current.offsetWidth > 0 && 
+              estimateContentRef.current.offsetHeight > 0) {
+            handleDownloadPDF()
+          } else {
+            // Retry after a short delay
+            setTimeout(checkAndDownload, 500)
+          }
+        }
+        // Start checking after initial delay
+        setTimeout(checkAndDownload, 1000)
       }
       
       // Check if print mode is requested
@@ -303,8 +312,13 @@ function EstimateDetailContent() {
         scrollHeight: element.scrollHeight
       })
 
+      // Retry if element is not visible yet
       if (element.offsetWidth === 0 || element.offsetHeight === 0) {
-        throw new Error(`Element is not visible - width: ${element.offsetWidth}, height: ${element.offsetHeight}`)
+        // Wait and check again
+        await new Promise(resolve => setTimeout(resolve, 500))
+        if (element.offsetWidth === 0 || element.offsetHeight === 0) {
+          throw new Error(`Element is not visible - width: ${element.offsetWidth}, height: ${element.offsetHeight}. Please wait for the page to fully load.`)
+        }
       }
 
       // Wait a bit for any dynamic content to render
