@@ -282,33 +282,61 @@ function EstimateDetailContent() {
 
       // Ensure element is visible and rendered
       const element = estimateContentRef.current
-      if (!element || element.offsetWidth === 0 || element.offsetHeight === 0) {
-        throw new Error('Element is not visible')
+      if (!element) {
+        throw new Error('Element reference is null')
+      }
+
+      // Scroll element into view
+      element.scrollIntoView({ behavior: 'auto', block: 'start' })
+      
+      // Wait for scroll to complete
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Check element dimensions
+      const rect = element.getBoundingClientRect()
+      console.log('Element dimensions:', {
+        width: rect.width,
+        height: rect.height,
+        offsetWidth: element.offsetWidth,
+        offsetHeight: element.offsetHeight,
+        scrollWidth: element.scrollWidth,
+        scrollHeight: element.scrollHeight
+      })
+
+      if (element.offsetWidth === 0 || element.offsetHeight === 0) {
+        throw new Error(`Element is not visible - width: ${element.offsetWidth}, height: ${element.offsetHeight}`)
       }
 
       // Wait a bit for any dynamic content to render
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 500))
 
-      // Capture the estimate content as canvas
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: element.scrollWidth,
-        height: element.scrollHeight,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight
-      }).catch((err) => {
-        console.error('html2canvas error:', err)
-        throw new Error('Failed to capture estimate content')
-      })
+      // Capture the estimate content as canvas with simplified options
+      let canvas
+      try {
+        canvas = await html2canvas(element, {
+          scale: 1.5,
+          useCORS: true,
+          logging: true, // Enable logging to debug
+          backgroundColor: '#ffffff',
+          allowTaint: false,
+          removeContainer: false,
+          imageTimeout: 15000,
+          foreignObjectRendering: false
+        })
+      } catch (canvasError: any) {
+        console.error('html2canvas detailed error:', canvasError)
+        const errorMsg = canvasError?.message || 'Unknown error'
+        throw new Error(`Failed to capture estimate content: ${errorMsg}`)
+      }
 
       if (!canvas) {
-        throw new Error('Failed to create canvas')
+        throw new Error('Canvas is null after capture')
       }
+
+      console.log('Canvas created successfully:', {
+        width: canvas.width,
+        height: canvas.height
+      })
 
       // Calculate PDF dimensions
       const imgWidth = 210 // A4 width in mm
@@ -570,7 +598,12 @@ function EstimateDetailContent() {
 
         {/* Estimate Content */}
         <main className="flex-1 p-6">
-          <div ref={estimateContentRef} className="max-w-4xl mx-auto space-y-6 bg-white p-6">
+          <div 
+            ref={estimateContentRef} 
+            id="estimate-content-pdf"
+            className="max-w-4xl mx-auto space-y-6 bg-white p-6"
+            style={{ position: 'relative' }}
+          >
             {/* Client Info */}
             <Card>
               <CardHeader>
