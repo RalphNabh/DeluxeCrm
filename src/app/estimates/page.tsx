@@ -311,12 +311,40 @@ export default function EstimatePage() {
                           </Button>
                         </Link>
                         <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.open(`/estimates/${estimate.id}`, '_blank');
+                            }}
+                            onDoubleClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              // Trigger print dialog when double-clicked
+                              setTimeout(() => {
+                                const printWindow = window.open(`/estimates/${estimate.id}`, '_blank');
+                                if (printWindow) {
+                                  printWindow.onload = () => {
+                                    printWindow.print();
+                                  };
+                                }
+                              }, 100);
+                            }}
+                            title="Download/Print Estimate (double-click to print)"
+                          >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <Link href={`/estimates/${estimate.id}`} onClick={(e) => e.stopPropagation()}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              title="View/Edit Estimate"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     </div>
