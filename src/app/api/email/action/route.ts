@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor'
 
 export async function POST(request: NextRequest) {
@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    // Use service role client to bypass RLS since clients aren't authenticated
+    const supabase = createServiceRoleClient()
     
     // First, get the estimate to find the user_id (clients don't need to be authenticated)
     const { data: estimate, error: estimateError } = await supabase
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (estimateError || !estimate) {
+      console.error('Error fetching estimate:', estimateError)
       return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
     }
 
