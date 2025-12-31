@@ -349,6 +349,80 @@ function EstimateDetailContent() {
       // Append clone to body temporarily
       document.body.appendChild(clone)
 
+      // Remove buttons and action sections from clone for clean PDF
+      
+      // Remove the entire "Actions" card section
+      const allCards = clone.querySelectorAll('[class*="Card"]')
+      allCards.forEach((card) => {
+        const cardElement = card as HTMLElement
+        // Check if this card contains "Actions" in the header
+        const header = cardElement.querySelector('[class*="CardHeader"]')
+        const headerText = header?.textContent?.toLowerCase() || ''
+        if (headerText.includes('action')) {
+          cardElement.remove()
+        }
+      })
+
+      // Remove all buttons (Download, Edit, Save, etc.)
+      const buttons = clone.querySelectorAll('button, [role="button"]')
+      buttons.forEach((btn) => {
+        btn.remove()
+      })
+
+      // Remove links that look like buttons (View, Edit links)
+      const buttonLinks = clone.querySelectorAll('a[href]')
+      buttonLinks.forEach((link) => {
+        const linkElement = link as HTMLElement
+        // Check if link contains button-like content (icons, text like "View", "Edit", etc.)
+        const linkText = linkElement.textContent?.toLowerCase().trim() || ''
+        const buttonKeywords = ['view', 'edit', 'download', 'save', 'send', 'cancel']
+        if (buttonKeywords.some(keyword => linkText.includes(keyword))) {
+          linkElement.remove()
+        }
+      })
+
+      // Convert edit mode inputs to plain text for display
+      const inputs = clone.querySelectorAll('input[type="text"], input[type="number"], textarea')
+      inputs.forEach((input) => {
+        const inputElement = input as HTMLElement
+        const value = (input as HTMLInputElement).value || (input as HTMLTextAreaElement).value
+        const parent = inputElement.parentElement
+        if (parent) {
+          const textDiv = document.createElement('div')
+          textDiv.textContent = value || ''
+          textDiv.className = 'text-gray-900'
+          textDiv.style.padding = '0.5rem 0'
+          parent.replaceChild(textDiv, inputElement)
+        }
+      })
+
+      // Remove action columns from tables (columns with buttons or "Actions" header)
+      const tables = clone.querySelectorAll('table')
+      tables.forEach((table) => {
+        const rows = table.querySelectorAll('tr')
+        rows.forEach((row) => {
+          const cells = Array.from(row.querySelectorAll('th, td'))
+          cells.forEach((cell) => {
+            const cellElement = cell as HTMLElement
+            const cellText = cellElement.textContent?.toLowerCase().trim() || ''
+            
+            // Remove if it's an action column or contains buttons
+            if (cellText === 'actions' || cellElement.querySelector('button')) {
+              cellElement.remove()
+            }
+          })
+        })
+      })
+
+      // Remove any remaining edit/add buttons (like "Add Item" in edit mode)
+      const addButtons = clone.querySelectorAll('[class*="Button"], button')
+      addButtons.forEach((btn) => {
+        const btnText = btn.textContent?.toLowerCase() || ''
+        if (btnText.includes('add') || btnText.includes('remove') || btnText.includes('delete')) {
+          btn.remove()
+        }
+      })
+
       // Convert oklch colors in computed styles
       const allElements = clone.querySelectorAll('*')
       allElements.forEach((el) => {
