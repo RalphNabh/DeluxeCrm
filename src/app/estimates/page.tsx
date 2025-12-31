@@ -88,6 +88,7 @@ const sidebarItems = [
 
 export default function EstimatePage() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [allEstimates, setAllEstimates] = useState<Estimate[]>([]); // Store all estimates for stats
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linkedJobsMap, setLinkedJobsMap] = useState<Record<string, any[]>>({});
@@ -105,6 +106,7 @@ export default function EstimatePage() {
       }
       const data = await response.json();
       setEstimates(data);
+      setAllEstimates(data); // Store all estimates for accurate stats
       
       // Fetch linked jobs for all estimates
       try {
@@ -225,21 +227,34 @@ export default function EstimatePage() {
             stats={[
               {
                 label: "Total Estimates",
-                value: estimates.length,
+                value: allEstimates.length,
                 icon: FileText,
                 iconColor: "text-blue-600",
                 iconBg: "bg-blue-100"
               },
               {
                 label: "Approved",
-                value: estimates.filter(e => e.status === 'Approved').length,
+                value: allEstimates.filter(e => e.status === 'Approved').length,
                 icon: Check,
                 iconColor: "text-green-600",
                 iconBg: "bg-green-100"
               },
               {
                 label: "Pending",
-                value: estimates.filter(e => e.status === 'Sent').length,
+                value: allEstimates.filter(e => e.status === 'Sent').length,
+                icon: Clock,
+                iconColor: "text-yellow-600",
+                iconBg: "bg-yellow-100"
+              },
+              {
+                label: "Total Value",
+                value: formatCurrencyWithSymbol(allEstimates.reduce((sum, e) => sum + Number(e.total || 0), 0)),
+                icon: DollarSign,
+                iconColor: "text-green-600",
+                iconBg: "bg-green-100"
+              }
+            ]}
+          />
                 icon: Calendar,
                 iconColor: "text-orange-600",
                 iconBg: "bg-orange-100"

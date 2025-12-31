@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { 
   LayoutDashboard, 
   Users, 
@@ -125,6 +126,8 @@ export default function InvoiceDetailPage() {
   const [updating, setUpdating] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [isEditingInvoiceNumber, setIsEditingInvoiceNumber] = useState(false)
+  const [editedInvoiceNumber, setEditedInvoiceNumber] = useState('')
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     payment_method: 'Cash',
@@ -147,6 +150,7 @@ export default function InvoiceDetailPage() {
       }
       const data = await response.json()
       setInvoice(data)
+      setEditedInvoiceNumber(data.invoice_number || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -174,6 +178,33 @@ export default function InvoiceDetailPage() {
       await fetchInvoice()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update invoice')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleUpdateInvoiceNumber = async () => {
+    if (!editedInvoiceNumber.trim()) {
+      setError('Invoice number cannot be empty')
+      return
+    }
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/invoices/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_number: editedInvoiceNumber.trim() })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update invoice number')
+      }
+      
+      await fetchInvoice()
+      setIsEditingInvoiceNumber(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update invoice number')
     } finally {
       setUpdating(false)
     }
@@ -341,7 +372,53 @@ export default function InvoiceDetailPage() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{invoice.invoice_number}</h1>
+                {isEditingInvoiceNumber ? (
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      value={editedInvoiceNumber}
+                      onChange={(e) => setEditedInvoiceNumber(e.target.value)}
+                      className="text-2xl font-bold"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleUpdateInvoiceNumber()
+                        } else if (e.key === 'Escape') {
+                          setIsEditingInvoiceNumber(false)
+                          setEditedInvoiceNumber(invoice.invoice_number)
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleUpdateInvoiceNumber}
+                      disabled={updating}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsEditingInvoiceNumber(false)
+                        setEditedInvoiceNumber(invoice.invoice_number)
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <h1 className="text-2xl font-bold text-gray-900">{invoice.invoice_number}</h1>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingInvoiceNumber(true)}
+                      title="Edit invoice number"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <p className="text-gray-600">{invoice.clients?.name || 'Unknown Client'}</p>
               </div>
             </div>

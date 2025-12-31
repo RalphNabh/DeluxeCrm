@@ -93,6 +93,7 @@ interface Client {
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]); // Store all clients for stats
   const [folders, setFolders] = useState<ClientFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +146,7 @@ export default function ClientsPage() {
       }
       
       setClients(filteredData);
+      setAllClients(data); // Store all clients for accurate stats
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -338,21 +340,21 @@ export default function ClientsPage() {
             stats={[
               {
                 label: "Total Clients",
-                value: clients.length,
+                value: allClients.length,
                 icon: Users,
                 iconColor: "text-blue-600",
                 iconBg: "bg-blue-100"
               },
               {
                 label: "Active Clients",
-                value: clients.length,
+                value: allClients.length,
                 icon: CheckCircle,
                 iconColor: "text-blue-600",
                 iconBg: "bg-blue-100"
               },
               {
                 label: "Total Value",
-                value: formatCurrencyWithSymbol(clients.reduce((sum, c) => sum + Number(c.total_value || 0), 0)),
+                value: formatCurrencyWithSymbol(allClients.reduce((sum, c) => sum + Number(c.total_value || 0), 0)),
                 icon: DollarSign,
                 iconColor: "text-orange-600",
                 iconBg: "bg-orange-100"

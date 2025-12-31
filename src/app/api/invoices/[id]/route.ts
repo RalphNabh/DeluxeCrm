@@ -78,14 +78,19 @@ export async function GET(
   let invoiceWithEstimate = invoiceWithJob
   if (invoice && (invoice as Record<string, unknown>).estimate_id) {
     try {
-      const { data: estimate } = await supabase
+      const { data: estimate, error: estimateError } = await supabase
         .from('estimates')
         .select('id, status, total, created_at')
         .eq('id', (invoice as Record<string, unknown>).estimate_id)
+        .eq('user_id', user.id) // Ensure estimate belongs to the same user
         .single()
-      invoiceWithEstimate = { ...invoiceWithJob, estimates: estimate }
+      
+      if (!estimateError && estimate) {
+        invoiceWithEstimate = { ...invoiceWithJob, estimates: estimate }
+      }
     } catch (e) {
       // Column doesn't exist or estimate not found, continue without estimate
+      console.log('Error fetching estimate:', e)
     }
   }
 
@@ -106,12 +111,13 @@ export async function PUT(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { status, sent_at, paid_at } = body
+  const { status, sent_at, paid_at, invoice_number } = body
 
   const updates: { [key: string]: string | undefined } = { updated_at: new Date().toISOString() }
   if (status) updates.status = status
-  if (sent_at) updates.sent_at = sent_at
-  if (paid_at) updates.paid_at = paid_at
+  if (sent_at !== undefined) updates.sent_at = sent_at
+  if (paid_at !== undefined) updates.paid_at = paid_at
+  if (invoice_number) updates.invoice_number = invoice_number
 
   const { data: updatedInvoice, error } = await supabase
     .from('invoices')
@@ -180,14 +186,19 @@ export async function PUT(
   let updatedInvoiceWithEstimate = updatedInvoiceWithJob
   if (updatedInvoice && (updatedInvoice as Record<string, unknown>).estimate_id) {
     try {
-      const { data: estimate } = await supabase
+      const { data: estimate, error: estimateError } = await supabase
         .from('estimates')
         .select('id, status, total, created_at')
         .eq('id', (updatedInvoice as Record<string, unknown>).estimate_id)
+        .eq('user_id', user.id) // Ensure estimate belongs to the same user
         .single()
-      updatedInvoiceWithEstimate = { ...updatedInvoiceWithJob, estimates: estimate }
+      
+      if (!estimateError && estimate) {
+        updatedInvoiceWithEstimate = { ...updatedInvoiceWithJob, estimates: estimate }
+      }
     } catch (e) {
       // Column doesn't exist or estimate not found, continue without estimate
+      console.log('Error fetching estimate:', e)
     }
   }
 
