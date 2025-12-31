@@ -328,12 +328,6 @@ export default function EstimatePage() {
               }
             ]}
           />
-                icon: DollarSign,
-                iconColor: "text-purple-600",
-                iconBg: "bg-purple-100"
-              }
-            ]}
-          />
 
           {/* Estimates List */}
           {estimates.length === 0 ? (
