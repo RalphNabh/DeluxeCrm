@@ -116,9 +116,15 @@ function EstimateDetailContent() {
       // Check if print mode is requested
       const printParam = searchParams.get('print')
       if (printParam === 'true') {
-        // Add print styles and trigger print when page loads
+        // Hide sidebar and header when printing
+        document.body.classList.add('print-mode')
+        // Trigger print when page loads
         setTimeout(() => {
           window.print()
+          // Remove class after printing
+          setTimeout(() => {
+            document.body.classList.remove('print-mode')
+          }, 1000)
         }, 1000)
       }
     }
@@ -357,9 +363,12 @@ function EstimateDetailContent() {
     )
   }
 
+  const isPrintMode = searchParams.get('print') === 'true'
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className={`min-h-screen bg-gray-50 flex ${isPrintMode ? 'print-mode' : ''}`}>
       {/* Sidebar */}
+      {!isPrintMode && (
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
         <div className="p-6 flex-shrink-0">
           <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
@@ -388,10 +397,12 @@ function EstimateDetailContent() {
           <UserProfile />
         </div>
       </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
+        {!isPrintMode && (
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -447,6 +458,7 @@ function EstimateDetailContent() {
             </div>
           </div>
         </header>
+        )}
 
         {/* Estimate Content */}
         <main className="flex-1 p-6">
@@ -844,6 +856,7 @@ function EstimateDetailContent() {
       </div>
 
       {/* Create Job Modal */}
+      {!isPrintMode && (
       <JobCreationModal
         isOpen={showCreateJobModal}
         onClose={() => setShowCreateJobModal(false)}
@@ -862,6 +875,7 @@ function EstimateDetailContent() {
           description: estimate.estimate_line_items?.map(item => item.description).join(', ') || estimate.clients?.name || 'Job from Estimate'
         } : null}
       />
+      )}
     </div>
   )
 }
