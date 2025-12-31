@@ -180,8 +180,8 @@ function EstimateDetailContent() {
     }
   }
 
-  const handleSaveEstimate = async () => {
-    if (!estimate) return
+  const handleSaveEstimate = async (): Promise<boolean> => {
+    if (!estimate) return false
 
     setSaving(true)
     setError(null)
