@@ -50,7 +50,8 @@ import {
   CheckSquare,
   Gift,
   Menu,
-  Folder
+  Folder,
+  AlertCircle
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -658,6 +659,12 @@ export default function Dashboard() {
         });
         
         setLeads(leadsData);
+        
+        // Fetch tasks for the widget
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json() || [];
+          setTasks(tasksData);
+        }
         
         // Extract all unique tags from leads
         const allTags = new Set<string>();
