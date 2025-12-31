@@ -6,7 +6,8 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data, error } = await supabase
+  // Try to fetch with folder join first
+  let { data, error } = await supabase
     .from('leads')
     .select(`
       *,
@@ -20,7 +21,27 @@ export async function GET() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  // If the join fails (likely folder_id column doesn't exist), fall back to simple query
+  if (error && (error.message.includes('column') || error.message.includes('does not exist'))) {
+    const simpleQuery = await supabase
+      .from('leads')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    
+    if (simpleQuery.error) {
+      return NextResponse.json({ error: simpleQuery.error.message }, { status: 400 })
+    }
+    
+    // Add null folder info to match expected structure
+    data = simpleQuery.data?.map((lead: any) => ({
+      ...lead,
+      client_folders: null
+    })) || []
+  } else if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 })
+  }
+
   return NextResponse.json(data)
 }
 

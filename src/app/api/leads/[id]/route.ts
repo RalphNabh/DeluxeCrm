@@ -18,7 +18,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .eq('user_id', user.id)
     .single()
 
-  const { data, error } = await supabase
+  // Try to fetch with folder join first
+  let { data, error } = await supabase
     .from('leads')
     .update(updates)
     .eq('id', id)
@@ -33,6 +34,29 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       )
     `)
     .single()
+
+  // If the join fails (likely folder_id column doesn't exist), fall back to simple query
+  if (error && (error.message.includes('column') || error.message.includes('does not exist'))) {
+    const simpleQuery = await supabase
+      .from('leads')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('*')
+      .single()
+    
+    if (simpleQuery.error) {
+      return NextResponse.json({ error: simpleQuery.error.message }, { status: 400 })
+    }
+    
+    // Add null folder info to match expected structure
+    data = simpleQuery.data ? {
+      ...simpleQuery.data,
+      client_folders: null
+    } : null
+  } else if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 })
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
