@@ -26,7 +26,8 @@ import {
   Eye,
   Save,
   X as XIcon,
-  Edit
+  Edit,
+  Tag
 } from 'lucide-react'
 import JobCreationModal from '@/components/jobs/job-creation-modal'
 import UserProfile from '@/components/layout/user-profile'
@@ -44,6 +45,7 @@ interface Estimate {
   tax: number;
   total: number;
   contract_message?: string;
+  tags?: string[];
   created_at: string;
   updated_at: string;
   clients?: {
@@ -103,6 +105,8 @@ function EstimateDetailContent() {
     total: number;
   }>>([])
   const [editedContractMessage, setEditedContractMessage] = useState('')
+  const [editedTags, setEditedTags] = useState<string[]>([])
+  const [tagsInput, setTagsInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [generatingPDF, setGeneratingPDF] = useState(false)
   const estimateContentRef = useRef<HTMLDivElement>(null)
@@ -159,9 +163,11 @@ function EstimateDetailContent() {
       }
       const data = await response.json()
       setEstimate(data)
-      // Initialize edited items and contract message
+      // Initialize edited items, contract message, and tags
       setEditedItems(data.estimate_line_items || [])
       setEditedContractMessage(data.contract_message || '')
+      setEditedTags(Array.isArray(data.tags) ? data.tags : [])
+      setTagsInput(Array.isArray(data.tags) ? data.tags.join(', ') : '')
       
       // Fetch linked jobs if estimate_id column exists
       try {
@@ -225,15 +231,16 @@ function EstimateDetailContent() {
       const response = await fetch(`/api/estimates/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lineItems: editedItems.map(item => ({
-            description: item.description,
-            quantity: item.quantity,
-            unit: item.unit,
-            unit_price: item.unit_price
-          })),
-          contract_message: editedContractMessage
-        })
+          body: JSON.stringify({
+            lineItems: editedItems.map(item => ({
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unit_price: item.unit_price
+            })),
+            contract_message: editedContractMessage,
+            tags: editedTags
+          })
       })
 
       if (!response.ok) {
@@ -246,6 +253,8 @@ function EstimateDetailContent() {
       // Update edited items to match saved data
       setEditedItems(updated.estimate_line_items || [])
       setEditedContractMessage(updated.contract_message || '')
+      setEditedTags(Array.isArray(updated.tags) ? updated.tags : [])
+      setTagsInput(Array.isArray(updated.tags) ? updated.tags.join(', ') : '')
       
       // Don't close edit mode automatically - let user decide
       // setIsEditing(false)
@@ -749,6 +758,8 @@ function EstimateDetailContent() {
                       // Reset edited data
                       setEditedItems(estimate?.estimate_line_items || [])
                       setEditedContractMessage(estimate?.contract_message || '')
+                      setEditedTags(Array.isArray(estimate?.tags) ? estimate.tags : [])
+                      setTagsInput(Array.isArray(estimate?.tags) ? estimate.tags.join(', ') : '')
                     }}
                   >
                     <XIcon className="h-4 w-4 mr-2" />
@@ -975,6 +986,66 @@ function EstimateDetailContent() {
                     <Plus className="h-4 w-4 mr-2" />
                     Add First Item
                   </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tags */}
+            {(isEditing || (estimate.tags && estimate.tags.length > 0)) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tags</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isEditing ? (
+                    <div>
+                      <Label htmlFor="tags-input">Tags (comma-separated)</Label>
+                      <Input
+                        id="tags-input"
+                        value={tagsInput}
+                        onChange={(e) => {
+                          setTagsInput(e.target.value)
+                          // Parse tags from comma-separated string
+                          const tagsArray = e.target.value
+                            .split(',')
+                            .map(t => t.trim())
+                            .filter(t => t.length > 0)
+                          setEditedTags(tagsArray)
+                        }}
+                        className="mt-2"
+                        placeholder="e.g., urgent, renovation, kitchen"
+                      />
+                      {editedTags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {editedTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              <Tag className="h-3 w-3 mr-1" />
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {estimate.tags && estimate.tags.length > 0 ? (
+                        estimate.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                          >
+                            <Tag className="h-3 w-3 mr-1" />
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-sm">No tags</p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

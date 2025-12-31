@@ -71,7 +71,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { status, lineItems, contract_message } = body
+    const { status, lineItems, contract_message, tags } = body
 
     // Build update object
     const updateData: Record<string, unknown> = {
@@ -86,6 +86,11 @@ export async function PUT(
     // Update contract message if provided
     if (contract_message !== undefined) {
       updateData.contract_message = contract_message || null
+    }
+
+    // Update tags if provided
+    if (tags !== undefined) {
+      updateData.tags = tags || null
     }
 
     // Update the estimate

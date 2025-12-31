@@ -30,7 +30,9 @@ import {
   Clock,
   CheckSquare,
   Gift,
-  Menu
+  Menu,
+  Tag,
+  Filter
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -55,6 +57,7 @@ interface Estimate {
   subtotal: number;
   tax: number;
   total: number;
+  tags?: string[];
   created_at: string;
   updated_at: string;
   clients?: {
@@ -93,10 +96,13 @@ export default function EstimatePage() {
   const [error, setError] = useState<string | null>(null);
   const [linkedJobsMap, setLinkedJobsMap] = useState<Record<string, any[]>>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchEstimates();
-  }, []);
+  }, [selectedTag]);
 
   const fetchEstimates = async () => {
     try {
@@ -107,6 +113,25 @@ export default function EstimatePage() {
       const data = await response.json();
       setEstimates(data);
       setAllEstimates(data); // Store all estimates for accurate stats
+      
+      // Extract all unique tags from estimates
+      const allTags = new Set<string>()
+      data.forEach((estimate: Estimate) => {
+        if (estimate.tags && Array.isArray(estimate.tags)) {
+          estimate.tags.forEach(tag => allTags.add(tag))
+        }
+      })
+      setAvailableTags(Array.from(allTags).sort())
+      
+      // Filter by tag if selected
+      if (selectedTag) {
+        const filtered = data.filter((estimate: Estimate) => 
+          estimate.tags && Array.isArray(estimate.tags) && estimate.tags.includes(selectedTag)
+        )
+        setEstimates(filtered)
+      } else {
+        setEstimates(data)
+      }
       
       // Fetch linked jobs for all estimates
       try {
@@ -211,12 +236,60 @@ export default function EstimatePage() {
             </Link>
           }
           secondaryActions={
-            <Link href="/materials">
-              <Button variant="outline">
-                <Package className="h-4 w-4 mr-2" />
-                Materials Catalog
-              </Button>
-            </Link>
+            <>
+              {availableTags.length > 0 && (
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filters
+                </Button>
+              )}
+              <Link href="/materials">
+                <Button variant="outline">
+                  <Package className="h-4 w-4 mr-2" />
+                  Materials Catalog
+                </Button>
+              </Link>
+            </>
+          }
+          filters={
+            showFilters && availableTags.length > 0 ? (
+              <div className="flex items-center space-x-2 flex-wrap gap-2 pt-4 border-t">
+                <span className="text-sm font-medium text-gray-700">Filter by Tag:</span>
+                <Button
+                  variant={selectedTag === null ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTag(null)}
+                  className="whitespace-nowrap"
+                >
+                  All Tags
+                </Button>
+                {availableTags.map((tag) => (
+                  <Button
+                    key={tag}
+                    variant={selectedTag === tag ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                    className="whitespace-nowrap"
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    {tag}
+                  </Button>
+                ))}
+                {selectedTag && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTag(null)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            ) : undefined
           }
         />
 
@@ -281,8 +354,8 @@ export default function EstimatePage() {
                 <Card key={estimate.id} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1 flex-wrap">
                           <h3 className="font-semibold text-gray-900">#{estimate.id.slice(0, 8)}</h3>
                           {linkedJobsMap[estimate.id] && linkedJobsMap[estimate.id].length > 0 && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title="Has linked job">
@@ -291,9 +364,25 @@ export default function EstimatePage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">{estimate.clients?.name || 'Unknown Client'}</p>
+                        <p className="text-sm text-gray-600 truncate">{estimate.clients?.name || 'Unknown Client'}</p>
+                        {estimate.tags && estimate.tags.length > 0 && (
+                          <div className="flex items-center space-x-1 mt-2 flex-wrap gap-1">
+                            {estimate.tags.slice(0, 3).map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                <Tag className="h-3 w-3 mr-1" />
+                                {tag}
+                              </span>
+                            ))}
+                            {estimate.tags.length > 3 && (
+                              <span className="text-xs text-gray-500">+{estimate.tags.length - 3}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(estimate.status)}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${getStatusColor(estimate.status)}`}>
                         {estimate.status}
                       </span>
                     </div>
