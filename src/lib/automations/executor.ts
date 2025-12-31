@@ -133,9 +133,8 @@ async function executeSendEmail(
     `;
 
     // Send email via Resend
-    // Use RESEND_FROM_EMAIL environment variable, fallback to test domain
-    // Once dyluxepro.com is verified in Resend, set RESEND_FROM_EMAIL=noreply@dyluxepro.com
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'DyluxePro <onboarding@resend.dev>';
+    // For prototype: always use onboarding@resend.dev (test domain)
+    const fromEmail = 'DyluxePro <onboarding@resend.dev>';
     
     // Add prototype note if in development and we have a client email
     const prototypeNote = isDevelopment && clientEmail ? `

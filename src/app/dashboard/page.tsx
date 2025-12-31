@@ -565,11 +565,12 @@ export default function Dashboard() {
         const stagesData = await stagesRes.json();
         setStages(stagesData.sort((a: PipelineStage, b: PipelineStage) => a.position - b.position));
 
-        // Then fetch leads, estimates, and folders to enrich with values
-        const [leadsRes, estimatesRes, foldersRes] = await Promise.all([
+        // Then fetch leads, estimates, folders, and clients to enrich with values and folder info
+        const [leadsRes, estimatesRes, foldersRes, clientsRes] = await Promise.all([
           fetch("/api/leads"),
           fetch("/api/estimates"),
-          fetch("/api/client-folders")
+          fetch("/api/client-folders"),
+          fetch("/api/clients")
         ]);
         
         if (!leadsRes.ok) {
@@ -579,19 +580,17 @@ export default function Dashboard() {
         }
         const leadsData = await leadsRes.json();
         
-        // Debug: Log folder_id values to help troubleshoot filtering
-        if (leadsData.length > 0) {
-          console.log('Sample lead folder_ids:', leadsData.slice(0, 3).map((l: Lead) => ({ 
-            name: l.name, 
-            folder_id: l.folder_id,
-            hasFolder: !!l.folder_id 
-          })));
+        // Fetch folders
+        let foldersData: LeadFolder[] = [];
+        if (foldersRes.ok) {
+          foldersData = await foldersRes.json() || [];
+          setFolders(foldersData);
         }
         
-        // Fetch folders
-        if (foldersRes.ok) {
-          const foldersData = await foldersRes.json();
-          setFolders(foldersData || []);
+        // Fetch clients to get folder information for linked leads
+        let clientsData: any[] = [];
+        if (clientsRes.ok) {
+          clientsData = await clientsRes.json() || [];
         }
         
         // Fetch estimates to update lead values
@@ -623,6 +622,38 @@ export default function Dashboard() {
             }
           });
         }
+        
+        // Match leads to clients and inherit folder_id if lead doesn't have one
+        leadsData.forEach((lead: Lead) => {
+          // If lead already has folder_id, skip
+          if (lead.folder_id) return;
+          
+          // Try to find matching client by client_id first
+          let matchedClient = null;
+          if (lead.client_id) {
+            matchedClient = clientsData.find((c: any) => c.id === lead.client_id);
+          }
+          
+          // If no match by client_id, try by email or name
+          if (!matchedClient) {
+            matchedClient = clientsData.find((c: any) => {
+              const emailMatch = lead.email && c.email && 
+                lead.email.toLowerCase() === c.email.toLowerCase();
+              const nameMatch = lead.name && c.name && 
+                lead.name.toLowerCase() === c.name.toLowerCase();
+              return emailMatch || nameMatch;
+            });
+          }
+          
+          // If we found a matching client with a folder, inherit the folder info
+          if (matchedClient && matchedClient.folder_id) {
+            lead.folder_id = matchedClient.folder_id;
+            // Also copy the folder details if available
+            if (matchedClient.client_folders) {
+              lead.client_folders = matchedClient.client_folders;
+            }
+          }
+        });
         
         setLeads(leadsData);
         
