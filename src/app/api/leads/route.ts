@@ -8,7 +8,15 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('leads')
-    .select('*')
+    .select(`
+      *,
+      client_folders (
+        id,
+        name,
+        color,
+        description
+      )
+    `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

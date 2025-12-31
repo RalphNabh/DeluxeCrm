@@ -23,7 +23,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .update(updates)
     .eq('id', id)
     .eq('user_id', user.id)
-    .select()
+    .select(`
+      *,
+      client_folders (
+        id,
+        name,
+        color,
+        description
+      )
+    `)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

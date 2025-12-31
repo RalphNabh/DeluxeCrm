@@ -49,7 +49,8 @@ import {
   Tag,
   CheckSquare,
   Gift,
-  Menu
+  Menu,
+  Folder
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -73,6 +74,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import FolderManager from "@/components/clients/folder-manager";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
 import PageSidebar from "@/components/layout/page-sidebar";
@@ -84,6 +86,13 @@ import { HelpCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useNotifications } from "@/components/notifications/notification-provider";
 
+type LeadFolder = {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+};
+
 type Lead = {
   id: string;
   name: string;
@@ -93,9 +102,11 @@ type Lead = {
   value: number;
   status: string;
   tags?: string[];
+  folder_id?: string;
   created_at: string;
   updated_at: string;
   client_id?: string; // Link to client if exists
+  client_folders?: LeadFolder; // Folder information if linked
 };
 
 type PipelineStage = {
@@ -246,6 +257,18 @@ function DraggableLeadCard({
               {lead.name}
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">{lead.address}</p>
+            {lead.client_folders && (
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1"
+                style={{
+                  backgroundColor: `${lead.client_folders.color}20`,
+                  color: lead.client_folders.color,
+                }}
+              >
+                <Folder className="h-3 w-3 mr-1" />
+                {lead.client_folders.name}
+              </span>
+            )}
             {clientId && (
               <Link 
                 href={`/clients/${clientId}`}
@@ -513,7 +536,9 @@ export default function Dashboard() {
   const [deletedStage, setDeletedStage] = useState<PipelineStage | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [folders, setFolders] = useState<LeadFolder[]>([]);
   const { startTutorial, isTutorialCompleted } = useTutorial();
   const { addNotification } = useNotifications();
   // Sidebar open state - closed on mobile, open on desktop
@@ -539,14 +564,21 @@ export default function Dashboard() {
         const stagesData = await stagesRes.json();
         setStages(stagesData.sort((a: PipelineStage, b: PipelineStage) => a.position - b.position));
 
-        // Then fetch leads and estimates to enrich with values
-        const [leadsRes, estimatesRes] = await Promise.all([
+        // Then fetch leads, estimates, and folders to enrich with values
+        const [leadsRes, estimatesRes, foldersRes] = await Promise.all([
           fetch("/api/leads"),
-          fetch("/api/estimates")
+          fetch("/api/estimates"),
+          fetch("/api/client-folders")
         ]);
         
         if (!leadsRes.ok) throw new Error("Failed to load leads");
         const leadsData = await leadsRes.json();
+        
+        // Fetch folders
+        if (foldersRes.ok) {
+          const foldersData = await foldersRes.json();
+          setFolders(foldersData || []);
+        }
         
         // Fetch estimates to update lead values
         if (estimatesRes.ok) {
@@ -669,6 +701,11 @@ export default function Dashboard() {
       );
     }
     
+    // Filter by folder if selected
+    if (selectedFolderId !== null) {
+      filtered = filtered.filter(lead => lead.folder_id === selectedFolderId);
+    }
+    
     for (const lead of filtered) {
       if (map[lead.status]) {
         map[lead.status].push(lead);
@@ -679,7 +716,7 @@ export default function Dashboard() {
       }
     }
     return map;
-  }, [leads, searchQuery, stages, selectedTag]);
+  }, [leads, searchQuery, stages, selectedTag, selectedFolderId, folders.length]);
 
   const maxColumnLen = useMemo(
     () => Math.max(1, ...stages.map((s) => grouped[s.name]?.length || 0)),
@@ -956,6 +993,65 @@ export default function Dashboard() {
 
         {/* Dashboard Content */}
         <main className="flex-1 p-6">
+          {/* Folder and Tag Filters */}
+          <div className="mb-6 space-y-4">
+            <FolderManager
+              folders={folders}
+              onFoldersChange={async () => {
+                // Refetch folders and leads
+                const foldersRes = await fetch("/api/client-folders");
+                if (foldersRes.ok) {
+                  const foldersData = await foldersRes.json();
+                  setFolders(foldersData || []);
+                }
+                const leadsRes = await fetch("/api/leads");
+                if (leadsRes.ok) {
+                  const leadsData = await leadsRes.json();
+                  setLeads(leadsData);
+                }
+              }}
+              selectedFolderId={selectedFolderId}
+              onFolderSelect={setSelectedFolderId}
+              allItemsLabel="All Leads"
+            />
+
+            {/* Tag Filter */}
+            {availableTags.length > 0 && (
+              <div className="flex items-center space-x-2 flex-wrap gap-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Tag:</span>
+                <Button
+                  variant={selectedTag === null ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTag(null)}
+                  className="whitespace-nowrap"
+                >
+                  All Tags
+                </Button>
+                {availableTags.map((tag) => (
+                  <Button
+                    key={tag}
+                    variant={selectedTag === tag ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                    className="whitespace-nowrap"
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    {tag}
+                  </Button>
+                ))}
+                {selectedTag && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTag(null)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
           {/* Undo Notification */}
           {deletedStage && (
             <div className="mb-4 fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-5">

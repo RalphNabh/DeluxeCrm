@@ -33,6 +33,7 @@ interface FolderManagerProps {
   onFoldersChange: () => void;
   selectedFolderId: string | null;
   onFolderSelect: (folderId: string | null) => void;
+  allItemsLabel?: string; // Customize "All Clients" / "All Leads" label
 }
 
 const FOLDER_COLORS = [
@@ -51,6 +52,7 @@ export default function FolderManager({
   onFoldersChange,
   selectedFolderId,
   onFolderSelect,
+  allItemsLabel = "All Clients",
 }: FolderManagerProps) {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [showEditFolder, setShowEditFolder] = useState<ClientFolder | null>(null);
@@ -156,7 +158,7 @@ export default function FolderManager({
             onClick={() => onFolderSelect(null)}
             className="whitespace-nowrap"
           >
-            All Clients
+            {allItemsLabel}
           </Button>
           {folders.map((folder) => (
             <Button
