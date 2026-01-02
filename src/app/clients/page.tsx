@@ -498,11 +498,6 @@ export default function ClientsPage() {
                               ))}
                             </SelectContent>
                           </Select>
-                          {client.client_folders && (
-                            <div className="text-xs text-gray-500 truncate max-w-[140px]">
-                              {client.client_folders.name}
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
