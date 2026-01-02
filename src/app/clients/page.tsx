@@ -470,14 +470,21 @@ export default function ClientsPage() {
                       
                       {/* Quick Move Folder Dropdown */}
                       {folders.length > 0 && (
-                        <div className="mt-2">
+                        <div className="mt-2 space-y-1">
                           <Select
                             value={client.folder_id || "none"}
                             onValueChange={(value) => handleMoveToFolder(client.id, value === "none" ? null : value)}
                           >
-                            <SelectTrigger className="h-8 text-xs">
-                              <Folder className="h-3 w-3 mr-2" />
-                              <SelectValue placeholder="Move to folder" />
+                            <SelectTrigger className="h-8 text-xs max-w-[140px]">
+                              <Folder className="h-3 w-3 mr-2 flex-shrink-0" />
+                              <SelectValue placeholder="Move to folder">
+                                {client.folder_id ? (() => {
+                                  const selectedFolder = folders.find(f => f.id === client.folder_id);
+                                  return selectedFolder ? (
+                                    <span className="truncate">{selectedFolder.name}</span>
+                                  ) : "Move to folder";
+                                })() : "Move to folder"}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">No Folder</SelectItem>
@@ -488,12 +495,17 @@ export default function ClientsPage() {
                                       className="w-3 h-3 rounded-full flex-shrink-0"
                                       style={{ backgroundColor: folder.color }}
                                     />
-                                    <span className="truncate max-w-[120px]">{folder.name}</span>
+                                    <span className="truncate max-w-[100px]">{folder.name}</span>
                                   </div>
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          {client.client_folders && (
+                            <div className="text-xs text-gray-500 truncate max-w-[140px]">
+                              {client.client_folders.name}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
