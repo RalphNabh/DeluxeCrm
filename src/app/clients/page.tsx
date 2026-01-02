@@ -397,19 +397,19 @@ export default function ClientsPage() {
                           <div className="flex flex-col gap-1.5">
                             <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
                             {client.client_folders && (
-                              <>
-                                <span
-                                  className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-                                  style={{
-                                    backgroundColor: `${client.client_folders.color}20`,
-                                    color: client.client_folders.color,
-                                  }}
-                                >
-                                  <Folder className="h-3 w-3 mr-1 flex-shrink-0" />
-                                  <span className="truncate max-w-[100px]">{client.client_folders.name}</span>
-                                </span>
-                                <span className="text-xs text-gray-500">{client.client_folders.name}</span>
-                              </>
+                              <span className="text-xs text-gray-500">{client.client_folders.name}</span>
+                            )}
+                            {client.client_folders && (
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full w-fit"
+                                style={{
+                                  backgroundColor: `${client.client_folders.color}20`,
+                                  color: client.client_folders.color,
+                                }}
+                              >
+                                <Folder className="h-3 w-3 mr-1 flex-shrink-0" />
+                                <span className="truncate max-w-[80px]">{client.client_folders.name}</span>
+                              </span>
                             )}
                           </div>
                           {client.tags && client.tags.length > 0 && (
@@ -483,12 +483,12 @@ export default function ClientsPage() {
                               <SelectItem value="none">No Folder</SelectItem>
                               {folders.map((folder) => (
                                 <SelectItem key={folder.id} value={folder.id}>
-                                  <div className="flex items-center space-x-2">
+                                  <div className="flex items-center space-x-2 min-w-0">
                                     <div
                                       className="w-3 h-3 rounded-full flex-shrink-0"
                                       style={{ backgroundColor: folder.color }}
                                     />
-                                    <span className="truncate max-w-[150px]">{folder.name}</span>
+                                    <span className="truncate max-w-[120px]">{folder.name}</span>
                                   </div>
                                 </SelectItem>
                               ))}
