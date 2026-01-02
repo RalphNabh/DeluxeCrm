@@ -349,34 +349,6 @@ function DraggableLeadCard({
                 </div>
               </DialogContent>
             </Dialog>
-            <div className="flex items-center gap-1 mt-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                disabled={!prev}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (prev) onStatusChange(lead.id, prev);
-                }}
-                title="Move to previous stage"
-              >
-                ◀
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                disabled={!next}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (next) onStatusChange(lead.id, next);
-                }}
-                title="Move to next stage"
-              >
-                ▶
-              </Button>
-            </div>
           </div>
         </div>
         
@@ -803,7 +775,18 @@ export default function Dashboard() {
       }
       
       const updated = (await res.json()) as Lead;
-      setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updated } : l)));
+      setLeads((prev) => prev.map((l) => {
+        if (l.id === leadId) {
+          // Preserve client_folders and folder_id from the original lead if not in updated response
+          return { 
+            ...l, 
+            ...updated,
+            client_folders: updated.client_folders || l.client_folders,
+            folder_id: updated.folder_id || l.folder_id
+          };
+        }
+        return l;
+      }));
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Failed to update lead";
       console.error('Error updating lead status:', e);
