@@ -35,7 +35,7 @@ export default function StatsCards({ stats, className = "" }: StatsCardsProps) {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
                   {stat.subtitle && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{stat.subtitle}</p>
                   )}

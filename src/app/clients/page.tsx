@@ -103,6 +103,7 @@ export default function ClientsPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -275,7 +276,11 @@ export default function ClientsPage() {
             </Link>
           }
           filters={
-            <Button variant="outline" size="sm">
+            <Button 
+              variant={showFilters ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+            >
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </Button>
@@ -286,6 +291,7 @@ export default function ClientsPage() {
         <main className="flex-1 p-6">
 
           {/* Folder Manager */}
+          {showFilters && (
           <div className="mb-6 space-y-4">
             <FolderManager
               folders={folders}
@@ -334,6 +340,7 @@ export default function ClientsPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* Stats Cards */}
           <StatsCards
@@ -396,9 +403,6 @@ export default function ClientsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-col gap-1.5">
                             <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
-                            {client.client_folders && (
-                              <span className="text-xs text-gray-500">{client.client_folders.name}</span>
-                            )}
                             {client.client_folders && (
                               <span
                                 className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full w-fit"
