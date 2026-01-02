@@ -475,16 +475,9 @@ export default function ClientsPage() {
                             value={client.folder_id || "none"}
                             onValueChange={(value) => handleMoveToFolder(client.id, value === "none" ? null : value)}
                           >
-                            <SelectTrigger className="h-8 text-xs max-w-[140px]">
+                            <SelectTrigger className="h-8 text-xs w-auto max-w-[140px]">
                               <Folder className="h-3 w-3 mr-2 flex-shrink-0" />
-                              <SelectValue placeholder="Move to folder">
-                                {client.folder_id ? (() => {
-                                  const selectedFolder = folders.find(f => f.id === client.folder_id);
-                                  return selectedFolder ? (
-                                    <span className="truncate">{selectedFolder.name}</span>
-                                  ) : "Move to folder";
-                                })() : "Move to folder"}
-                              </SelectValue>
+                              <SelectValue placeholder="Move to folder" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">No Folder</SelectItem>
