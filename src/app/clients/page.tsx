@@ -397,16 +397,29 @@ export default function ClientsPage() {
                           <div className="flex flex-col gap-1.5">
                             <h3 className="font-semibold text-gray-900 truncate">{client.name}</h3>
                             {client.client_folders && (
-                              <span
-                                className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full w-fit max-w-full"
-                                style={{
-                                  backgroundColor: `${client.client_folders.color}20`,
-                                  color: client.client_folders.color,
-                                }}
-                              >
-                                <Folder className="h-3 w-3 mr-1 flex-shrink-0" />
-                                <span className="break-words">{client.client_folders.name}</span>
-                              </span>
+                              <div className="w-full min-w-0">
+                                <span
+                                  className="inline-flex items-start px-2 py-0.5 text-xs font-medium rounded-full w-full"
+                                  style={{
+                                    backgroundColor: `${client.client_folders.color}20`,
+                                    color: client.client_folders.color,
+                                    wordBreak: 'break-word',
+                                    overflowWrap: 'break-word',
+                                    maxWidth: '100%',
+                                  }}
+                                >
+                                  <Folder className="h-3 w-3 mr-1 mt-0.5 flex-shrink-0" />
+                                  <span 
+                                    className="break-words"
+                                    style={{
+                                      wordBreak: 'break-word',
+                                      overflowWrap: 'break-word',
+                                    }}
+                                  >
+                                    {client.client_folders.name}
+                                  </span>
+                                </span>
+                              </div>
                             )}
                           </div>
                           {client.tags && client.tags.length > 0 && (
