@@ -10,3 +10,4 @@ CREATE INDEX IF NOT EXISTS idx_estimates_tags ON public.estimates USING GIN(tags
 
 -- Comment for documentation
 COMMENT ON COLUMN public.estimates.tags IS 'Array of tags for organizing and filtering estimates';
+

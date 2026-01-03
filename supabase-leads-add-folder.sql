@@ -10,3 +10,4 @@ create index if not exists idx_leads_folder_id on public.leads(folder_id);
 
 -- Add comment
 comment on column public.leads.folder_id is 'Optional folder assignment for organizing leads';
+

@@ -247,7 +247,7 @@ function DraggableLeadCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-blue-300 group bg-white min-w-[280px] w-full"
+      className="p-4 hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-300 group bg-white min-w-[280px] w-full"
       {...attributes}
       {...listeners}
       onClick={handleCardClick}
@@ -255,7 +255,7 @@ function DraggableLeadCard({
       <div className="space-y-2">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-gray-900 text-sm group-hover:text-blue-700 break-words cursor-pointer">
+            <h4 className="font-medium text-gray-900 text-sm group-hover:text-teal-700 break-words cursor-pointer">
               {lead.name}
             </h4>
             <p className="text-xs text-gray-500 mt-1 break-words">{lead.address}</p>
@@ -275,7 +275,7 @@ function DraggableLeadCard({
               <Link 
                 href={`/clients/${clientId}`}
                 onClick={(e) => e.stopPropagation()}
-                className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+                className="text-xs text-teal-600 hover:underline mt-1 inline-block"
               >
                 View Client Details →
               </Link>
@@ -284,7 +284,7 @@ function DraggableLeadCard({
           <div className="text-right flex-shrink-0 ml-2">
             <Dialog open={isEditingValue} onOpenChange={setIsEditingValue}>
               <div className="flex items-center gap-1 justify-end">
-                <div className="text-sm font-semibold text-blue-600 whitespace-nowrap">
+                <div className="text-sm font-semibold text-teal-600 whitespace-nowrap">
                   {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '—'}
                 </div>
                 <DialogTrigger asChild>
@@ -354,7 +354,7 @@ function DraggableLeadCard({
         
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>{lead.phone}</span>
-          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+          <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
         </div>
         
         {/* Tags */}
@@ -363,7 +363,7 @@ function DraggableLeadCard({
             {lead.tags.slice(0, 3).map((tag, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800"
               >
                 <Tag className="h-2.5 w-2.5 mr-1" />
                 {tag}
@@ -386,7 +386,7 @@ function DraggableLeadCard({
             </div>
           <div className="w-full h-1 bg-gray-200 rounded-full mt-1">
             <div 
-              className="h-1 bg-blue-500 rounded-full transition-all duration-300"
+              className="h-1 bg-teal-500 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -423,7 +423,7 @@ function DroppableStage({
   return (
     <div 
       ref={setNodeRef}
-      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-blue-50 rounded-lg p-2 transition-colors' : ''}`}
+      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-teal-50 rounded-lg p-2 transition-colors' : ''}`}
     >
       <div className="text-center relative">
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -952,7 +952,7 @@ export default function Dashboard() {
   return (
     <>
       <DashboardTour />
-      <div className="min-h-screen bg-gray-50 flex h-screen">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-50 flex h-screen">
         {/* Sidebar */}
         <div data-tutorial="navigation" className="flex-shrink-0">
           <PageSidebar 
@@ -978,7 +978,7 @@ export default function Dashboard() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Link href="/" className="text-lg font-bold text-blue-600">
+            <Link href="/" className="text-lg font-bold text-teal-600">
               DyluxePro
             </Link>
           </div>
@@ -1112,7 +1112,7 @@ export default function Dashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
-                  <CheckSquare className="h-5 w-5 text-blue-600" />
+                  <CheckSquare className="h-5 w-5 text-teal-600" />
                   <h2 className="text-lg font-semibold text-gray-900">Recent Tasks</h2>
                 </div>
                 <Link href="/tasks">
@@ -1169,7 +1169,7 @@ export default function Dashboard() {
                             <div className="flex items-center space-x-4 text-xs text-gray-500">
                               <span className={`px-2 py-0.5 rounded ${
                                 task.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                                task.status === 'In Progress' ? 'bg-teal-100 text-teal-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
                                 {task.status}
@@ -1212,11 +1212,11 @@ export default function Dashboard() {
           {/* Undo Notification */}
           {deletedStage && (
             <div className="mb-4 fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-5">
-              <Card className="border-2 border-blue-500 shadow-lg bg-white">
+              <Card className="border-2 border-teal-500 shadow-lg bg-white">
                 <CardContent className="p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Trash2 className="h-5 w-5 text-blue-600" />
+                    <div className="h-10 w-10 rounded-full bg-teal-100 flex items-center justify-center">
+                      <Trash2 className="h-5 w-5 text-teal-600" />
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
@@ -1231,7 +1231,7 @@ export default function Dashboard() {
                     <Button
                       size="sm"
                       onClick={handleUndoDelete}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-teal-600 hover:bg-teal-700"
                     >
                       <Undo2 className="h-4 w-4 mr-2" />
                       Undo

@@ -70,7 +70,7 @@ export default function UserProfile() {
               {user.user_metadata?.avatar_url ? (
                 <AvatarImage src={user.user_metadata.avatar_url} alt={user.email} />
               ) : null}
-              <AvatarFallback className="bg-blue-600 text-white">
+              <AvatarFallback className="bg-teal-600 text-white">
                 {getInitials(user.email)}
               </AvatarFallback>
             </Avatar>
@@ -107,6 +107,7 @@ export default function UserProfile() {
     </div>
   );
 }
+
 
 
 
