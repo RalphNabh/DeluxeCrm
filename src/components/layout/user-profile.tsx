@@ -46,7 +46,7 @@ export default function UserProfile() {
 
   if (loading) {
     return (
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-slate-800">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
           <div className="flex-1">
@@ -65,7 +65,7 @@ export default function UserProfile() {
     <div className="p-4 border-t border-gray-200">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="w-full flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors">
+          <button className="w-full flex items-center space-x-3 hover:bg-slate-800 rounded-lg p-2 transition-colors">
             <Avatar className="h-10 w-10">
               {user.user_metadata?.avatar_url ? (
                 <AvatarImage src={user.user_metadata.avatar_url} alt={user.email} />
@@ -75,10 +75,10 @@ export default function UserProfile() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 text-left min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium text-slate-200 truncate">
                 {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-slate-400 truncate">
                 {user.email}
               </p>
             </div>
