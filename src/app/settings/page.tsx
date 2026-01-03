@@ -313,7 +313,7 @@ export default function SettingsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center">
+        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
           <Button
             variant="ghost"
             size="sm"
@@ -323,27 +323,27 @@ export default function SettingsPage() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600 dark:text-blue-400">
+          <Link href="/" className="text-lg font-bold text-blue-600">
             DyluxePro
           </Link>
         </div>
 
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 transition-colors">
+        <header className="bg-white border-b border-gray-200 px-6 py-4 transition-colors">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Link href="/dashboard">
-                <Button variant="outline" size="sm" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                <Button variant="outline" size="sm" className="dark:border-gray-600">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Dashboard
                 </Button>
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
             </div>
             
             <div className="flex items-center space-x-4">
               <Button variant="ghost" size="sm" className="dark:hover:bg-gray-700">
-                <Bell className="h-4 w-4 dark:text-gray-300" />
+                <Bell className="h-4 w-4" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -352,15 +352,15 @@ export default function SettingsPage() {
                       <AvatarImage src="/placeholder-avatar.jpg" />
                       <AvatarFallback>JD</AvatarFallback>
                     </Avatar>
-                    <ChevronDown className="h-4 w-4 ml-2 dark:text-gray-300" />
+                    <ChevronDown className="h-4 w-4 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700">
+                <DropdownMenuContent align="end" className="dark:bg-gray-800">
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="dark:text-gray-300 dark:hover:bg-gray-700">Profile</Link>
+                    <Link href="/profile" className="dark:text-gray-300">Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/settings" className="dark:text-gray-300 dark:hover:bg-gray-700">Settings</Link>
+                    <Link href="/settings" className="dark:text-gray-300">Settings</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <SignOutButton />
@@ -377,8 +377,8 @@ export default function SettingsPage() {
             {message && (
               <div className={`rounded-md p-4 border transition-all ${
                 message.includes('success') 
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' 
-                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                  ? 'bg-green-50 text-green-700 border-green-200 
+                  : 'bg-red-50 text-red-700 border-red-200
               }`}>
                 <div className="flex items-center">
                   {message.includes('success') && <CheckCircle className="h-5 w-5 mr-2" />}
@@ -432,18 +432,18 @@ export default function SettingsPage() {
             </Card>
 
             {/* Notifications Settings */}
-            <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors">
+            <Card className="border-gray-200 bg-white transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                  <Bell className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
+                <CardTitle className="flex items-center text-gray-900">
+                  <Bell className="h-5 w-5 mr-2 text-blue-600" />
                   Notifications
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200">
                   <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">Email Notifications</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Receive notifications via email</p>
+                    <h3 className="font-medium text-gray-900">Email Notifications</h3>
+                    <p className="text-sm text-gray-600">Receive notifications via email</p>
                   </div>
                   <Switch
                     checked={settings.email_notifications}
@@ -451,10 +451,10 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200">
                   <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">SMS Notifications</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Receive notifications via SMS</p>
+                    <h3 className="font-medium text-gray-900">SMS Notifications</h3>
+                    <p className="text-sm text-gray-600">Receive notifications via SMS</p>
                   </div>
                   <Switch
                     checked={settings.sms_notifications}
@@ -462,10 +462,10 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200">
                   <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">Weekly Reports</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Receive weekly business reports</p>
+                    <h3 className="font-medium text-gray-900">Weekly Reports</h3>
+                    <p className="text-sm text-gray-600">Receive weekly business reports</p>
                   </div>
                   <Switch
                     checked={settings.weekly_reports}
@@ -476,10 +476,10 @@ export default function SettingsPage() {
             </Card>
 
             {/* Subscription Settings */}
-            <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors">
+            <Card className="border-gray-200 bg-white transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                  <CreditCard className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
+                <CardTitle className="flex items-center text-gray-900">
+                  <CreditCard className="h-5 w-5 mr-2 text-blue-600" />
                   Subscription
                 </CardTitle>
               </CardHeader>
@@ -490,21 +490,21 @@ export default function SettingsPage() {
                   </div>
                 ) : subscriptionStatus?.isActive ? (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <div className="p-4 rounded-lg bg-green-50 border border-green-200">
                       <div className="flex items-center mb-2">
-                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
-                        <h3 className="font-medium text-green-800 dark:text-green-300">Active Subscription</h3>
+                        <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                        <h3 className="font-medium text-green-800">Active Subscription</h3>
                       </div>
-                      <p className="text-sm text-green-700 dark:text-green-400">
+                      <p className="text-sm text-green-700">
                         Status: <span className="font-medium capitalize">{subscriptionStatus.status}</span>
                       </p>
                       {subscriptionStatus.subscription?.current_period_end && (
-                        <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                        <p className="text-sm text-green-700 mt-1">
                           Renews: {new Date(subscriptionStatus.subscription.current_period_end).toLocaleDateString()}
                         </p>
                       )}
                       {subscriptionStatus.subscription?.cancel_at_period_end && (
-                        <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
+                        <p className="text-sm text-orange-700 mt-1">
                           Subscription will cancel at the end of the billing period
                         </p>
                       )}
@@ -512,7 +512,7 @@ export default function SettingsPage() {
                     <Button
                       onClick={handleManageSubscription}
                       disabled={portalLoading}
-                      className="w-full dark:bg-blue-600 dark:hover:bg-blue-700"
+                      className="w-full"
                     >
                       {portalLoading ? (
                         <>
@@ -529,14 +529,14 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
-                      <h3 className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">No Active Subscription</h3>
-                      <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                    <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                      <h3 className="font-medium text-yellow-800 mb-2">No Active Subscription</h3>
+                      <p className="text-sm text-yellow-700">
                         Subscribe to access all features of DyluxePro CRM.
                       </p>
                     </div>
                     <Link href="/subscription">
-                      <Button className="w-full dark:bg-blue-600 dark:hover:bg-blue-700">
+                      <Button className="w-full">
                         <CreditCard className="h-4 w-4 mr-2" />
                         View Plans
                       </Button>
@@ -547,22 +547,22 @@ export default function SettingsPage() {
             </Card>
 
             {/* Account Settings */}
-            <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors">
+            <Card className="border-gray-200 bg-white transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                  <Shield className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
+                <CardTitle className="flex items-center text-gray-900">
+                  <Shield className="h-5 w-5 mr-2 text-blue-600" />
                   Account
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200">
                   <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">Change Password</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Update your account password</p>
+                    <h3 className="font-medium text-gray-900">Change Password</h3>
+                    <p className="text-sm text-gray-600">Update your account password</p>
                   </div>
                   <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                      <Button variant="outline" className="dark:border-gray-600">
                         <Lock className="h-4 w-4 mr-2" />
                         Change
                       </Button>
@@ -613,14 +613,14 @@ export default function SettingsPage() {
                   </Dialog>
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200">
                   <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">Export Data</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Download all your data as JSON</p>
+                    <h3 className="font-medium text-gray-900">Export Data</h3>
+                    <p className="text-sm text-gray-600">Download all your data as JSON</p>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                    className="dark:border-gray-600"
                     onClick={handleExportData}
                     disabled={loading}
                   >
@@ -629,10 +629,10 @@ export default function SettingsPage() {
                   </Button>
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-red-50 border border-red-200">
                   <div>
-                    <h3 className="font-medium text-red-600 dark:text-red-400">Delete Account</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Permanently delete your account and all data</p>
+                    <h3 className="font-medium text-red-600">Delete Account</h3>
+                    <p className="text-sm text-gray-600">Permanently delete your account and all data</p>
                   </div>
                   <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                     <DialogTrigger asChild>
@@ -649,18 +649,18 @@ export default function SettingsPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
-                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                          <p className="text-sm text-red-800 dark:text-red-200 mb-2">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <p className="text-sm text-red-800 mb-2">
                             <strong>Warning:</strong> This will permanently delete:
                           </p>
-                          <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-300 space-y-1 mb-3">
+                          <ul className="list-disc list-inside text-sm text-red-700 space-y-1 mb-3">
                             <li>All your clients</li>
                             <li>All your estimates</li>
                             <li>All your invoices</li>
                             <li>All your jobs</li>
                             <li>All your settings and preferences</li>
                           </ul>
-                          <p className="text-xs text-red-600 dark:text-red-400 mt-3">
+                          <p className="text-xs text-red-600 mt-3">
                             You will be signed out immediately after deletion. This action cannot be undone.
                           </p>
                         </div>
@@ -684,7 +684,7 @@ export default function SettingsPage() {
               <Button 
                 onClick={handleSaveSettings}
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {loading ? (
                   <>

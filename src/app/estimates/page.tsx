@@ -174,7 +174,7 @@ export default function EstimatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center transition-colors">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading estimates...</p>
@@ -185,7 +185,7 @@ export default function EstimatePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center transition-colors">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error: {error}</p>
           <Button onClick={fetchEstimates}>Try Again</Button>
@@ -194,7 +194,7 @@ export default function EstimatePage() {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors">
+    <div className="min-h-screen bg-gray-50 flex transition-colors">
       {/* Sidebar */}
       <PageSidebar 
         items={sidebarItems.map(item => ({
@@ -208,7 +208,7 @@ export default function EstimatePage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center">
+        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
           <Button
             variant="ghost"
             size="sm"
@@ -218,7 +218,7 @@ export default function EstimatePage() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600 dark:text-blue-400">
+          <Link href="/" className="text-lg font-bold text-blue-600">
             DyluxePro
           </Link>
         </div>

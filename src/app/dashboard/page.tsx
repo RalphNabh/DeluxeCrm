@@ -247,7 +247,7 @@ function DraggableLeadCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 group dark:bg-gray-800 min-w-[280px] w-full"
+      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-blue-300 group bg-white min-w-[280px] w-full"
       {...attributes}
       {...listeners}
       onClick={handleCardClick}
@@ -255,10 +255,10 @@ function DraggableLeadCard({
       <div className="space-y-2">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-700 dark:group-hover:text-blue-400 break-words cursor-pointer">
+            <h4 className="font-medium text-gray-900 text-sm group-hover:text-blue-700 break-words cursor-pointer">
               {lead.name}
             </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">{lead.address}</p>
+            <p className="text-xs text-gray-500 mt-1 break-words">{lead.address}</p>
             {lead.client_folders && (
               <span
                 className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1"
@@ -284,7 +284,7 @@ function DraggableLeadCard({
           <div className="text-right flex-shrink-0 ml-2">
             <Dialog open={isEditingValue} onOpenChange={setIsEditingValue}>
               <div className="flex items-center gap-1 justify-end">
-                <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                <div className="text-sm font-semibold text-blue-600 whitespace-nowrap">
                   {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '—'}
                 </div>
                 <DialogTrigger asChild>
@@ -352,9 +352,9 @@ function DraggableLeadCard({
           </div>
         </div>
         
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-between text-xs text-gray-500">
           <span>{lead.phone}</span>
-          <div className="w-2 h-2 bg-blue-400 dark:bg-blue-500 rounded-full"></div>
+          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
         </div>
         
         {/* Tags */}
@@ -363,30 +363,30 @@ function DraggableLeadCard({
             {lead.tags.slice(0, 3).map((tag, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
               >
                 <Tag className="h-2.5 w-2.5 mr-1" />
                 {tag}
               </span>
             ))}
             {lead.tags.length > 3 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                 +{lead.tags.length - 3}
               </span>
             )}
           </div>
         )}
         
-        <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+        <div className="pt-2 border-t border-gray-100">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500 dark:text-gray-400">Progress</span>
-            <span className="font-medium text-gray-700 dark:text-gray-300">
+            <span className="text-gray-500">Progress</span>
+            <span className="font-medium text-gray-700">
               {progress}%
             </span>
             </div>
-          <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full mt-1">
+          <div className="w-full h-1 bg-gray-200 rounded-full mt-1">
             <div 
-              className="h-1 bg-blue-500 dark:bg-blue-600 rounded-full transition-all duration-300"
+              className="h-1 bg-blue-500 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -423,12 +423,12 @@ function DroppableStage({
   return (
     <div 
       ref={setNodeRef}
-      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 transition-colors' : ''}`}
+      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-blue-50 rounded-lg p-2 transition-colors' : ''}`}
     >
       <div className="text-center relative">
         <div className="flex items-center justify-center gap-2 mb-2">
           <h3 
-            className="font-semibold text-gray-900 dark:text-white"
+            className="font-semibold text-gray-900"
             style={{ color: stage.color }}
           >
             {stage.name}
@@ -460,7 +460,7 @@ function DroppableStage({
             </DropdownMenu>
           )}
         </div>
-        <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full">
+        <div className="w-full h-1 bg-gray-200 rounded-full">
           <div 
             className="h-1 rounded-full transition-all duration-300"
             style={{ 
@@ -952,7 +952,7 @@ export default function Dashboard() {
   return (
     <>
       <DashboardTour />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex transition-colors h-screen">
+      <div className="min-h-screen bg-gray-50 flex h-screen">
         {/* Sidebar */}
         <div data-tutorial="navigation" className="flex-shrink-0">
           <PageSidebar 
@@ -968,7 +968,7 @@ export default function Dashboard() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Mobile Menu Button */}
-          <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center">
+          <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
             <Button
               variant="ghost"
               size="sm"
@@ -978,7 +978,7 @@ export default function Dashboard() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <Link href="/" className="text-lg font-bold text-blue-600 dark:text-blue-400">
+            <Link href="/" className="text-lg font-bold text-blue-600">
               DyluxePro
             </Link>
           </div>
@@ -1071,7 +1071,7 @@ export default function Dashboard() {
             {/* Tag Filter */}
             {availableTags.length > 0 && (
               <div className="flex items-center space-x-2 flex-wrap gap-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Tag:</span>
+                <span className="text-sm font-medium text-gray-700">Filter by Tag:</span>
                 <Button
                   variant={selectedTag === null ? "default" : "outline"}
                   size="sm"
@@ -1108,12 +1108,12 @@ export default function Dashboard() {
           )}
 
           {/* Task Widget */}
-          <Card className="mb-6 border-0 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+          <Card className="mb-6 border-0 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
                   <CheckSquare className="h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Tasks</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Tasks</h2>
                 </div>
                 <Link href="/tasks">
                   <Button variant="ghost" size="sm">
@@ -1124,7 +1124,7 @@ export default function Dashboard() {
               </div>
               
               {tasks.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <div className="text-center py-8 text-gray-500">
                   <CheckSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No tasks yet</p>
                   <Link href="/tasks">
@@ -1144,33 +1144,33 @@ export default function Dashboard() {
                       <Link 
                         key={task.id} 
                         href={`/tasks`}
-                        className="block p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        className="block p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2 mb-1">
-                              <h4 className="font-medium text-gray-900 dark:text-white truncate">{task.title}</h4>
+                              <h4 className="font-medium text-gray-900 truncate">{task.title}</h4>
                               {isOverdue && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                                   Overdue
                                 </span>
                               )}
                               {isDueSoon && !isOverdue && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                                   Due Soon
                                 </span>
                               )}
                             </div>
                             {task.description && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                              <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                                 {task.description}
                               </p>
                             )}
-                            <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center space-x-4 text-xs text-gray-500">
                               <span className={`px-2 py-0.5 rounded ${
-                                task.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                task.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
                               }`}>
                                 {task.status}
                               </span>
@@ -1182,9 +1182,9 @@ export default function Dashboard() {
                               )}
                               {task.priority && (
                                 <span className={`px-2 py-0.5 rounded ${
-                                  task.priority === 'High' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                  task.priority === 'High' ? 'bg-red-100 text-red-800' :
+                                  task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
                                 }`}>
                                   {task.priority}
                                 </span>
@@ -1212,17 +1212,17 @@ export default function Dashboard() {
           {/* Undo Notification */}
           {deletedStage && (
             <div className="mb-4 fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-5">
-              <Card className="border-2 border-blue-500 shadow-lg bg-white dark:bg-gray-800">
+              <Card className="border-2 border-blue-500 shadow-lg bg-white">
                 <CardContent className="p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                      <Trash2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Trash2 className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
+                      <p className="font-medium text-gray-900">
                         Stage "{deletedStage.name}" deleted
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <p className="text-sm text-gray-500">
                         You have 5 seconds to undo
                       </p>
                     </div>
@@ -1255,7 +1255,7 @@ export default function Dashboard() {
 
           {/* Pipeline Stats */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Pipeline Overview</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Pipeline Overview</h2>
             <Dialog open={showStageDialog} onOpenChange={setShowStageDialog}>
               <DialogTrigger asChild>
                 <Button size="sm" onClick={() => { setEditingStage(null); setNewStageName(""); }}>
@@ -1297,12 +1297,12 @@ export default function Dashboard() {
           <div className="overflow-x-auto pb-4 mb-8 -mx-6 px-6">
             <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 250px))` }}>
               {stages.map((stage) => (
-                <Card key={stage.id} className="border-0 shadow-sm dark:bg-gray-800 dark:border-gray-700 min-w-[200px]">
+                <Card key={stage.id} className="border-0 shadow-sm min-w-[200px]">
                   <CardContent className="p-4">
                     <div className="text-center">
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-1 whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: stage.color }} title={stage.name}>{stage.name}</h3>
+                      <h3 className="font-semibold text-gray-900 mb-1 whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: stage.color }} title={stage.name}>{stage.name}</h3>
                       <div className="text-2xl font-bold mb-1" style={{ color: stage.color }}>{grouped[stage.name]?.length || 0}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <div className="text-sm text-gray-500">
                         {formatCurrencyWithSymbol((grouped[stage.name] || [])
                           .reduce((sum, lead) => sum + (lead.value ?? 0), 0))}
                       </div>
@@ -1338,8 +1338,8 @@ export default function Dashboard() {
             </div>
             <DragOverlay>
               {activeId ? (
-                <Card className="p-4 border-2 border-blue-500 shadow-lg bg-white dark:bg-gray-800 opacity-90">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                <Card className="p-4 border-2 border-blue-500 shadow-lg bg-white opacity-90">
+                  <div className="text-sm font-medium text-gray-900">
                     {leads.find(l => l.id === activeId)?.name}
                       </div>
                     </Card>
@@ -1347,10 +1347,10 @@ export default function Dashboard() {
             </DragOverlay>
           </DndContext>
           {loading && (
-            <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">Loading leads...</div>
+            <div className="text-center text-sm text-gray-500 mt-6">Loading leads...</div>
           )}
           {error && (
-            <div className="text-center text-sm text-red-600 dark:text-red-400 mt-6">{error}</div>
+            <div className="text-center text-sm text-red-600 mt-6">{error}</div>
           )}
         </main>
       </div>

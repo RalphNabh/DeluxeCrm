@@ -44,13 +44,13 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
       <div
         className={`
           fixed md:static inset-y-0 left-0 z-50
-          w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 
+          w-64 bg-white border-r border-gray-200 
           flex flex-col h-screen transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
         <div className="p-6 flex-shrink-0 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
+          <Link href="/" className="text-xl font-bold text-blue-600">
             DyluxePro
           </Link>
           {/* Close button for mobile */}
@@ -76,8 +76,8 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
                     onClick={handleLinkClick}
                     className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                       item.active
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-r-2 border-blue-600 dark:border-blue-400"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                        ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
+                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
                     <Icon className="h-5 w-5 mr-3" />
