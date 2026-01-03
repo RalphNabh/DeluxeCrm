@@ -333,7 +333,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Link href="/dashboard">
-                <Button variant="outline" size="sm" className="dark:border-gray-600">
+                <Button variant="outline" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Dashboard
                 </Button>
@@ -342,12 +342,12 @@ export default function SettingsPage() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="dark:hover:bg-gray-700">
+              <Button variant="ghost" size="sm">
                 <Bell className="h-4 w-4" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="dark:hover:bg-gray-700">
+                  <Button variant="ghost" size="sm">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src="/placeholder-avatar.jpg" />
                       <AvatarFallback>JD</AvatarFallback>
@@ -355,12 +355,12 @@ export default function SettingsPage() {
                     <ChevronDown className="h-4 w-4 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="dark:bg-gray-800">
+                <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="dark:text-gray-300">Profile</Link>
+                    <Link href="/profile">Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/settings" className="dark:text-gray-300">Settings</Link>
+                    <Link href="/settings">Settings</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <SignOutButton />
@@ -562,7 +562,7 @@ export default function SettingsPage() {
                   </div>
                   <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="dark:border-gray-600">
+                      <Button variant="outline">
                         <Lock className="h-4 w-4 mr-2" />
                         Change
                       </Button>
@@ -620,7 +620,6 @@ export default function SettingsPage() {
                   </div>
                   <Button 
                     variant="outline" 
-                    className="dark:border-gray-600"
                     onClick={handleExportData}
                     disabled={loading}
                   >
