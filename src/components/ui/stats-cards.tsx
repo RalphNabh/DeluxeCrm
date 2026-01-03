@@ -73,6 +73,9 @@ export default function StatsCards({ stats, className = "" }: StatsCardsProps) {
         const iconBg = stat.iconBg || "bg-teal-100";
         const iconColor = stat.iconColor || "text-teal-600";
         
+        // Determine if we should animate the number
+        const shouldAnimate = typeof stat.value === 'number' || (typeof stat.value === 'string' && /^\d+$/.test(stat.value.trim()));
+        
         return (
           <Card key={index} className="border-0 shadow-sm hover:shadow-md transition-all duration-200 card-hover stagger-item">
             <CardContent className="p-6">
@@ -80,9 +83,7 @@ export default function StatsCards({ stats, className = "" }: StatsCardsProps) {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600">{stat.label}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
-                    {typeof stat.value === 'number' ? (
-                      <AnimatedNumber value={stat.value} />
-                    ) : stat.value.toString().match(/^\d+$/) ? (
+                    {shouldAnimate ? (
                       <AnimatedNumber value={stat.value} />
                     ) : (
                       <span className="animate-count-up">{stat.value}</span>
