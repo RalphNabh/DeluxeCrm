@@ -46,7 +46,7 @@ export default function UserProfile() {
 
   if (loading) {
     return (
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-slate-700">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
           <div className="flex-1">

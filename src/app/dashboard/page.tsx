@@ -247,7 +247,7 @@ function DraggableLeadCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 hover:shadow-lg transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-300 group bg-white min-w-[280px] w-full"
+      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-200 group bg-white min-w-[280px] w-full"
       {...attributes}
       {...listeners}
       onClick={handleCardClick}
@@ -423,7 +423,7 @@ function DroppableStage({
   return (
     <div 
       ref={setNodeRef}
-      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-teal-50 rounded-lg p-2 transition-colors' : ''}`}
+      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-teal-50/50 rounded-lg p-2 transition-colors' : ''}`}
     >
       <div className="text-center relative">
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -952,7 +952,7 @@ export default function Dashboard() {
   return (
     <>
       <DashboardTour />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-50 flex h-screen">
+      <div className="min-h-screen bg-gray-50 flex h-screen">
         {/* Sidebar */}
         <div data-tutorial="navigation" className="flex-shrink-0">
           <PageSidebar 

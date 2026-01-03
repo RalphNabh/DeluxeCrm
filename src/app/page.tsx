@@ -22,7 +22,7 @@ export default function Home() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-cyan-500 bg-clip-text text-transparent">DyluxePro</h1>
+                <h1 className="text-2xl font-bold text-teal-700">DyluxePro</h1>
               </div>
             </div>
             <div className="hidden md:block">
@@ -57,14 +57,14 @@ export default function Home() {
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
               Close more jobs,{" "}
-              <span className="bg-gradient-to-r from-teal-600 to-cyan-500 bg-clip-text text-transparent">faster.</span>
+              <span className="text-teal-700">faster.</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               Organize clients, send estimates, and automate follow-ups — all in one place. 
               The CRM built specifically for contractors.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 shadow-lg hover:shadow-xl transition-all" asChild>
+              <Button size="lg" className="bg-teal-600 hover:bg-teal-700 shadow-md hover:shadow-lg transition-all" asChild>
                 <Link href="/signup">
                   Get Started Free
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -192,7 +192,7 @@ export default function Home() {
       </section>
 
       {/* Social Proof */}
-      <section className="py-16 bg-gradient-to-r from-teal-600 to-teal-700">
+      <section className="py-16 bg-teal-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="grid md:grid-cols-3 gap-8 text-white">
             <div>
