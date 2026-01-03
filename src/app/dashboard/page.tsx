@@ -247,7 +247,7 @@ function DraggableLeadCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-200 group bg-white min-w-[280px] w-full"
+      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-200 group bg-white min-w-[280px] w-full card-hover"
       {...attributes}
       {...listeners}
       onClick={handleCardClick}
@@ -386,7 +386,7 @@ function DraggableLeadCard({
             </div>
           <div className="w-full h-1 bg-gray-200 rounded-full mt-1">
             <div 
-              className="h-1 bg-teal-500 rounded-full transition-all duration-300"
+              className="h-1 bg-teal-500 rounded-full progress-bar"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -462,7 +462,7 @@ function DroppableStage({
         </div>
         <div className="w-full h-1 bg-gray-200 rounded-full">
           <div 
-            className="h-1 rounded-full transition-all duration-300"
+            className="h-1 rounded-full progress-bar"
             style={{ 
               width: `${Math.min((leads.length / Math.max(1, leads.length)) * 100, 100)}%`,
               backgroundColor: stage.color
@@ -1136,7 +1136,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {tasks.slice(0, 5).map((task) => {
+                  {tasks.slice(0, 5).map((task, idx) => {
                     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'Completed';
                     const isDueSoon = task.due_date && !isOverdue && new Date(task.due_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
                     
@@ -1144,7 +1144,8 @@ export default function Dashboard() {
                       <Link 
                         key={task.id} 
                         href={`/tasks`}
-                        className="block p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                        className="block p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all duration-200 card-hover stagger-item"
+                        style={{ animationDelay: `${idx * 0.05}s` }}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
