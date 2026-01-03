@@ -377,8 +377,8 @@ export default function SettingsPage() {
             {message && (
               <div className={`rounded-md p-4 border transition-all ${
                 message.includes('success') 
-                  ? 'bg-green-50 text-green-700 border-green-200 
-                  : 'bg-red-50 text-red-700 border-red-200
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : 'bg-red-50 text-red-700 border-red-200'
               }`}>
                 <div className="flex items-center">
                   {message.includes('success') && <CheckCircle className="h-5 w-5 mr-2" />}
