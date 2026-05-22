@@ -14,36 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
-  DollarSign,
-  Calendar,
-  BarChart3,
-  Zap, 
-  Settings,
-  ArrowLeft,
-  Save
-} from 'lucide-react'
+import { ArrowLeft, Save, Menu } from 'lucide-react'
+import PageSidebar from '@/components/layout/page-sidebar'
 
 interface ClientFolder {
   id: string
   name: string
   color: string
 }
-
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients", active: true },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
 
 export default function NewClientPage() {
   const router = useRouter()
@@ -52,6 +30,7 @@ export default function NewClientPage() {
   const [folders, setFolders] = useState<ClientFolder[]>([])
   const [folderId, setFolderId] = useState<string | null>(null)
   const [tagsInput, setTagsInput] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -121,36 +100,27 @@ export default function NewClientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex h-screen">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6">
-          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
-        </div>
-        
-        <nav className="flex-1 px-4">
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    item.active
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+      <div className="flex-shrink-0">
+        <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Menu Button */}
+        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="mr-3"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
+
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">

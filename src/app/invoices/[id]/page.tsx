@@ -8,16 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
-  DollarSign,
-  Calendar,
-  BarChart3,
-  Zap, 
-  Settings, 
+import {
   ArrowLeft,
+  Calendar,
+  DollarSign,
   Mail,
   Phone,
   MapPin,
@@ -30,9 +24,10 @@ import {
   X,
   Trash2,
   Eye,
-  FileText as FileTextIcon
+  Menu,
+  FileText as FileTextIcon,
 } from 'lucide-react'
-import UserProfile from '@/components/layout/user-profile'
+import PageSidebar from '@/components/layout/page-sidebar'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import {
   DropdownMenu,
@@ -50,18 +45,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChevronDown } from 'lucide-react'
 import SignOutButton from '@/components/auth/sign-out'
-
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices", active: true },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
 
 interface Invoice {
   id: string;
@@ -126,6 +109,7 @@ export default function InvoiceDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [isEditingInvoiceNumber, setIsEditingInvoiceNumber] = useState(false)
   const [editedInvoiceNumber, setEditedInvoiceNumber] = useState('')
@@ -328,40 +312,26 @@ export default function InvoiceDetailPage() {
   const remaining = invoice.remaining || (invoice.total - totalPaid)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex h-screen">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
-        <div className="p-6 flex-shrink-0">
-          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
-        </div>
-        
-        <nav className="flex-1 px-4 overflow-y-auto min-h-0">
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    item.active
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="flex-shrink-0 mt-auto">
-          <UserProfile />
-        </div>
+      <div className="flex-shrink-0">
+        <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Menu Button */}
+        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+            className="mr-3"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">

@@ -44,18 +44,6 @@ import UserProfile from "@/components/layout/user-profile";
 import PageSidebar from "@/components/layout/page-sidebar";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
-
 interface Material {
   id: string;
   name: string;
@@ -319,10 +307,6 @@ export default function MaterialsPage() {
       <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <PageSidebar 
-        items={sidebarItems.map(item => ({
-          ...item,
-          active: item.active || false
-        }))}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

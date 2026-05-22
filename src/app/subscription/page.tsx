@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Loader2 } from "lucide-react";
+import AiUsageWidget from "@/components/ai/ai-usage-widget";
 
 type SubscriptionStatus = {
   hasSubscription: boolean;
@@ -163,6 +164,11 @@ export default function SubscriptionPage() {
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Start with a free trial, then choose the plan that fits your business.
             </p>
+            {subscriptionStatus?.isActive && (
+              <div className="max-w-md mx-auto mb-6">
+                <AiUsageWidget />
+              </div>
+            )}
             {subscriptionStatus?.isActive && (
               <div className="mt-4 inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg">
                 <CheckCircle className="h-5 w-5 mr-2" />

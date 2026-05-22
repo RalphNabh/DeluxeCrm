@@ -55,20 +55,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients", active: true },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Gift, label: "Affiliates", href: "/affiliates" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
-
 interface ClientFolder {
   id: string;
   name: string;
@@ -233,10 +219,6 @@ export default function ClientsPage() {
     <div className="min-h-screen bg-gray-50 flex transition-colors">
       {/* Sidebar */}
       <PageSidebar 
-        items={sidebarItems.map(item => ({
-          ...item,
-          active: item.active || false
-        }))}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

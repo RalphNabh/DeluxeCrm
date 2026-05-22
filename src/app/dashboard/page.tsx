@@ -52,7 +52,9 @@ import {
   Menu,
   Folder,
   AlertCircle,
-  Clock
+  Clock,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -119,20 +121,6 @@ type PipelineStage = {
   created_at: string;
   updated_at: string;
 };
-
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", active: true },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Gift, label: "Affiliates", href: "/affiliates" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
 
 // Draggable Lead Card Component
 function DraggableLeadCard({
@@ -956,10 +944,6 @@ export default function Dashboard() {
         {/* Sidebar */}
         <div data-tutorial="navigation" className="flex-shrink-0">
           <PageSidebar 
-            items={sidebarItems.map(item => ({
-              ...item,
-              active: item.active || false
-            }))}
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
           />
@@ -1045,6 +1029,38 @@ export default function Dashboard() {
 
         {/* Dashboard Content */}
         <main className="flex-1 p-6">
+          {/* AI Estimate hero banner */}
+          <Link
+            href="/estimates/new/ai"
+            className="block mb-6 group"
+            data-tutorial="ai-estimate"
+          >
+            <div className="relative overflow-hidden rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white flex items-center justify-center shadow-md">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      New: AI Estimate from a photo
+                    </h3>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-teal-600 text-white">
+                      BETA
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-1">
+                    Snap a photo of the job site — the AI identifies materials,
+                    pulls prices from your catalog, and drafts the estimate.
+                  </p>
+                </div>
+                <Button className="bg-teal-600 hover:bg-teal-700 group-hover:translate-x-0.5 transition-transform">
+                  Try it <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
+              </div>
+            </div>
+          </Link>
+
           {/* Folder and Tag Filters */}
           {showFilters && (
           <div className="mb-6 space-y-4">

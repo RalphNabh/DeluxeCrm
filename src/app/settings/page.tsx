@@ -51,22 +51,9 @@ import {
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
 import PageSidebar from "@/components/layout/page-sidebar";
+import AiUsageWidget from "@/components/ai/ai-usage-widget";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from 'lucide-react'
-
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Gift, label: "Affiliates", href: "/affiliates" },
-  { icon: Settings, label: "Settings", href: "/settings", active: true },
-];
 
 // Add Profile link to sidebar items - we'll add it to the dropdown menu
 
@@ -302,10 +289,6 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <PageSidebar 
-        items={sidebarItems.map(item => ({
-          ...item,
-          active: item.active || false
-        }))}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -374,6 +357,8 @@ export default function SettingsPage() {
         {/* Settings Content */}
         <main className="flex-1 p-6">
           <div className="max-w-4xl space-y-6">
+            <AiUsageWidget />
+
             {message && (
               <div className={`rounded-md p-4 border transition-all ${
                 message.includes('success') 

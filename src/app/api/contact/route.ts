@@ -1,25 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit'
+import { parseJsonBody, z } from '@/lib/validation'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+const contactSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100),
+  email: z.string().trim().email('Invalid email address').max(254),
+  subject: z.string().trim().min(1, 'Subject is required').max(200),
+  category: z.enum(['support', 'sales', 'general', 'bug', 'feature', 'other']),
+  message: z.string().trim().min(1, 'Message is required').max(5000),
+  // Honeypot: if filled, this is a bot.
+  website: z.string().max(0, 'spam').optional().or(z.literal('')),
+  // Optional Cloudflare Turnstile token (verified if TURNSTILE_SECRET_KEY is set).
+  turnstileToken: z.string().optional(),
+})
+
+async function verifyTurnstile(token: string | undefined, ip: string): Promise<boolean> {
+  const secret = process.env.TURNSTILE_SECRET_KEY
+  if (!secret) {
+    // Not configured: skip (will be enforced once configured in production).
+    return true
+  }
+  if (!token) return false
+  try {
+    const formData = new URLSearchParams()
+    formData.append('secret', secret)
+    formData.append('response', token)
+    formData.append('remoteip', ip)
+    const res = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      { method: 'POST', body: formData }
+    )
+    const data = (await res.json()) as { success?: boolean }
+    return data.success === true
+  } catch (err) {
+    console.error('Turnstile verify error:', err)
+    return false
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, subject, category, message } = await request.json()
-
-    // Validate required fields
-    if (!name || !email || !subject || !category || !message) {
+    const limit = await rateLimit(request, 'contact')
+    if (!limit.success) {
       return NextResponse.json(
-        { error: 'All fields are required' },
-        { status: 400 }
+        { error: 'Too many messages from this IP. Please try again later.' },
+        { status: 429, headers: rateLimitHeaders(limit) }
       )
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
+    const parsed = await parseJsonBody(request, contactSchema)
+    if (!parsed.ok) return parsed.response
+    const { name, email, subject, category, message, website, turnstileToken } = parsed.data
+
+    // Honeypot check: silently accept then drop.
+    if (website && website.length > 0) {
+      return NextResponse.json({ success: true, message: 'Message sent successfully' })
+    }
+
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || ''
+    const captchaOk = await verifyTurnstile(turnstileToken, ip)
+    if (!captchaOk) {
       return NextResponse.json(
-        { error: 'Invalid email address' },
+        { error: 'Captcha verification failed. Please try again.' },
         { status: 400 }
       )
     }

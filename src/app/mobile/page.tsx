@@ -32,7 +32,8 @@ import {
   Square,
   Upload,
   Download,
-  LogOut
+  LogOut,
+  Sparkles,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -448,6 +449,17 @@ export default function MobilePage() {
           </div>
         </div>
 
+        {/* AI Estimate quick action */}
+        <Link href="/estimates/new/ai" className="block">
+          <Button className="w-full h-16 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 shadow-lg shadow-teal-600/20">
+            <Sparkles className="h-5 w-5 mr-3" />
+            <div className="text-left flex-1">
+              <div className="text-sm font-semibold">New AI Estimate</div>
+              <div className="text-xs opacity-90">Snap a photo, AI builds the estimate</div>
+            </div>
+          </Button>
+        </Link>
+
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Button className="h-16 bg-gradient-to-r from-blue-600 to-indigo-600">
@@ -457,7 +469,7 @@ export default function MobilePage() {
               <div className="text-xs opacity-90">Document work</div>
             </div>
           </Button>
-          
+
           <Button className="h-16 bg-gradient-to-r from-green-600 to-emerald-600">
             <Upload className="h-5 w-5 mr-2" />
             <div className="text-left">

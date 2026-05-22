@@ -1,16 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit'
+import { parseSearchParams, z } from '@/lib/validation'
+
+const querySchema = z.object({
+  estimateId: z.string().uuid({ message: 'estimateId must be a valid UUID' }),
+  clientEmail: z.string().email().optional(),
+})
 
 // Public endpoint to get contract message for estimate approval page
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const estimateId = searchParams.get('estimateId')
-    const clientEmail = searchParams.get('clientEmail')
-
-    if (!estimateId) {
-      return NextResponse.json({ error: 'Missing estimateId' }, { status: 400 })
+    const limit = await rateLimit(request, 'public-strict')
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again shortly.' },
+        { status: 429, headers: rateLimitHeaders(limit) }
+      )
     }
+
+    const parsed = parseSearchParams(request.nextUrl.searchParams, querySchema)
+    if (!parsed.ok) return parsed.response
+    const { estimateId, clientEmail } = parsed.data
 
     // Use service role client to bypass RLS since clients aren't authenticated
     const supabase = createServiceRoleClient()

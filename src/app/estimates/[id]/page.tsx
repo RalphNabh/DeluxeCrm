@@ -5,16 +5,10 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
-  DollarSign,
-  Calendar,
-  BarChart3,
-  Zap, 
-  Settings, 
+import {
   ArrowLeft,
+  Calendar,
+  DollarSign,
   Download,
   Mail,
   Check,
@@ -27,10 +21,11 @@ import {
   Save,
   X as XIcon,
   Edit,
-  Tag
+  Tag,
+  Menu,
 } from 'lucide-react'
 import JobCreationModal from '@/components/jobs/job-creation-modal'
-import UserProfile from '@/components/layout/user-profile'
+import PageSidebar from '@/components/layout/page-sidebar'
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -72,18 +67,6 @@ interface LinkedJob {
   end_time: string;
 }
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates", active: true },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
-
 function EstimateDetailContent() {
   const params = useParams()
   const router = useRouter()
@@ -94,6 +77,7 @@ function EstimateDetailContent() {
   const [updating, setUpdating] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showCreateJobModal, setShowCreateJobModal] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [linkedJobs, setLinkedJobs] = useState<LinkedJob[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [editedItems, setEditedItems] = useState<Array<{
@@ -687,41 +671,30 @@ function EstimateDetailContent() {
   const isPrintMode = searchParams.get('print') === 'true'
 
   return (
-    <div className={`min-h-screen bg-gray-50 flex ${isPrintMode ? 'print-mode' : ''}`}>
+    <div className={`min-h-screen bg-gray-50 flex h-screen ${isPrintMode ? 'print-mode' : ''}`}>
       {/* Sidebar */}
       {!isPrintMode && (
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
-        <div className="p-6 flex-shrink-0">
-          <Link href="/" className="text-xl font-bold text-blue-600">DyluxePro</Link>
+        <div className="flex-shrink-0">
+          <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         </div>
-        
-        <nav className="flex-1 px-4 overflow-y-auto min-h-0">
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    item.label === "Estimates"
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="flex-shrink-0 mt-auto">
-          <UserProfile />
-        </div>
-      </div>
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Menu Button */}
+        {!isPrintMode && (
+          <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(true)}
+              className="mr-3"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
         {/* Header */}
         {!isPrintMode && (
         <header className="bg-white border-b border-gray-200 px-6 py-4">

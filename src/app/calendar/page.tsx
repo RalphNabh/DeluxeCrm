@@ -55,20 +55,6 @@ import JobCreationModal from "@/components/jobs/job-creation-modal";
 import JobEditModal from "@/components/jobs/job-edit-modal";
 import { calculateEventPositions, type PositionedEvent } from "@/lib/utils/calendar-overlap";
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar", active: true },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Gift, label: "Affiliates", href: "/affiliates" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
-
 interface Job {
   id: string;
   title: string;
@@ -303,10 +289,6 @@ export default function CalendarPage() {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <PageSidebar 
-        items={sidebarItems.map(item => ({
-          ...item,
-          active: item.active || false
-        }))}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

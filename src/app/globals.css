@@ -141,6 +141,119 @@ body {
   transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ---------- Landing page motion ---------- */
+
+/* Slow drifting aurora/blob backdrop behind the hero */
+@keyframes auroraDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(40px, -30px, 0) scale(1.1);
+  }
+  66% {
+    transform: translate3d(-30px, 20px, 0) scale(0.95);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes auroraDriftAlt {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-50px, 40px, 0) scale(1.15);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.55;
+  pointer-events: none;
+  will-change: transform;
+  animation: auroraDrift 18s ease-in-out infinite;
+}
+
+.aurora-blob-alt {
+  animation: auroraDriftAlt 24s ease-in-out infinite;
+}
+
+/* Animated gradient text */
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #0d9488, #14b8a6, #06b6d4, #14b8a6, #0d9488);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 6s ease-in-out infinite;
+}
+
+/* Subtle gentle float (e.g. for dashboard preview card) */
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float {
+  animation: floatY 6s ease-in-out infinite;
+}
+
+/* Hero entrance fade-up with stagger via inline delays */
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-fade {
+  opacity: 0;
+  animation: heroFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .aurora-blob-alt,
+  .gradient-text,
+  .animate-float,
+  .hero-fade,
+  .animate-fade-in-up,
+  .stagger-item {
+    animation: none !important;
+  }
+  .hero-fade {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Print styles for estimates */
 @media print {
   body.print-mode .w-64,

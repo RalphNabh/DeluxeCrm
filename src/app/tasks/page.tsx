@@ -61,20 +61,6 @@ import UserProfile from "@/components/layout/user-profile";
 import PageSidebar from "@/components/layout/page-sidebar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks", active: true },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Gift, label: "Affiliates", href: "/affiliates" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
-
 interface Task {
   id: string;
   title: string;
@@ -400,10 +386,6 @@ export default function TasksPage() {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <PageSidebar 
-        items={sidebarItems.map(item => ({
-          ...item,
-          active: item.active || false
-        }))}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

@@ -55,20 +55,6 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { Label } from "@/components/ui/label";
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates" },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Gift, label: "Affiliates", href: "/affiliates", active: true },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
-
 interface Affiliate {
   id: string;
   user_id: string;
@@ -209,10 +195,6 @@ export default function AffiliatesPage() {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <PageSidebar 
-        items={sidebarItems.map(item => ({
-          ...item,
-          active: item.active || false
-        }))}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

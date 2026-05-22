@@ -47,7 +47,7 @@ import PageHeader from "@/components/layout/page-header";
 import StatsCards from "@/components/ui/stats-cards";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
-import { Package } from "lucide-react";
+import { Package, Sparkles } from "lucide-react";
 
 interface Estimate {
   id: string;
@@ -74,20 +74,6 @@ interface Estimate {
     total: number;
   }>;
 }
-
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Users, label: "Clients", href: "/clients" },
-  { icon: FileText, label: "Estimates", href: "/estimates", active: true },
-  { icon: DollarSign, label: "Invoices", href: "/invoices" },
-  { icon: Calendar, label: "Calendar", href: "/calendar" },
-  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
-  { icon: BarChart3, label: "Reports", href: "/reports" },
-  { icon: Users, label: "Team", href: "/team" },
-  { icon: Zap, label: "Automations", href: "/automations" },
-  { icon: Gift, label: "Affiliates", href: "/affiliates" },
-  { icon: Settings, label: "Settings", href: "/settings" },
-];
 
 export default function EstimatePage() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -197,10 +183,6 @@ export default function EstimatePage() {
     <div className="min-h-screen bg-gray-50 flex transition-colors">
       {/* Sidebar */}
       <PageSidebar 
-        items={sidebarItems.map(item => ({
-          ...item,
-          active: item.active || false
-        }))}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -228,15 +210,21 @@ export default function EstimatePage() {
           title="Estimates"
           description="Manage your project estimates and track approval status."
           primaryAction={
-            <Link href="/estimates/new">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Estimate
+            <Link href="/estimates/new/ai">
+              <Button className="bg-teal-600 hover:bg-teal-700">
+                <Sparkles className="h-4 w-4 mr-2" />
+                New AI Estimate
               </Button>
             </Link>
           }
           secondaryActions={
             <>
+              <Link href="/estimates/new">
+                <Button variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Estimate
+                </Button>
+              </Link>
               {availableTags.length > 0 && (
                 <Button 
                   variant="outline"
