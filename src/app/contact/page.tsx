@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, MessageSquare, Send, CheckCircle, AlertCircle } from "lucide-react";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -23,16 +24,25 @@ export default function ContactPage() {
     subject: "",
     category: "",
     message: "",
+    website: "",
   });
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const turnstileRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setSuccess(false);
+
+    if (turnstileRequired && !turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const response = await fetch("/api/contact", {
@@ -40,7 +50,10 @@ export default function ContactPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          turnstileToken: turnstileToken || undefined,
+        }),
       });
 
       const data = await response.json();
@@ -56,7 +69,9 @@ export default function ContactPage() {
         subject: "",
         category: "",
         message: "",
+        website: "",
       });
+      setTurnstileToken("");
 
       // Reset success message after 5 seconds
       setTimeout(() => {
@@ -215,6 +230,23 @@ export default function ContactPage() {
                     rows={6}
                   />
                 </div>
+
+                {/* Honeypot — hidden from users */}
+                <input
+                  type="text"
+                  name="website"
+                  value={formData.website}
+                  onChange={handleChange}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  className="absolute opacity-0 pointer-events-none h-0 w-0"
+                  aria-hidden
+                />
+
+                <TurnstileWidget
+                  onToken={setTurnstileToken}
+                  onExpire={() => setTurnstileToken("")}
+                />
 
                 {/* Submit Button */}
                 <Button type="submit" className="w-full" disabled={loading}>

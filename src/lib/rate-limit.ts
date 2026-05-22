@@ -18,7 +18,8 @@ type LimiterKey =
   | "public-default"
   | "public-strict"
   | "contact"
-  | "ai-estimate";
+  | "ai-estimate"
+  | "email-action";
 
 const limiters = new Map<LimiterKey, Ratelimit>();
 
@@ -74,6 +75,14 @@ function getLimiter(key: LimiterKey): Ratelimit | null {
         analytics: true,
       });
       break;
+    case "email-action":
+      limiter = new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, "10 m"),
+        prefix: "rl:email-action",
+        analytics: true,
+      });
+      break;
     case "public-default":
     default:
       // 30 requests per minute, generous default
@@ -118,7 +127,9 @@ export async function rateLimit(
 ): Promise<RateLimitResult> {
   const limiter = getLimiter(key);
   if (!limiter) {
-    // Fail open in dev / when not configured; production should have it.
+    if (process.env.NODE_ENV === "production") {
+      return { success: false, limit: 0, remaining: 0, reset: 0 };
+    }
     return { success: true, limit: 0, remaining: 0, reset: 0 };
   }
   const bucket = identifier?.trim() || getClientIp(request);

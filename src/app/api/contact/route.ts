@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit'
 import { parseJsonBody, z } from '@/lib/validation'
+import { getContactEmail } from '@/lib/env'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
     const fromEmail = process.env.RESEND_FROM_EMAIL || 'DyluxePro <onboarding@resend.dev>'
     // Contact form emails go to CONTACT_EMAIL if set, otherwise to RESEND_VERIFIED_EMAIL, or fallback
     // For now, using support@dyluxepro.com as the display email, but actual delivery goes to verified email
-    const toEmail = process.env.CONTACT_EMAIL || process.env.RESEND_VERIFIED_EMAIL || 'nabhanralph@gmail.com'
+    const toEmail = getContactEmail()
 
     // Email to support team
     const supportEmailHtml = `

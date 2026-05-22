@@ -22,6 +22,7 @@ function EstimateActionContent() {
   const action = searchParams.get('action');
   const clientEmail = searchParams.get('clientEmail');
   const clientName = searchParams.get('clientName');
+  const token = searchParams.get('token');
 
   // Fetch estimate to get contract message (public endpoint, no auth required)
   useEffect(() => {
@@ -52,6 +53,14 @@ function EstimateActionContent() {
 
   const handleAction = async () => {
     if (!estimateId || !action) return;
+
+    if (!token || !clientEmail) {
+      setResult({
+        success: false,
+        message: 'This link is invalid or incomplete. Please use the link from your estimate email.',
+      });
+      return;
+    }
     
     // Require contract agreement for approval if contract exists
     if (action === 'approve' && estimate?.contract_message && !contractAgreed) {
@@ -67,7 +76,8 @@ function EstimateActionContent() {
           estimateId,
           action,
           clientEmail,
-          clientName
+          clientName,
+          token,
         })
       });
 

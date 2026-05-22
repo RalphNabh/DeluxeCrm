@@ -8,7 +8,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const updates = await request.json()
+  const body = await request.json()
+  const allowed = [
+    'name', 'email', 'phone', 'address', 'status', 'notes', 'folder_id', 'value', 'source',
+  ] as const
+  const updates: Record<string, unknown> = {}
+  for (const key of allowed) {
+    if (key in body) updates[key] = body[key]
+  }
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+  }
   
   // Get the old lead data to check if status changed
   const { data: oldLead } = await supabase

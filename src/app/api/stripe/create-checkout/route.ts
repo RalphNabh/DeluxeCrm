@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+import { getAppUrl } from '@/lib/env'
+import { isAllowedStripePriceId } from '@/lib/stripe-prices'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +30,10 @@ export async function POST(request: NextRequest) {
 
     if (!priceId) {
       return NextResponse.json({ error: 'Price ID is required' }, { status: 400 })
+    }
+
+    if (!isAllowedStripePriceId(priceId)) {
+      return NextResponse.json({ error: 'Invalid price ID' }, { status: 400 })
     }
 
     // Check if user already has a subscription
@@ -87,8 +93,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscription/cancel`,
+      success_url: `${getAppUrl()}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getAppUrl()}/subscription/cancel`,
       metadata: {
         userId: user.id,
       },

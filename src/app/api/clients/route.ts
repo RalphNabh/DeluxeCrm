@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor'
+import { escapePostgrestValue } from '@/lib/postgrest-escape'
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,10 @@ export async function GET(request: NextRequest) {
 
     let clientsRes
     if (q && q.length > 0) {
-      clientsRes = await baseQuery.or(`name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+      const safe = escapePostgrestValue(q)
+      clientsRes = await baseQuery.or(
+        `name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`,
+      )
     } else {
       clientsRes = await baseQuery
     }

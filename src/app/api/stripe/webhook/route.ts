@@ -66,6 +66,27 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const { data: existingEvent } = await supabaseAdmin
+    .from('stripe_webhook_events')
+    .select('event_id')
+    .eq('event_id', event.id)
+    .maybeSingle()
+
+  if (existingEvent) {
+    return NextResponse.json({ received: true, duplicate: true })
+  }
+
+  const { error: insertEventError } = await supabaseAdmin
+    .from('stripe_webhook_events')
+    .insert({ event_id: event.id, event_type: event.type })
+
+  if (insertEventError) {
+    if (insertEventError.code === '23505') {
+      return NextResponse.json({ received: true, duplicate: true })
+    }
+    console.error('Failed to record webhook event id:', insertEventError)
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {

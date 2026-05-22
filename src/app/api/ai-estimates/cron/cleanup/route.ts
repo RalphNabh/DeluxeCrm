@@ -22,13 +22,10 @@ const RETENTION_DAYS = 90;
 
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  // Vercel cron requests include this header automatically.
-  const vercelHeader = request.headers.get("x-vercel-cron");
-  if (vercelHeader) return true;
   if (!secret) {
-    // No secret configured — only allow Vercel-stamped invocations.
-    return false;
+    return process.env.NODE_ENV !== "production";
   }
+  // Vercel Cron adds Authorization: Bearer CRON_SECRET when CRON_SECRET is set in project env.
   const auth = request.headers.get("authorization");
   return auth === `Bearer ${secret}`;
 }

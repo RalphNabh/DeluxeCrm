@@ -86,7 +86,7 @@ async function executeSendEmail(
     const userEmail = user?.email;
     
     // Determine recipient: client/lead email in production, verified email in development (for testing)
-    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL || 'nabhanralph@gmail.com';
+    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL;
     const isDevelopment = process.env.NODE_ENV === 'development';
     
     // Get client/lead email from context (could be client_email, lead_email, or email)
@@ -96,6 +96,13 @@ async function executeSendEmail(
     const recipientEmail = clientEmail && !isDevelopment
       ? clientEmail
       : (clientEmail || verifiedEmail);
+
+    if (!recipientEmail) {
+      return {
+        success: false,
+        error: 'No recipient email configured for automation email.',
+      };
+    }
 
     // Create professional HTML email template
     const emailHtml = `
@@ -182,20 +189,19 @@ export async function checkAndExecuteAutomations(
     // Use service role client to bypass RLS when client isn't authenticated
     // This is needed when clients approve estimates from email links
     let supabase;
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      // Use service role key if available (bypasses RLS)
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for automations in production.');
+      }
       supabase = createSupabaseClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       );
-      console.log('Using service role client for automation queries');
     } else {
-      // Fallback: use anon key directly (requires RLS to allow reading by user_id)
       supabase = createSupabaseClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
       );
-      console.log('Using anon key client for automation queries (RLS must allow reading by user_id)');
     }
     
     console.log(`Checking automations for event: ${triggerEvent}, user_id: ${context.user_id}`);

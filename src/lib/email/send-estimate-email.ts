@@ -1,6 +1,8 @@
 import { Resend } from 'resend';
 import { createClient } from '@/lib/supabase/server';
 import { checkAndExecuteAutomations } from '@/lib/automations/executor';
+import { getAppUrl, isDevelopment } from '@/lib/env';
+import { buildEstimateActionUrl } from '@/lib/estimate-action-token';
 
 export async function sendEstimateEmail(
   estimateId: string,
@@ -47,16 +49,15 @@ export async function sendEstimateEmail(
 
     // For prototype/demo: Send to verified email (can verify more recipient emails in Resend)
     // In production with verified domain: emails will go directly to clientEmail
-    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL || 'nabhanralph@gmail.com';
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    
-    // Use verified email for prototype, client email in production
-    const recipients = isDevelopment 
-      ? [verifiedEmail] // Send to verified email for prototype demo
-      : [recipientEmail]; // Send to client in production
+    const appUrl = getAppUrl();
+    const devMode = isDevelopment();
+    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL;
+
+    const recipients =
+      devMode && verifiedEmail ? [verifiedEmail] : [recipientEmail];
 
     // Add note in email body for prototype demo
-    const prototypeNote = isDevelopment ? `
+    const prototypeNote = devMode && verifiedEmail ? `
       <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 4px; margin-bottom: 20px;">
         <strong>PROTOTYPE DEMO:</strong> This estimate was intended for ${recipientEmail}. In production, emails will be sent directly to the client's email address.
       </div>
@@ -146,8 +147,8 @@ export async function sendEstimateEmail(
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/estimate-action?estimateId=${estimate.id}&action=approve&clientEmail=${encodeURIComponent(clientEmail)}&clientName=${encodeURIComponent(clientName)}" class="button" style="background: #10b981; margin-right: 10px;">Approve Estimate</a>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/estimate-action?estimateId=${estimate.id}&action=request_changes&clientEmail=${encodeURIComponent(clientEmail)}&clientName=${encodeURIComponent(clientName)}" class="button" style="background: #f59e0b;">Request Changes</a>
+              <a href="${buildEstimateActionUrl(estimate.id, recipientEmail, clientName, 'approve', appUrl)}" class="button" style="background: #10b981; margin-right: 10px;">Approve Estimate</a>
+              <a href="${buildEstimateActionUrl(estimate.id, recipientEmail, clientName, 'request_changes', appUrl)}" class="button" style="background: #f59e0b;">Request Changes</a>
             </div>
 
             <p>This estimate is valid for 30 days. Please let us know if you have any questions or would like to proceed with this project.</p>

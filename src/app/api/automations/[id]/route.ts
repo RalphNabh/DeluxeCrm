@@ -7,10 +7,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const updates = await request.json()
+  const body = await request.json()
+  const allowed = ['name', 'description', 'trigger_event', 'action_type', 'action_config', 'is_active'] as const
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  for (const key of allowed) {
+    if (key in body) updates[key] = body[key]
+  }
   const { data, error } = await supabase
     .from('automations')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(updates)
     .eq('id', id)
     .eq('user_id', user.id)
     .select()

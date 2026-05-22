@@ -81,16 +81,18 @@ export async function sendInvoiceEmail(
 
     // For prototype/demo: Send to verified email (can verify more recipient emails in Resend)
     // In production with verified domain: emails will go directly to clientEmail
-    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL || 'nabhanralph@gmail.com';
+    const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL;
     const isDevelopment = process.env.NODE_ENV === 'development';
     
     // Use verified email for prototype, client email in production
-    const recipients = isDevelopment 
-      ? [verifiedEmail] // Send to verified email for prototype demo
-      : [recipientEmail]; // Send to client in production
+    const recipients =
+      isDevelopment && verifiedEmail ? [verifiedEmail] : [recipientEmail];
 
-    // Add note in email body for prototype demo
-    const prototypeNote = isDevelopment ? `
+    if (!recipients[0]) {
+      return { success: false, error: 'No recipient email available' };
+    }
+
+    const prototypeNote = isDevelopment && verifiedEmail ? `
       <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 4px; margin-bottom: 20px;">
         <strong>PROTOTYPE DEMO:</strong> This invoice was intended for ${recipientEmail}. In production, emails will be sent directly to the client's email address.
       </div>

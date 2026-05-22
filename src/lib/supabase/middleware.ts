@@ -35,16 +35,36 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/signup', '/', '/verify-email']
-  const isPublicRoute = publicRoutes.some(route => 
-    request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith(route)
-  )
+  const pathname = request.nextUrl.pathname
+
+  // Public routes — exact match or explicit prefixes only (never use startsWith('/'))
+  const publicExact = new Set([
+    '/',
+    '/login',
+    '/signup',
+    '/verify-email',
+    '/contact',
+    '/estimate-action',
+    '/account-verified',
+    '/terms',
+    '/privacy',
+    '/forgot-password',
+    '/reset-password',
+  ])
+  const publicPrefixes = ['/signup/', '/auth/']
+  const isPublicRoute =
+    publicExact.has(pathname) ||
+    publicPrefixes.some((prefix) => pathname.startsWith(prefix))
 
   // Routes that don't require subscription (but require auth)
-  const subscriptionExemptRoutes = ['/subscription', '/settings', '/api']
-  const isSubscriptionExempt = subscriptionExemptRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
+  const subscriptionExemptPrefixes = [
+    '/subscription',
+    '/settings',
+    '/api',
+    '/profile',
+  ]
+  const isSubscriptionExempt = subscriptionExemptPrefixes.some((route) =>
+    pathname.startsWith(route),
   )
 
   if (!user && !isPublicRoute) {
@@ -59,7 +79,7 @@ export async function updateSession(request: NextRequest) {
   if (
     user &&
     !user.email_confirmed_at &&
-    request.nextUrl.pathname !== '/verify-email' &&
+    pathname !== '/verify-email' &&
     !isPublicRoute
   ) {
     const url = request.nextUrl.clone()
