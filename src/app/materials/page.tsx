@@ -526,7 +526,7 @@ export default function MaterialsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((cat) => (
+                  {categories.filter((cat): cat is string => Boolean(cat)).map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
                     </SelectItem>

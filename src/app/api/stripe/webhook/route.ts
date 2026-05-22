@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { createStripeClient } from '@/lib/stripe-server'
+import {
+  getInvoiceSubscriptionId,
+  getSubscriptionPeriod,
+} from '@/lib/stripe-subscription'
+import { captureApiError } from '@/lib/api-error'
 
 // Disable body parsing, we need the raw body for signature verification
 export const runtime = 'nodejs'
@@ -8,16 +14,12 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   // Initialize Stripe client (lazy initialization to avoid build-time errors)
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeSecretKey) {
-    return NextResponse.json(
-      { error: 'STRIPE_SECRET_KEY is not configured. Please set it in your environment variables.' },
-      { status: 500 }
-    );
+  let stripe: ReturnType<typeof createStripeClient>;
+  try {
+    stripe = createStripeClient();
+  } catch {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
   }
-  const stripe = new Stripe(stripeSecretKey, {
-    apiVersion: '2024-12-18.acacia',
-  });
 
   // Use service role for webhook to bypass RLS
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
           )
+          const period = getSubscriptionPeriod(subscription)
 
           const userId = session.metadata?.userId || subscription.metadata?.userId
 
@@ -104,8 +107,7 @@ export async function POST(request: NextRequest) {
             break
           }
 
-          // Update or create subscription record
-          const { data: upsertData, error: upsertError } = await supabaseAdmin
+          const { error: upsertError } = await supabaseAdmin
             .from('subscriptions')
             .upsert({
               user_id: userId,
@@ -113,8 +115,8 @@ export async function POST(request: NextRequest) {
               stripe_subscription_id: subscription.id,
               stripe_price_id: subscription.items.data[0]?.price.id,
               status: subscription.status,
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              current_period_start: new Date(period.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(period.current_period_end * 1000).toISOString(),
               cancel_at_period_end: subscription.cancel_at_period_end,
             }, {
               onConflict: 'user_id'
@@ -216,13 +218,14 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
+        const period = getSubscriptionPeriod(subscription)
 
         const { error: updateError } = await supabaseAdmin
           .from('subscriptions')
           .update({
             status: subscription.status,
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_start: new Date(period.current_period_start * 1000).toISOString(),
+            current_period_end: new Date(period.current_period_end * 1000).toISOString(),
             cancel_at_period_end: subscription.cancel_at_period_end,
           })
           .eq('stripe_subscription_id', subscription.id)
@@ -236,18 +239,18 @@ export async function POST(request: NextRequest) {
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice
-        
-        if (invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(
-            invoice.subscription as string
-          )
+        const subscriptionId = getInvoiceSubscriptionId(invoice)
+
+        if (subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          const period = getSubscriptionPeriod(subscription)
 
           const { error: updateError } = await supabaseAdmin
             .from('subscriptions')
             .update({
               status: subscription.status,
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              current_period_start: new Date(period.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(period.current_period_end * 1000).toISOString(),
             })
             .eq('stripe_subscription_id', subscription.id)
 
@@ -261,14 +264,15 @@ export async function POST(request: NextRequest) {
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        
-        if (invoice.subscription) {
+        const subscriptionId = getInvoiceSubscriptionId(invoice)
+
+        if (subscriptionId) {
           const { error: updateError } = await supabaseAdmin
             .from('subscriptions')
             .update({
               status: 'past_due',
             })
-            .eq('stripe_subscription_id', invoice.subscription as string)
+            .eq('stripe_subscription_id', subscriptionId)
 
           if (updateError) {
             console.error('Error updating subscription status to past_due:', updateError)
@@ -284,7 +288,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Error processing webhook:', error)
+    captureApiError(error, { route: 'stripe/webhook' })
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }

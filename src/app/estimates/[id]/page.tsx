@@ -462,6 +462,7 @@ function EstimateDetailContent() {
         await new Promise(resolve => setTimeout(resolve, 300))
         
         canvas = await html2canvas(clone, {
+          // @ts-expect-error html2canvas types omit scale
           scale: 1.5,
           useCORS: true,
           logging: false,
@@ -473,7 +474,8 @@ function EstimateDetailContent() {
         }).catch(() => {
           // If clone fails, try original element
           return html2canvas(element, {
-            scale: 1.5,
+            // @ts-expect-error html2canvas types omit scale
+          scale: 1.5,
             useCORS: true,
             logging: false,
             backgroundColor: '#ffffff',
@@ -817,7 +819,7 @@ function EstimateDetailContent() {
             </Card>
 
             {/* Line Items */}
-            {(isEditing ? editedItems : estimate.estimate_line_items) && (isEditing ? editedItems : estimate.estimate_line_items).length > 0 && (
+            {((isEditing ? editedItems : estimate.estimate_line_items)?.length ?? 0) > 0 && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -844,7 +846,7 @@ function EstimateDetailContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {(isEditing ? editedItems : estimate.estimate_line_items).map((item, index) => (
+                        {(isEditing ? editedItems ?? [] : estimate.estimate_line_items ?? []).map((item, index) => (
                           <tr key={isEditing ? index : item.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">
                               {isEditing ? (

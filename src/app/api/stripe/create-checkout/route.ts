@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { getAppUrl } from '@/lib/env'
 import { isAllowedStripePriceId } from '@/lib/stripe-prices'
+import { createStripeClient } from '@/lib/stripe-server'
+import { parseJsonBody } from '@/lib/validation'
+import { checkoutBodySchema } from '@/lib/api-schemas'
 
 export async function POST(request: NextRequest) {
   try {
     // Initialize Stripe client (lazy initialization to avoid build-time errors)
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecretKey) {
-      return NextResponse.json(
-        { error: 'STRIPE_SECRET_KEY is not configured. Please set it in your environment variables.' },
-        { status: 500 }
-      );
-    }
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2024-12-18.acacia',
-    });
+    const stripe = createStripeClient();
 
     const supabase = await createClient()
     
@@ -26,11 +19,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { priceId } = await request.json()
-
-    if (!priceId) {
-      return NextResponse.json({ error: 'Price ID is required' }, { status: 400 })
-    }
+    const parsed = await parseJsonBody(request, checkoutBodySchema)
+    if (!parsed.ok) return parsed.response
+    const { priceId } = parsed.data
 
     if (!isAllowedStripePriceId(priceId)) {
       return NextResponse.json({ error: 'Invalid price ID' }, { status: 400 })

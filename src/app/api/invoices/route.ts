@@ -65,7 +65,9 @@ export async function GET(request: NextRequest) {
                 .select('id, title, status, start_time, end_time')
                 .eq('id', invoice.job_id)
                 .single()
-              invoiceWithJob = { ...invoiceWithJob, jobs: job }
+              invoiceWithJob = { ...invoiceWithJob, jobs: job } as typeof invoiceWithJob & {
+                jobs: typeof job
+              }
             } catch (e) {
               // Column doesn't exist or job not found, continue without job
             }

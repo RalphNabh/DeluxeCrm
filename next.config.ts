@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   async redirects() {
@@ -15,13 +16,14 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: false,
   },
   typescript: {
-    // FIXME(PR#1.5): Re-enable strict TS checking after migrating
-    // (a) all dynamic route handlers to Next 15's `params: Promise<...>` API,
-    // (b) Stripe webhook handlers to Stripe SDK v20 / API 2025-11-17.clover,
-    // (c) Supabase joined-row typings (single() vs array results).
-    // Tracked: see TODO list and ARCHITECTURE.md.
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: !process.env.CI,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  widenClientFileUpload: true,
+  disableLogger: true,
+});

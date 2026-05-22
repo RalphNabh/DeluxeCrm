@@ -275,10 +275,10 @@ export default function AutomationsPage() {
 
   const openEditDialog = (automation: Automation) => {
     setEditingAutomation(automation);
-    if (automation.action_payload?.subject) {
+    if (typeof automation.action_payload?.subject === 'string') {
       setEditSubject(automation.action_payload.subject);
     }
-    if (automation.action_payload?.body) {
+    if (typeof automation.action_payload?.body === 'string') {
       setEditBody(automation.action_payload.body);
     }
   };
@@ -735,7 +735,8 @@ export default function AutomationsPage() {
                           {getActionLabel(automation.action_type)}
                         </span>
                       </div>
-                      {automation.action_type === 'send_email' && automation.action_payload?.subject && (
+                      {automation.action_type === 'send_email' &&
+                        typeof automation.action_payload?.subject === 'string' && (
                         <div className="text-sm">
                           <span className="text-gray-500">Subject:</span>
                           <p className="font-medium text-gray-900 mt-1 truncate">

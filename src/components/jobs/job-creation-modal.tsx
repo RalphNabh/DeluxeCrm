@@ -170,7 +170,8 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated, estima
           estimated_duration: "",
           team_members: "",
           equipment: "",
-          notes: ""
+          notes: "",
+          tags: "",
         });
       } else {
         console.error('Failed to create job');

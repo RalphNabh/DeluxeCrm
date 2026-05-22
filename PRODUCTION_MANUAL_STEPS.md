@@ -22,3 +22,7 @@ Add redirect URL: `https://www.dyluxepro.com/reset-password` for password reset 
 ## Re-send estimate emails
 
 Old approve links without `token` will not work. Re-send estimates after deploy so clients get signed links.
+
+## Stripe (after PR#1.5 code deploy)
+
+Webhook handler now uses Stripe API `2025-11-17.clover` and reads billing periods from subscription line items. Test checkout → webhook → subscription row in Supabase after deploy.

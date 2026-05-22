@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { parseJsonBody } from '@/lib/validation'
+import { paymentCreateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
 
 export async function POST(request: NextRequest) {
   try {
-    const { invoice_id, amount, method, reference, notes } = await request.json()
-    
-    if (!invoice_id || !amount || !method) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
+    const parsed = await parseJsonBody(request, paymentCreateSchema)
+    if (!parsed.ok) return parsed.response
+    const { invoice_id, amount, method, reference, notes } = parsed.data
 
     const supabase = await createClient()
     

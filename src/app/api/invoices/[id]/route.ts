@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,7 +37,7 @@ export async function GET(
         notes
       )
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', user.id)
     .single()
   
@@ -68,7 +69,7 @@ export async function GET(
         .select('id, title, status, start_time, end_time')
         .eq('id', (invoice as Record<string, unknown>).job_id)
         .single()
-      invoiceWithJob = { ...invoiceWithStatus, jobs: job }
+      invoiceWithJob = { ...invoiceWithStatus, jobs: job } as typeof invoiceWithStatus & { jobs: typeof job }
     } catch (e) {
       // Column doesn't exist or job not found, continue without job
     }
@@ -104,8 +105,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -122,7 +124,7 @@ export async function PUT(
   const { data: updatedInvoice, error } = await supabase
     .from('invoices')
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', user.id)
     .select(`
       *,
@@ -176,7 +178,7 @@ export async function PUT(
         .select('id, title, status, start_time, end_time')
         .eq('id', (updatedInvoice as Record<string, unknown>).job_id)
         .single()
-      updatedInvoiceWithJob = { ...invoiceWithStatus, jobs: job }
+      updatedInvoiceWithJob = { ...invoiceWithStatus, jobs: job } as typeof invoiceWithStatus & { jobs: typeof job }
     } catch (e) {
       // Column doesn't exist or job not found, continue without job
     }
@@ -212,8 +214,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -221,7 +224,7 @@ export async function DELETE(
   const { error } = await supabase
     .from('invoices')
     .delete()
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 })

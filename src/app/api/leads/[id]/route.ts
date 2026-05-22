@@ -76,16 +76,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   if (error) {
-    return NextResponse.json({ error: error.message || 'Failed to update lead' }, { status: 400 })
+    return NextResponse.json({ error: 'Failed to update lead' }, { status: 400 })
   }
-  
+
   if (!data) {
     return NextResponse.json({ error: 'Lead not found or update failed' }, { status: 404 })
   }
 
   // Trigger automations if status changed
-  if (updates.status && oldLead && oldLead.status !== updates.status) {
-    // Map pipeline stages to trigger events
+  const newStatus =
+    typeof updates.status === 'string' ? updates.status : undefined
+  if (newStatus && oldLead && oldLead.status !== newStatus) {
     const stageToEvent: Record<string, string> = {
       'New Leads': 'lead_created',
       'Estimate Sent': 'lead_estimate_sent',
@@ -94,7 +95,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       'Completed': 'lead_completed'
     }
 
-    const triggerEvent = stageToEvent[updates.status]
+    const triggerEvent = stageToEvent[newStatus]
     if (triggerEvent) {
       // Trigger automations for this stage change
       await checkAndExecuteAutomations(triggerEvent, {
@@ -106,7 +107,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         lead_phone: data.phone,
         lead_address: data.address,
         old_status: oldLead.status,
-        new_status: updates.status,
+        new_status: newStatus,
         client_name: data.name,
         client_email: data.email
       })

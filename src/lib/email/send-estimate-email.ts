@@ -107,7 +107,7 @@ export async function sendEstimateEmail(
 
             <div class="line-items">
               <h3>Line Items</h3>
-              ${estimate.estimate_line_items?.map(item => `
+              ${estimate.estimate_line_items?.map((item: { description: string; quantity: number; unit: string; unit_price: number; total: number }) => `
                 <div class="line-item">
                   <div>
                     <strong>${item.description}</strong><br>

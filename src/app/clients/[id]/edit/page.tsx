@@ -89,7 +89,8 @@ export default function EditClientPage() {
     }
   }
 
-  const update = (key: keyof ClientForm, value: string) => setForm(prev => ({ ...prev, [key]: value }))
+  const update = (key: keyof ClientForm, value: string | null) =>
+    setForm((prev) => ({ ...prev, [key]: value }))
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

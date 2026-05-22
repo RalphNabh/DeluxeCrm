@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { rateLimit, rateLimitHeaders } from '@/lib/rate-limit'
 import { parseSearchParams, z } from '@/lib/validation'
+import { getJoinedClientEmail } from '@/lib/supabase-joins'
 
 const querySchema = z.object({
   estimateId: z.string().uuid({ message: 'estimateId must be a valid UUID' }),
@@ -38,7 +39,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Optionally verify client email matches if provided
-    if (clientEmail && estimate.clients?.email && estimate.clients.email !== clientEmail) {
+    const onFileEmail = getJoinedClientEmail(
+      estimate.clients as { email?: string } | { email?: string }[] | null,
+    )
+    if (clientEmail && onFileEmail && onFileEmail !== clientEmail) {
       return NextResponse.json({ error: 'Invalid client email' }, { status: 403 })
     }
 

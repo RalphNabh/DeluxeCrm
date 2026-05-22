@@ -143,7 +143,7 @@ export default function MaterialSelector({
                   >
                     All
                   </Button>
-                  {categories.map((cat) => (
+                  {categories.filter((cat): cat is string => Boolean(cat)).map((cat) => (
                     <Button
                       key={cat}
                       variant={selectedCategory === cat ? "default" : "outline"}

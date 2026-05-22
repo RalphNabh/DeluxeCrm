@@ -228,7 +228,10 @@ function EstimateActionContent() {
               <Button 
                 onClick={handleAction}
                 className="w-full"
-                disabled={loading || (action === 'approve' && estimate?.contract_message && !contractAgreed)}
+                disabled={
+                  loading ||
+                  !!(action === 'approve' && estimate?.contract_message && !contractAgreed)
+                }
               >
                 {action === 'approve' ? 'Approve Estimate' : 'Request Changes'}
               </Button>
