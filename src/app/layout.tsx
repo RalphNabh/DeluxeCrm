@@ -19,10 +19,6 @@ export const metadata: Metadata = {
   title: "DyluxePro CRM | Professional Contractor Management",
   description: "Professional contractor CRM solution. Manage clients, estimates, invoices, and projects all in one place.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://dyluxepro.com'),
-  icons: {
-    icon: [{ url: "/logo.png", type: "image/png" }],
-    apple: [{ url: "/logo.png", type: "image/png" }],
-  },
   openGraph: {
     title: "DyluxePro CRM",
     description: "Professional contractor CRM solution",
