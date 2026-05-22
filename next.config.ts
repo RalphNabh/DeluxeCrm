@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      // Browsers cache /favicon.ico aggressively; redirect to uncached PNG path.
+      {
+        source: "/favicon.ico",
+        destination: "/icons/icon-32.png",
+        permanent: false,
+      },
+    ];
+  },
   eslint: {
     ignoreDuringBuilds: false,
   },
