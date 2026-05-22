@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api-auth'
+import { jobCreateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
+import { parseJsonBody } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,13 +63,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(transformedJobs)
 
   } catch (error) {
-    console.error('Error fetching jobs:', error)
+    captureApiError(error, { route: 'jobs/GET' })
     return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    const auth = await requireUser(supabase)
+    if (!auth.ok) return auth.response
+    const user = auth.user
+
+    const parsed = await parseJsonBody(request, jobCreateSchema)
+    if (!parsed.ok) return parsed.response
+
     const {
       title,
       client_id,
@@ -79,20 +91,8 @@ export async function POST(request: NextRequest) {
       team_members,
       equipment,
       notes,
-      tags
-    } = await request.json()
-    
-    if (!title || !client_id || !start_time || !end_time) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    const supabase = await createClient()
-    
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+      tags,
+    } = parsed.data
 
     // Create the job
     // Build insert object - only include estimate_id if it exists (column may not exist yet)
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(transformedJob, { status: 201 })
 
   } catch (error) {
-    console.error('Error creating job:', error)
+    captureApiError(error, { route: 'jobs/POST' })
     return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
   }
 }

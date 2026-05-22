@@ -5,6 +5,7 @@ import { isAllowedStripePriceId } from '@/lib/stripe-prices'
 import { createStripeClient } from '@/lib/stripe-server'
 import { parseJsonBody } from '@/lib/validation'
 import { checkoutBodySchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ sessionId: session.id, url: session.url })
   } catch (error) {
-    console.error('Error creating checkout session:', error)
+    captureApiError(error, { route: 'stripe/create-checkout' })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create checkout session' },
       { status: 500 }

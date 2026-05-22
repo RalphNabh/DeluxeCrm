@@ -1,34 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { sendInvoiceEmail } from '@/lib/email/send-invoice-email'
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { sendInvoiceEmail } from "@/lib/email/send-invoice-email";
+import { requireUser } from "@/lib/api-auth";
+import { parseJsonBody } from "@/lib/validation";
+import { sendInvoiceEmailSchema } from "@/lib/api-schemas";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { captureApiError } from "@/lib/api-error";
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const rl = await rateLimit(request, "email-send");
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
 
-  const body = await request.json()
-  const { invoiceId, clientEmail, clientName } = body
+    const supabase = await createClient();
+    const auth = await requireUser(supabase);
+    if (!auth.ok) return auth.response;
 
-  if (!invoiceId || !clientEmail || !clientName) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const parsed = await parseJsonBody(request, sendInvoiceEmailSchema);
+    if (!parsed.ok) return parsed.response;
+
+    const { invoiceId, clientEmail, clientName } = parsed.data;
+    const result = await sendInvoiceEmail(
+      invoiceId,
+      clientEmail,
+      clientName,
+      auth.user.id,
+    );
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || "Failed to send email" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      messageId: result.messageId,
+      message: "Invoice sent successfully",
+    });
+  } catch (error) {
+    captureApiError(error, { route: "email/send-invoice" });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const result = await sendInvoiceEmail(invoiceId, clientEmail, clientName, user.id)
-
-  if (!result.success) {
-    console.error('Invoice email sending failed:', result.error)
-    return NextResponse.json({ 
-      error: result.error || 'Failed to send email',
-      details: result.error 
-    }, { status: 500 })
-  }
-
-  return NextResponse.json({ 
-    success: true, 
-    messageId: result.messageId,
-    message: 'Invoice sent successfully' 
-  })
 }
-
-

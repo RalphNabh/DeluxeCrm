@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test --experimental-strip-types 'src/lib/ai/__tests__/*.test.ts'"
+    "test": "node --test --experimental-strip-types 'src/lib/**/__tests__/*.test.ts'",
+    "test:repeat": "node --test --experimental-strip-types 'src/lib/**/__tests__/*.test.ts' && node --test --experimental-strip-types 'src/lib/**/__tests__/*.test.ts' && node --test --experimental-strip-types 'src/lib/**/__tests__/*.test.ts'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

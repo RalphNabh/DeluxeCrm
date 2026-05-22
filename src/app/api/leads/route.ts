@@ -1,15 +1,20 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/api-auth";
+import { parseJsonBody } from "@/lib/validation";
+import { leadCreateSchema } from "@/lib/api-schemas";
+import { captureApiError } from "@/lib/api-error";
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const supabase = await createClient();
+    const auth = await requireUser(supabase);
+    if (!auth.ok) return auth.response;
 
-  // Try to fetch with folder join first
-  let { data, error } = await supabase
-    .from('leads')
-    .select(`
+    let { data, error } = await supabase
+      .from("leads")
+      .select(
+        `
       *,
       client_folders (
         id,
@@ -17,67 +22,93 @@ export async function GET() {
         color,
         description
       )
-    `)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    `,
+      )
+      .eq("user_id", auth.user.id)
+      .order("created_at", { ascending: false });
 
-  // If the join fails (likely folder_id column doesn't exist), fall back to simple query
-  if (error) {
-    const errorMsg = error.message || String(error);
-    if (errorMsg.includes('column') || errorMsg.includes('does not exist') || errorMsg.includes('relation') || errorMsg.includes('foreign key')) {
-      console.log('Folder join failed, falling back to simple query:', errorMsg);
-      const simpleQuery = await supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      
-      if (simpleQuery.error) {
-        console.error('Simple query also failed:', simpleQuery.error);
-        return NextResponse.json({ error: simpleQuery.error.message }, { status: 400 })
+    if (error) {
+      const errorMsg = error.message || String(error);
+      if (
+        errorMsg.includes("column") ||
+        errorMsg.includes("does not exist") ||
+        errorMsg.includes("relation") ||
+        errorMsg.includes("foreign key")
+      ) {
+        const simpleQuery = await supabase
+          .from("leads")
+          .select("*")
+          .eq("user_id", auth.user.id)
+          .order("created_at", { ascending: false });
+
+        if (simpleQuery.error) {
+          return NextResponse.json(
+            { error: simpleQuery.error.message },
+            { status: 400 },
+          );
+        }
+
+        data =
+          simpleQuery.data?.map((lead) => ({
+            ...lead,
+            client_folders: null,
+          })) ?? [];
+      } else {
+        return NextResponse.json({ error: errorMsg }, { status: 400 });
       }
-      
-      // Add null folder info to match expected structure
-      data = simpleQuery.data?.map((lead: any) => ({
-        ...lead,
-        client_folders: null
-      })) || []
-    } else {
-      console.error('Unexpected error fetching leads:', error);
-      return NextResponse.json({ error: errorMsg }, { status: 400 })
     }
-  }
 
-  return NextResponse.json(data)
+    return NextResponse.json(data);
+  } catch (error) {
+    captureApiError(error, { route: "leads/GET" });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const supabase = await createClient();
+    const auth = await requireUser(supabase);
+    if (!auth.ok) return auth.response;
 
-  const body = await request.json()
-  const { name, address, phone, email, value, status, tags } = body
-  if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    const parsed = await parseJsonBody(request, leadCreateSchema);
+    if (!parsed.ok) return parsed.response;
 
-  const { data, error } = await supabase
-    .from('leads')
-    .insert([{ 
-      user_id: user.id, 
-      name, 
-      address, 
-      phone, 
-      email, 
-      value, 
-      status,
-      tags: tags && Array.isArray(tags) ? tags : null
-    }])
-    .select()
-    .single()
+    const { name, address, phone, email, value, status, tags, folder_id } =
+      parsed.data;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data, { status: 201 })
+    const leadData: Record<string, unknown> = {
+      user_id: auth.user.id,
+      name,
+      address,
+      phone,
+      email,
+      value: value ?? 0,
+      status: status ?? "New Leads",
+    };
+
+    if (tags !== undefined) {
+      leadData.tags = Array.isArray(tags) ? tags : tags ? [tags] : [];
+    }
+    if (folder_id) leadData.folder_id = folder_id;
+
+    let { data, error } = await supabase
+      .from("leads")
+      .insert([leadData])
+      .select("*")
+      .single();
+
+    if (error && folder_id) {
+      delete leadData.folder_id;
+      const retry = await supabase.from("leads").insert([leadData]).select("*").single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    captureApiError(error, { route: "leads/POST" });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
-
-
-

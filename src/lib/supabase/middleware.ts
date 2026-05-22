@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isPublicRoute, isSubscriptionExempt } from '@/lib/route-access'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -36,38 +37,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
+  const publicRoute = isPublicRoute(pathname)
+  const subscriptionExempt = isSubscriptionExempt(pathname)
 
-  // Public routes — exact match or explicit prefixes only (never use startsWith('/'))
-  const publicExact = new Set([
-    '/',
-    '/login',
-    '/signup',
-    '/verify-email',
-    '/contact',
-    '/estimate-action',
-    '/account-verified',
-    '/terms',
-    '/privacy',
-    '/forgot-password',
-    '/reset-password',
-  ])
-  const publicPrefixes = ['/signup/', '/auth/']
-  const isPublicRoute =
-    publicExact.has(pathname) ||
-    publicPrefixes.some((prefix) => pathname.startsWith(prefix))
-
-  // Routes that don't require subscription (but require auth)
-  const subscriptionExemptPrefixes = [
-    '/subscription',
-    '/settings',
-    '/api',
-    '/profile',
-  ]
-  const isSubscriptionExempt = subscriptionExemptPrefixes.some((route) =>
-    pathname.startsWith(route),
-  )
-
-  if (!user && !isPublicRoute) {
+  if (!user && !publicRoute) {
     // no user, redirect to login page
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -80,7 +53,7 @@ export async function updateSession(request: NextRequest) {
     user &&
     !user.email_confirmed_at &&
     pathname !== '/verify-email' &&
-    !isPublicRoute
+    !publicRoute
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/verify-email'
@@ -88,7 +61,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Check subscription status for protected routes
-  if (user && !isPublicRoute && !isSubscriptionExempt) {
+  if (user && !publicRoute && !subscriptionExempt) {
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('status, current_period_end')

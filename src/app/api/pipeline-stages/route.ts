@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api-auth'
+import { pipelineStageSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
+import { parseJsonBody } from '@/lib/validation'
 
 // GET: Fetch all pipeline stages for the user
 export async function GET(request: NextRequest) {
@@ -50,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(stages)
   } catch (error) {
-    console.error('Error in GET /api/pipeline-stages:', error)
+    captureApiError(error, { route: 'pipeline-stages/GET' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -59,15 +63,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireUser(supabase)
+    if (!auth.ok) return auth.response
+    const user = auth.user
 
-    const body = await request.json()
-    const { name, position, color } = body
+    const parsed = await parseJsonBody(request, pipelineStageSchema)
+    if (!parsed.ok) return parsed.response
 
-    if (!name || name.trim() === '') {
-      return NextResponse.json({ error: 'Stage name is required' }, { status: 400 })
-    }
+    const { name, position, color } = parsed.data
 
     // Get max position to add at the end if not specified
     let finalPosition = position
@@ -101,7 +104,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(stage, { status: 201 })
   } catch (error) {
-    console.error('Error in POST /api/pipeline-stages:', error)
+    captureApiError(error, { route: 'pipeline-stages/POST' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

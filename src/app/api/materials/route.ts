@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api-auth'
+import { materialCreateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
+import { parseJsonBody } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(materials || [])
   } catch (error) {
-    console.error('Error in GET /api/materials:', error)
+    captureApiError(error, { route: 'materials/GET' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -46,15 +50,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireUser(supabase)
+    if (!auth.ok) return auth.response
+    const user = auth.user
 
-    const body = await request.json()
-    const { name, description, category, unit, default_price, is_active, image_url } = body
+    const parsed = await parseJsonBody(request, materialCreateSchema)
+    if (!parsed.ok) return parsed.response
 
-    if (!name || name.trim() === '') {
-      return NextResponse.json({ error: 'Material name is required' }, { status: 400 })
-    }
+    const { name, description, category, unit, default_price, is_active, image_url } =
+      parsed.data
 
     const { data: material, error } = await supabase
       .from('materials')
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(material, { status: 201 })
   } catch (error) {
-    console.error('Error in POST /api/materials:', error)
+    captureApiError(error, { route: 'materials/POST' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendEstimateEmail } from '@/lib/email/send-estimate-email'
+import { requireUser } from '@/lib/api-auth'
+import { parseJsonBody } from '@/lib/validation'
+import { estimateCreateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
 
 // GET: list estimates
 export async function GET(request: NextRequest) {
+  try {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireUser(supabase)
+  if (!auth.ok) return auth.response
 
   const { searchParams } = new URL(request.url)
   const clientId = searchParams.get('client_id')
@@ -30,7 +35,7 @@ export async function GET(request: NextRequest) {
         total
       )
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', auth.user.id)
     .order('created_at', { ascending: false })
 
   if (clientId) {
@@ -40,25 +45,29 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data)
+  } catch (error) {
+    captureApiError(error, { route: 'estimates/GET' })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 // POST: create draft estimate (optionally send)
 export async function POST(request: Request) {
+  try {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireUser(supabase)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
-  const body = await request.json()
-  const { client_id, lead_id, lineItems = [], contract_message, send = false, schedule = false, complete = false } = body
+  const parsed = await parseJsonBody(request, estimateCreateSchema)
+  if (!parsed.ok) return parsed.response
 
-  if (!client_id) return NextResponse.json({ error: 'client_id required' }, { status: 400 })
+  const { client_id, lead_id, lineItems, contract_message, send = false, schedule = false, complete = false } = parsed.data
 
-  // Calculate totals
-  interface LineItem {
-    quantity?: number;
-    unit_price?: number;
-  }
-  const subtotal = lineItems.reduce((sum: number, li: LineItem) => sum + Number(li.quantity || 0) * Number(li.unit_price || 0), 0)
+  const subtotal = lineItems.reduce(
+    (sum, li) => sum + Number(li.quantity || 0) * Number(li.unit_price || 0),
+    0,
+  )
   const tax = Math.round(subtotal * 0.13 * 100) / 100
   const total = subtotal + tax
 
@@ -80,14 +89,7 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   if (lineItems.length) {
-    interface EstimateLineItem {
-      description: string;
-      quantity: number;
-      unit?: string;
-      unit_price: number;
-      total?: number;
-    }
-    const items = lineItems.map((li: EstimateLineItem) => ({
+    const items = lineItems.map((li) => ({
       estimate_id: estimate.id,
       description: li.description,
       quantity: li.quantity,
@@ -101,7 +103,13 @@ export async function POST(request: Request) {
   // Optionally send/schedule/complete with automatic lead stage updates
   if (send) {
     // Update lead status first
-    if (lead_id) await supabase.from('leads').update({ status: 'Estimate Sent' }).eq('id', lead_id)
+    if (lead_id) {
+      await supabase
+        .from('leads')
+        .update({ status: 'Estimate Sent' })
+        .eq('id', lead_id)
+        .eq('user_id', user.id)
+    }
     // bump client's total_value to latest estimate total for quick display
     await supabase.from('clients').update({ total_value: total }).eq('id', client_id)
     
@@ -135,14 +143,30 @@ export async function POST(request: Request) {
   }
   if (schedule) {
     await supabase.from('estimates').update({ status: 'Scheduled' }).eq('id', estimate.id)
-    if (lead_id) await supabase.from('leads').update({ status: 'Job Scheduled' }).eq('id', lead_id)
+    if (lead_id) {
+      await supabase
+        .from('leads')
+        .update({ status: 'Job Scheduled' })
+        .eq('id', lead_id)
+        .eq('user_id', user.id)
+    }
   }
   if (complete) {
     await supabase.from('estimates').update({ status: 'Completed' }).eq('id', estimate.id)
-    if (lead_id) await supabase.from('leads').update({ status: 'Completed' }).eq('id', lead_id)
+    if (lead_id) {
+      await supabase
+        .from('leads')
+        .update({ status: 'Completed' })
+        .eq('id', lead_id)
+        .eq('user_id', user.id)
+    }
   }
 
   return NextResponse.json(estimate, { status: 201 })
+  } catch (error) {
+    captureApiError(error, { route: 'estimates/POST' })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 

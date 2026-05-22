@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api-auth'
+import { invoiceCreateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
+import { parseJsonBody } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -80,21 +84,29 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireUser(supabase)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
-  const body = await request.json()
-  const { client_id, estimate_id, job_id, lineItems = [], due_date, notes, send = false, payment_method, payment_email } = body
+  const parsed = await parseJsonBody(request, invoiceCreateSchema)
+  if (!parsed.ok) return parsed.response
 
-  if (!client_id) return NextResponse.json({ error: 'client_id required' }, { status: 400 })
+  const {
+    client_id,
+    estimate_id,
+    job_id,
+    lineItems = [],
+    due_date,
+    notes,
+    send = false,
+  } = parsed.data
 
-  // Calculate totals
-  interface InvoiceLineItem {
-    quantity?: number;
-    unit_price?: number;
-  }
-  const subtotal = lineItems.reduce((sum: number, li: InvoiceLineItem) => sum + Number(li.quantity || 0) * Number(li.unit_price || 0), 0)
+  const subtotal = lineItems.reduce(
+    (sum, li) => sum + li.quantity * li.unit_price,
+    0,
+  )
   const tax = Math.round(subtotal * 0.13 * 100) / 100
   const total = subtotal + tax
 
@@ -146,24 +158,21 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  // Add line items
   if (lineItems.length) {
-    interface InvoiceLineItemInput {
-      description: string;
-      quantity: number;
-      unit?: string;
-      unit_price: number;
-    }
-    const items = lineItems.map((li: InvoiceLineItemInput) => ({
+    const items = lineItems.map((li) => ({
       invoice_id: invoice.id,
       description: li.description,
       quantity: li.quantity,
       unit: li.unit || 'unit',
       unit_price: li.unit_price,
-      total: Number(li.quantity || 0) * Number(li.unit_price || 0)
+      total: li.quantity * li.unit_price,
     }))
     await supabase.from('invoice_line_items').insert(items)
   }
 
   return NextResponse.json(invoice, { status: 201 })
+  } catch (error) {
+    captureApiError(error, { route: 'invoices/POST' })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }

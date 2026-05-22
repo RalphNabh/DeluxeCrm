@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor'
 import { escapePostgrestValue } from '@/lib/postgrest-escape'
+import { requireUser } from '@/lib/api-auth'
+import { parseJsonBody } from '@/lib/validation'
+import { clientCreateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,6 +52,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(clients)
   } catch (error) {
+    captureApiError(error, { route: 'clients/GET' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -55,19 +60,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireUser(supabase)
+    if (!auth.ok) return auth.response
+    const user = auth.user
 
-    const body = await request.json()
-    const { name, email, phone, address, notes, tags, folder_id } = body
+    const parsed = await parseJsonBody(request, clientCreateSchema)
+    if (!parsed.ok) return parsed.response
 
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-    }
+    const { name, email, phone, address, notes, tags, folder_id } = parsed.data
 
     // Build insert object - include tags and folder_id if provided
     const clientData: Record<string, unknown> = {
@@ -139,6 +139,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(client, { status: 201 })
   } catch (error) {
+    captureApiError(error, { route: 'clients/POST' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

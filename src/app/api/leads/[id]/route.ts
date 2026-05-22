@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor'
+import { requireUser } from '@/lib/api-auth'
+import { parseJsonBody } from '@/lib/validation'
+import { leadUpdateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
+import { leadAutomationEventForStatus } from '@/lib/route-access'
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireUser(supabase)
+  if (!auth.ok) return auth.response
+  const user = auth.user
 
   const { id } = await params
-  const body = await request.json()
-  const allowed = [
-    'name', 'email', 'phone', 'address', 'status', 'notes', 'folder_id', 'value', 'source',
-  ] as const
-  const updates: Record<string, unknown> = {}
-  for (const key of allowed) {
-    if (key in body) updates[key] = body[key]
-  }
+  const parsed = await parseJsonBody(request, leadUpdateSchema)
+  if (!parsed.ok) return parsed.response
+
+  const updates: Record<string, unknown> = { ...parsed.data }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
   }
@@ -87,15 +90,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const newStatus =
     typeof updates.status === 'string' ? updates.status : undefined
   if (newStatus && oldLead && oldLead.status !== newStatus) {
-    const stageToEvent: Record<string, string> = {
-      'New Leads': 'lead_created',
-      'Estimate Sent': 'lead_estimate_sent',
-      'Approved': 'lead_approved',
-      'Job Scheduled': 'lead_job_scheduled',
-      'Completed': 'lead_completed'
-    }
-
-    const triggerEvent = stageToEvent[newStatus]
+    const triggerEvent = leadAutomationEventForStatus(newStatus, oldLead.status)
     if (triggerEvent) {
       // Trigger automations for this stage change
       await checkAndExecuteAutomations(triggerEvent, {
@@ -115,9 +110,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json(data)
+  } catch (error) {
+    captureApiError(error, { route: 'leads/[id]/PUT' })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -130,6 +130,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     .eq('user_id', user.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ success: true })
+  } catch (error) {
+    captureApiError(error, { route: 'leads/[id]/DELETE' })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 

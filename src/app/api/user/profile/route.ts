@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api-auth'
+import { userProfileUpdateSchema } from '@/lib/api-schemas'
+import { captureApiError } from '@/lib/api-error'
+import { parseJsonBody, pickAllowed } from '@/lib/validation'
 
 // GET: Fetch user profile
 export async function GET(request: NextRequest) {
@@ -73,49 +77,34 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireUser(supabase)
+    if (!auth.ok) return auth.response
+    const user = auth.user
 
-    const body = await request.json()
-    const {
-      first_name,
-      last_name,
-      full_name,
-      date_of_birth,
-      phone,
-      address,
-      city,
-      state,
-      zip_code,
-      country,
-      company_name,
-      job_title,
-      business_type,
-      avatar_url
-    } = body
+    const parsed = await parseJsonBody(request, userProfileUpdateSchema)
+    if (!parsed.ok) return parsed.response
 
-    // Build update object
+    const profileFields = pickAllowed(parsed.data, [
+      'first_name',
+      'last_name',
+      'full_name',
+      'date_of_birth',
+      'phone',
+      'address',
+      'city',
+      'state',
+      'zip_code',
+      'country',
+      'company_name',
+      'job_title',
+      'business_type',
+      'avatar_url',
+    ] as const)
+
     const updates: Record<string, unknown> = {
-      updated_at: new Date().toISOString()
+      ...profileFields,
+      updated_at: new Date().toISOString(),
     }
-
-    if (first_name !== undefined) updates.first_name = first_name
-    if (last_name !== undefined) updates.last_name = last_name
-    if (full_name !== undefined) updates.full_name = full_name
-    if (date_of_birth !== undefined) updates.date_of_birth = date_of_birth
-    if (phone !== undefined) updates.phone = phone
-    if (address !== undefined) updates.address = address
-    if (city !== undefined) updates.city = city
-    if (state !== undefined) updates.state = state
-    if (zip_code !== undefined) updates.zip_code = zip_code
-    if (country !== undefined) updates.country = country
-    if (company_name !== undefined) updates.company_name = company_name
-    if (job_title !== undefined) updates.job_title = job_title
-    if (business_type !== undefined) updates.business_type = business_type
-    if (avatar_url !== undefined) updates.avatar_url = avatar_url
 
     // Update or insert profile
     const { data: existingProfile } = await supabase
@@ -169,7 +158,7 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in PUT /api/user/profile:', error)
+    captureApiError(error, { route: 'user/profile/PUT' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

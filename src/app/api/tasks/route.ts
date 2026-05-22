@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/api-auth';
+import { taskCreateSchema } from '@/lib/api-schemas';
+import { captureApiError } from '@/lib/api-error';
+import { parseJsonBody } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(tasks || []);
   } catch (error) {
-    console.error('Error in GET /api/tasks:', error);
+    captureApiError(error, { route: 'tasks/GET' });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -70,13 +74,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireUser(supabase);
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
-    const body = await request.json();
+    const parsed = await parseJsonBody(request, taskCreateSchema);
+    if (!parsed.ok) return parsed.response;
+
     const {
       title,
       description,
@@ -86,12 +90,8 @@ export async function POST(request: NextRequest) {
       tags,
       client_id,
       job_id,
-      assigned_to
-    } = body;
-
-    if (!title || title.trim() === '') {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
-    }
+      assigned_to,
+    } = parsed.data;
 
     const { data: task, error } = await supabase
       .from('tasks')
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/tasks:', error);
+    captureApiError(error, { route: 'tasks/POST' });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

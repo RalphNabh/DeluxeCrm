@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/api-auth'
+import { parseJsonBody } from '@/lib/validation'
+import { clientUpdateSchema } from '@/lib/api-schemas'
+import { escapePostgrestValue } from '@/lib/postgrest-escape'
+import { captureApiError } from '@/lib/api-error'
 
 export async function PUT(
   request: Request,
@@ -8,16 +13,15 @@ export async function PUT(
   try {
     const supabase = await createClient()
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireUser(supabase)
+    if (!auth.ok) return auth.response
+    const user = auth.user
 
     const { id } = await params
-    const updates = await request.json()
+    const parsed = await parseJsonBody(request, clientUpdateSchema)
+    if (!parsed.ok) return parsed.response
 
-    // Handle tags - convert to array if it's a string
+    const updates: Record<string, unknown> = { ...parsed.data }
     if (updates.tags !== undefined && typeof updates.tags === 'string') {
       updates.tags = updates.tags ? [updates.tags] : []
     }
@@ -61,6 +65,7 @@ export async function PUT(
 
     return NextResponse.json(client)
   } catch (error) {
+    captureApiError(error, { route: 'clients/[id]/PUT' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -192,8 +197,10 @@ export async function DELETE(
         .delete()
         .eq('user_id', user.id)
       
+      const safeName = escapePostgrestValue(client.name)
       if (client.email) {
-        await leadQuery.or(`name.eq.${client.name},email.eq.${client.email}`)
+        const safeEmail = escapePostgrestValue(client.email)
+        await leadQuery.or(`name.eq.${safeName},email.eq.${safeEmail}`)
       } else {
         await leadQuery.eq('name', client.name)
       }
@@ -212,7 +219,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Client and all related data deleted successfully' })
   } catch (error) {
-    console.error('Error deleting client:', error)
+    captureApiError(error, { route: 'clients/[id]/DELETE' })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

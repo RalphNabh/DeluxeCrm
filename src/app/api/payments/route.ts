@@ -30,6 +30,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
+    const { data: existingPayments } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('invoice_id', invoice_id)
+
+    const alreadyPaid =
+      existingPayments?.reduce((sum, p) => sum + p.amount, 0) ?? 0
+    const remaining = invoice.total - alreadyPaid
+    if (amount > remaining + 0.001) {
+      return NextResponse.json(
+        { error: 'Payment amount exceeds remaining invoice balance' },
+        { status: 400 },
+      )
+    }
+
     // Create the payment record
     const { data: payment, error: paymentError } = await supabase
       .from('payments')

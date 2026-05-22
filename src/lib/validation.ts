@@ -80,4 +80,18 @@ function formatZodError(err: ZodError): Record<string, string> {
   return out;
 }
 
+/** Whitelist fields from a parsed body for safe Supabase updates. */
+export function pickAllowed<T extends Record<string, unknown>>(
+  body: Record<string, unknown>,
+  keys: readonly (keyof T & string)[],
+): Partial<T> {
+  const out: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (key in body && body[key] !== undefined) {
+      out[key] = body[key];
+    }
+  }
+  return out as Partial<T>;
+}
+
 export { z };
