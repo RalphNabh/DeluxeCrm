@@ -144,10 +144,9 @@ export async function rateLimit(
   identifier?: string,
 ): Promise<RateLimitResult> {
   const limiter = getLimiter(key);
+  // No Upstash → fail open (documented above). Production should set env vars
+  // so limits are enforced; Supabase auth rate limits remain as a backstop.
   if (!limiter) {
-    if (process.env.NODE_ENV === "production") {
-      return { success: false, limit: 0, remaining: 0, reset: 0 };
-    }
     return { success: true, limit: 0, remaining: 0, reset: 0 };
   }
   const bucket = identifier?.trim() || getClientIp(request);

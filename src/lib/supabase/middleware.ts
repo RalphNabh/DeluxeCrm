@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { isPublicRoute, isSubscriptionExempt } from '@/lib/route-access'
+import { isApiRoute, isPublicRoute, isSubscriptionExempt } from '@/lib/route-access'
 import {
   isContractorRoute,
   isFieldRoute,
@@ -84,7 +84,7 @@ export async function updateSession(request: NextRequest) {
   const publicRoute = isPublicRoute(pathname)
   const subscriptionExempt = isSubscriptionExempt(pathname)
 
-  if (!user && !publicRoute) {
+  if (!user && !publicRoute && !isApiRoute(pathname)) {
     const url = request.nextUrl.clone()
     if (isPortalRoute(pathname)) {
       url.pathname = '/portal/login'

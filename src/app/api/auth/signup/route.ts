@@ -4,6 +4,7 @@ import { signupSchema } from "@/lib/api-schemas";
 import { captureApiError } from "@/lib/api-error";
 import { getEmailConfirmationRedirectUrl } from "@/lib/auth-email-redirect";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { createOrganizationForUser } from "@/lib/org";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/validation";
 
@@ -25,7 +26,7 @@ function getAuthClient() {
 export async function POST(request: NextRequest) {
   try {
     const rl = await rateLimit(request, "signup");
-    if (!rl.success) {
+    if (!rl.success && rl.limit > 0) {
       return NextResponse.json(
         {
           error:
@@ -89,9 +90,16 @@ export async function POST(request: NextRequest) {
             phone: phone || null,
             company_name: company_name || null,
             business_type: business_type || null,
+            persona: "contractor",
             updated_at: new Date().toISOString(),
           },
           { onConflict: "id" },
+        );
+
+        await createOrganizationForUser(
+          admin,
+          data.user.id,
+          company_name || `${first_name}'s Company`,
         );
       } catch (profileErr) {
         captureApiError(profileErr, { route: "auth/signup", step: "profile" });

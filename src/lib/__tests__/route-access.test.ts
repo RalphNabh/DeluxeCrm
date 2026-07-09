@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   calculateTaxAndTotal,
   invoiceStatusAfterPayment,
+  isApiRoute,
   isPublicRoute,
   isSubscriptionExempt,
   leadAutomationEventForStatus,
@@ -22,6 +23,15 @@ describe("isPublicRoute", () => {
     assert.equal(isPublicRoute("/dashboard"), false);
     assert.equal(isPublicRoute("/api/clients"), false);
     assert.equal(isPublicRoute("/estimates"), false);
+  });
+});
+
+describe("isApiRoute", () => {
+  it("identifies API paths", () => {
+    assert.equal(isApiRoute("/api/auth/signup"), true);
+    assert.equal(isApiRoute("/api/stripe/webhook"), true);
+    assert.equal(isApiRoute("/dashboard"), false);
+    assert.equal(isApiRoute("/api"), false);
   });
 });
 

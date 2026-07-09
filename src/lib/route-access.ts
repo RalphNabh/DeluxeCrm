@@ -40,6 +40,11 @@ export function isPublicRoute(pathname: string): boolean {
   );
 }
 
+/** API routes enforce their own auth; middleware must not redirect them to /login. */
+export function isApiRoute(pathname: string): boolean {
+  return pathname.startsWith("/api/");
+}
+
 export function isSubscriptionExempt(pathname: string): boolean {
   return SUBSCRIPTION_EXEMPT_PREFIXES.some((route) =>
     pathname.startsWith(route),
