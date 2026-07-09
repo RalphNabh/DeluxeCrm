@@ -1,24 +1,22 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAppUrl } from '@/lib/env'
 import { isAllowedStripePriceId } from '@/lib/stripe-prices'
 import { createStripeClient } from '@/lib/stripe-server'
+import { getBillableSeatCount } from '@/lib/stripe-seats'
 import { parseJsonBody } from '@/lib/validation'
 import { checkoutBodySchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize Stripe client (lazy initialization to avoid build-time errors)
     const stripe = createStripeClient();
-
     const supabase = await createClient()
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase, { roles: ['owner', 'admin'] })
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const parsed = await parseJsonBody(request, checkoutBodySchema)
     if (!parsed.ok) return parsed.response
@@ -28,13 +26,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid price ID' }, { status: 400 })
     }
 
-    // Check if user already has a subscription
     const { data: existingSubscription } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .eq('status', 'active')
-      .single()
+      .maybeSingle()
 
     if (existingSubscription) {
       return NextResponse.json({ 
@@ -43,53 +40,41 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get or create Stripe customer
-    let customerId: string
+    const { data: pendingSub } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('organization_id', orgId)
+      .maybeSingle()
 
-    if (existingSubscription?.stripe_customer_id) {
-      customerId = existingSubscription.stripe_customer_id
-    } else {
-      // Get user email
-      const { data: { user: userData } } = await supabase.auth.getUser()
-      
-      // Create Stripe customer
+    let customerId = pendingSub?.stripe_customer_id
+
+    if (!customerId) {
       const customer = await stripe.customers.create({
-        email: userData?.email || undefined,
-        metadata: {
-          userId: user.id,
-        },
+        email: user.email || undefined,
+        metadata: { userId: user.id, organizationId: orgId },
       })
-
       customerId = customer.id
 
-      // Save customer ID to database
-      await supabase
-        .from('subscriptions')
-        .upsert({
-          user_id: user.id,
-          stripe_customer_id: customerId,
-          status: 'pending',
-        }, {
-          onConflict: 'user_id'
-        })
+      await supabase.from('subscriptions').upsert({
+        user_id: user.id,
+        organization_id: orgId,
+        stripe_customer_id: customerId,
+        status: 'pending',
+        seat_quantity: 1,
+      }, { onConflict: 'organization_id' })
     }
 
-    // Create checkout session
+    const seatCount = await getBillableSeatCount(supabase, orgId)
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: seatCount }],
       success_url: `${getAppUrl()}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${getAppUrl()}/subscription/cancel`,
-      metadata: {
-        userId: user.id,
-      },
+      metadata: { userId: user.id, organizationId: orgId },
+      subscription_data: { metadata: { userId: user.id, organizationId: orgId } },
     })
 
     return NextResponse.json({ sessionId: session.id, url: session.url })
@@ -101,5 +86,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
-

@@ -1,6 +1,6 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/api-auth";
 import { parseJsonBody } from "@/lib/validation";
 import { leadCreateSchema } from "@/lib/api-schemas";
 import { captureApiError } from "@/lib/api-error";
@@ -8,8 +8,9 @@ import { captureApiError } from "@/lib/api-error";
 export async function GET() {
   try {
     const supabase = await createClient();
-    const auth = await requireUser(supabase);
+    const auth = await requireOrgMember(supabase);
     if (!auth.ok) return auth.response;
+    const { user, orgId } = auth.ctx;
 
     let { data, error } = await supabase
       .from("leads")
@@ -24,7 +25,7 @@ export async function GET() {
       )
     `,
       )
-      .eq("user_id", auth.user.id)
+      .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -38,7 +39,7 @@ export async function GET() {
         const simpleQuery = await supabase
           .from("leads")
           .select("*")
-          .eq("user_id", auth.user.id)
+          .eq("organization_id", orgId)
           .order("created_at", { ascending: false });
 
         if (simpleQuery.error) {
@@ -68,8 +69,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const auth = await requireUser(supabase);
+    const auth = await requireOrgMember(supabase);
     if (!auth.ok) return auth.response;
+    const { user, orgId } = auth.ctx;
 
     const parsed = await parseJsonBody(request, leadCreateSchema);
     if (!parsed.ok) return parsed.response;
@@ -78,7 +80,8 @@ export async function POST(request: Request) {
       parsed.data;
 
     const leadData: Record<string, unknown> = {
-      user_id: auth.user.id,
+      user_id: user.id,
+      organization_id: orgId,
       name,
       address,
       phone,

@@ -1,5 +1,6 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor';
 
 export async function GET(
@@ -8,11 +9,9 @@ export async function GET(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireOrgMember(supabase);
+    if (!auth.ok) return auth.response;
+    const { orgId } = auth.ctx;
 
     const { id } = await params;
 
@@ -29,7 +28,7 @@ export async function GET(
         )
       `)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single();
     
     // Try to fetch estimate if estimate_id column exists
@@ -75,11 +74,9 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireOrgMember(supabase);
+    if (!auth.ok) return auth.response;
+    const { user, orgId } = auth.ctx;
 
     const { id } = await params;
     const body = await request.json();
@@ -90,7 +87,7 @@ export async function PUT(
       .from('jobs')
       .select('*, clients(id, name, email)')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single();
 
     // Update the job
@@ -102,7 +99,7 @@ export async function PUT(
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .select('*, clients(id, name, email)')
       .single();
 
@@ -116,7 +113,7 @@ export async function PUT(
       
       await checkAndExecuteAutomations('job_completed', {
         event: 'job_completed',
-        user_id: user.id,
+        user_id: user.id, organization_id: orgId,
         job_id: id,
         client_name: client?.name || 'Client',
         client_email: client?.email || undefined,
@@ -140,11 +137,9 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireOrgMember(supabase);
+    if (!auth.ok) return auth.response;
+    const { orgId } = auth.ctx;
 
     const { id } = await params;
 
@@ -152,7 +147,7 @@ export async function DELETE(
       .from('jobs')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('organization_id', orgId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

@@ -1,3 +1,4 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseJsonBody } from '@/lib/validation'
@@ -13,17 +14,16 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     
     // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     // Verify the invoice belongs to the user
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select('id, total, status')
       .eq('id', invoice_id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single()
 
     if (invoiceError || !invoice) {
@@ -117,10 +117,9 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     
     // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     let query = supabase
       .from('payments')
@@ -132,7 +131,7 @@ export async function GET(request: NextRequest) {
           user_id
         )
       `)
-      .eq('invoices.user_id', user.id)
+      .eq('invoices.organization_id', orgId)
       .order('paid_at', { ascending: false })
 
     if (invoiceId) {

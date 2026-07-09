@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'
+import { requireOrgMember } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
     // Fetch team members
     const { data: teamMembers, error } = await supabase
       .from('team_members')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -25,7 +23,7 @@ export async function GET(request: NextRequest) {
     const { data: jobs } = await supabase
       .from('jobs')
       .select('id, status, estimated_duration, actual_duration')
-      .eq('user_id', user.id);
+      .eq('organization_id', orgId);
 
     // Update stats for each team member (based on job assignments if we had that, for now just basic)
     interface TeamMember {
@@ -51,12 +49,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
     const body = await request.json() as { name: string; email: string; phone?: string; role?: string; status?: string; notes?: string };
     const { name, email, phone, role = 'Worker', status = 'Pending', notes } = body;
 
@@ -89,7 +84,7 @@ export async function POST(request: NextRequest) {
     const { data: teamMember, error } = await supabase
       .from('team_members')
       .insert([{
-        user_id: user.id,
+        user_id: user.id, organization_id: orgId,
         name,
         email,
         phone,

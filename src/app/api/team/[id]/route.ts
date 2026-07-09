@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'
+import { requireOrgMember } from '@/lib/api-auth';
 
 export async function GET(
   request: NextRequest,
@@ -7,19 +8,16 @@ export async function GET(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
     const { id } = await params;
 
     const { data: teamMember, error } = await supabase
       .from('team_members')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (error || !teamMember) {
@@ -42,12 +40,9 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
     const { id } = await params;
     const body = await request.json() as { name?: string; email?: string; phone?: string; role?: string; status?: string; notes?: string; last_active?: string };
     const { name, email, phone, role, status, notes, last_active } = body;
@@ -90,7 +85,7 @@ export async function PUT(
       .from('team_members')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .select()
       .single();
 
@@ -114,19 +109,16 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
     const { id } = await params;
 
     const { error } = await supabase
       .from('team_members')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('organization_id', orgId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

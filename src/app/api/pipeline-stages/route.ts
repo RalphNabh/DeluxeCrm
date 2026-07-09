@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireUser } from '@/lib/api-auth'
+import { requireOrgMember } from '@/lib/api-auth'
 import { pipelineStageSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 import { parseJsonBody } from '@/lib/validation'
@@ -9,14 +9,15 @@ import { parseJsonBody } from '@/lib/validation'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     // Fetch user's pipeline stages
     const { data: stages, error } = await supabase
       .from('pipeline_stages')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .order('position', { ascending: true })
 
     if (error) {
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
         .from('pipeline_stages')
         .insert(
           defaultStages.map(stage => ({
-            user_id: user.id,
+            user_id: user.id, organization_id: orgId,
             ...stage
           }))
         )
@@ -63,9 +64,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const auth = await requireUser(supabase)
+    const auth = await requireOrgMember(supabase)
     if (!auth.ok) return auth.response
-    const user = auth.user
+    const { user, orgId } = auth.ctx
 
     const parsed = await parseJsonBody(request, pipelineStageSchema)
     if (!parsed.ok) return parsed.response
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
       const { data: maxStage } = await supabase
         .from('pipeline_stages')
         .select('position')
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
         .order('position', { ascending: false })
         .limit(1)
         .single()
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     const { data: stage, error } = await supabase
       .from('pipeline_stages')
       .insert({
-        user_id: user.id,
+        user_id: user.id, organization_id: orgId,
         name: name.trim(),
         position: finalPosition,
         color: color || '#3b82f6'

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireOrgMember } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
@@ -7,8 +8,9 @@ export async function GET(
 ) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const { data: invoice, error } = await supabase
     .from('invoices')
@@ -38,7 +40,7 @@ export async function GET(
       )
     `)
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
     .single()
   
   if (error) return NextResponse.json({ error: 'Failed to fetch invoice' }, { status: 500 })
@@ -83,7 +85,7 @@ export async function GET(
         .from('estimates')
         .select('id, status, total, created_at')
         .eq('id', (invoice as Record<string, unknown>).estimate_id)
-        .eq('user_id', user.id) // Ensure estimate belongs to the same user
+        .eq('organization_id', orgId) // Ensure estimate belongs to the same user
         .single()
       
       if (!estimateError && estimate) {
@@ -109,8 +111,9 @@ export async function PUT(
 ) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const body = await request.json()
   const { status, sent_at, paid_at, invoice_number } = body
@@ -125,7 +128,7 @@ export async function PUT(
     .from('invoices')
     .update(updates)
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
     .select(`
       *,
       clients (
@@ -192,7 +195,7 @@ export async function PUT(
         .from('estimates')
         .select('id, status, total, created_at')
         .eq('id', (updatedInvoice as Record<string, unknown>).estimate_id)
-        .eq('user_id', user.id) // Ensure estimate belongs to the same user
+        .eq('organization_id', orgId) // Ensure estimate belongs to the same user
         .single()
       
       if (!estimateError && estimate) {
@@ -218,14 +221,15 @@ export async function DELETE(
 ) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const { error } = await supabase
     .from('invoices')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
 
   if (error) return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 })
   return NextResponse.json({ success: true })

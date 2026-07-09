@@ -1,3 +1,4 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -5,16 +6,14 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { data: subscription, error } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single()
 
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned

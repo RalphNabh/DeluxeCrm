@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendEstimateEmail } from '@/lib/email/send-estimate-email'
-import { requireUser } from '@/lib/api-auth'
+import { requireOrgMember } from '@/lib/api-auth'
 import { parseJsonBody } from '@/lib/validation'
 import { estimateCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
@@ -10,8 +10,9 @@ import { captureApiError } from '@/lib/api-error'
 export async function GET(request: NextRequest) {
   try {
   const supabase = await createClient()
-  const auth = await requireUser(supabase)
+  const auth = await requireOrgMember(supabase)
   if (!auth.ok) return auth.response
+  const { user, orgId } = auth.ctx
 
   const { searchParams } = new URL(request.url)
   const clientId = searchParams.get('client_id')
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
         total
       )
     `)
-    .eq('user_id', auth.user.id)
+    .eq('organization_id', orgId)
     .order('created_at', { ascending: false })
 
   if (clientId) {
@@ -55,9 +56,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
   const supabase = await createClient()
-  const auth = await requireUser(supabase)
-  if (!auth.ok) return auth.response
-  const user = auth.user
+  const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const parsed = await parseJsonBody(request, estimateCreateSchema)
   if (!parsed.ok) return parsed.response
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
   const { data: estimate, error } = await supabase
     .from('estimates')
     .insert([{ 
-      user_id: user.id, 
+      user_id: user.id, organization_id: orgId, 
       client_id, 
       lead_id, 
       subtotal, 
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
         .from('leads')
         .update({ status: 'Estimate Sent' })
         .eq('id', lead_id)
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
     }
     // bump client's total_value to latest estimate total for quick display
     await supabase.from('clients').update({ total_value: total }).eq('id', client_id)
@@ -148,7 +149,7 @@ export async function POST(request: Request) {
         .from('leads')
         .update({ status: 'Job Scheduled' })
         .eq('id', lead_id)
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
     }
   }
   if (complete) {
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
         .from('leads')
         .update({ status: 'Completed' })
         .eq('id', lead_id)
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
     }
   }
 

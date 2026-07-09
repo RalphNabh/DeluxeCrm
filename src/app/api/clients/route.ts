@@ -1,8 +1,8 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor'
 import { escapePostgrestValue } from '@/lib/postgrest-escape'
-import { requireUser } from '@/lib/api-auth'
 import { parseJsonBody } from '@/lib/validation'
 import { clientCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
@@ -10,46 +10,25 @@ import { captureApiError } from '@/lib/api-error'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { orgId } = auth.ctx
 
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')?.trim()
 
-    // Try to fetch with folder information, gracefully handle if folder_id column doesn't exist
     const baseQuery = supabase
       .from('clients')
-      .select(`
-        *,
-        client_folders (
-          id,
-          name,
-          color
-        )
-      `)
-      .eq('user_id', user.id)
+      .select(`*, client_folders (id, name, color)`)
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false })
 
-    let clientsRes
-    if (q && q.length > 0) {
-      const safe = escapePostgrestValue(q)
-      clientsRes = await baseQuery.or(
-        `name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`,
-      )
-    } else {
-      clientsRes = await baseQuery
-    }
+    const clientsRes = q
+      ? await baseQuery.or(`name.ilike.%${escapePostgrestValue(q)}%,email.ilike.%${escapePostgrestValue(q)}%,phone.ilike.%${escapePostgrestValue(q)}%`)
+      : await baseQuery
 
     const { data: clients, error } = clientsRes
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
-
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json(clients)
   } catch (error) {
     captureApiError(error, { route: 'clients/GET' })
@@ -60,81 +39,38 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const auth = await requireUser(supabase)
+    const auth = await requireOrgMember(supabase)
     if (!auth.ok) return auth.response
-    const user = auth.user
+    const { user, orgId } = auth.ctx
 
     const parsed = await parseJsonBody(request, clientCreateSchema)
     if (!parsed.ok) return parsed.response
 
     const { name, email, phone, address, notes, tags, folder_id } = parsed.data
-
-    // Build insert object - include tags and folder_id if provided
     const clientData: Record<string, unknown> = {
       user_id: user.id,
-      name,
-      email,
-      phone,
-      address,
-      notes,
+      organization_id: orgId,
+      name, email, phone, address, notes,
     }
-    
-    // Add tags if provided (convert to array if it's a string)
-    if (tags !== undefined) {
-      clientData.tags = Array.isArray(tags) ? tags : (tags ? [tags] : [])
-    }
-    
-    // Add folder_id if provided (defensively handle if column doesn't exist)
-    if (folder_id) {
-      clientData.folder_id = folder_id
-    }
+    if (tags !== undefined) clientData.tags = Array.isArray(tags) ? tags : (tags ? [tags] : [])
+    if (folder_id) clientData.folder_id = folder_id
 
-    let { data: client, error } = await supabase
-      .from('clients')
-      .insert([clientData])
-      .select(`
-        *,
-        client_folders (
-          id,
-          name,
-          color
-        )
-      `)
-      .single()
-    
-    // If error and folder_id was included, try without it (column may not exist)
+    let { data: client, error } = await supabase.from('clients').insert([clientData]).select(`*, client_folders (id, name, color)`).single()
     if (error && folder_id) {
       delete clientData.folder_id
-      const { data: retryClient, error: retryError } = await supabase
-        .from('clients')
-        .insert([clientData])
-        .select()
-        .single()
-      
-      if (!retryError) {
-        client = retryClient
-        error = null
-      }
+      const retry = await supabase.from('clients').insert([clientData]).select().single()
+      client = retry.data
+      error = retry.error
     }
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
+    await supabase.from('leads').insert([{
+      user_id: user.id, organization_id: orgId, name, address, phone, email, value: 0, status: 'New Leads',
+    }])
 
-    // Create a corresponding lead in "New Leads" stage automatically
-    // Ignore error here to avoid failing client creation if lead insert fails
-    await supabase
-      .from('leads')
-      .insert([{ user_id: user.id, name: name, address, phone, email, value: 0, status: 'New Leads' }])
-
-    // Trigger automations for client_created event
     await checkAndExecuteAutomations('client_created', {
-      event: 'client_created',
-      user_id: user.id,
-      client_id: client.id,
-      client_name: name,
-      client_email: email || undefined,
-      user_email: user.email || undefined
+      event: 'client_created', user_id: user.id, organization_id: orgId,
+      client_id: client.id, client_name: name, client_email: email || undefined, user_email: user.email || undefined,
     })
 
     return NextResponse.json(client, { status: 201 })

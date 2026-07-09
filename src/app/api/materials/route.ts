@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireUser } from '@/lib/api-auth'
+import { requireOrgMember } from '@/lib/api-auth'
 import { materialCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 import { parseJsonBody } from '@/lib/validation'
@@ -8,8 +8,9 @@ import { parseJsonBody } from '@/lib/validation'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('materials')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .order('category', { ascending: true })
       .order('name', { ascending: true })
 
@@ -50,9 +51,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const auth = await requireUser(supabase)
+    const auth = await requireOrgMember(supabase)
     if (!auth.ok) return auth.response
-    const user = auth.user
+    const { user, orgId } = auth.ctx
 
     const parsed = await parseJsonBody(request, materialCreateSchema)
     if (!parsed.ok) return parsed.response
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     const { data: material, error } = await supabase
       .from('materials')
       .insert({
-        user_id: user.id,
+        user_id: user.id, organization_id: orgId,
         name: name.trim(),
         description: description?.trim() || null,
         category: category?.trim() || null,

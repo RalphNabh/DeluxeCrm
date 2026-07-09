@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor'
-import { requireUser } from '@/lib/api-auth'
+import { requireOrgMember } from '@/lib/api-auth'
 import { parseJsonBody } from '@/lib/validation'
 import { leadUpdateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
@@ -10,9 +10,9 @@ import { leadAutomationEventForStatus } from '@/lib/route-access'
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
   const supabase = await createClient()
-  const auth = await requireUser(supabase)
-  if (!auth.ok) return auth.response
-  const user = auth.user
+  const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const { id } = await params
   const parsed = await parseJsonBody(request, leadUpdateSchema)
@@ -28,7 +28,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .from('leads')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
     .single()
 
   // Try to fetch with folder join first
@@ -36,7 +36,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .from('leads')
     .update(updates)
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
     .select(`
       *,
       client_folders (
@@ -57,7 +57,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         .from('leads')
         .update(updates)
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
         .select('*')
         .single()
       
@@ -95,7 +95,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       // Trigger automations for this stage change
       await checkAndExecuteAutomations(triggerEvent, {
         event: triggerEvent,
-        user_id: user.id,
+        user_id: user.id, organization_id: orgId,
         lead_id: id,
         lead_name: data.name,
         lead_email: data.email,
@@ -119,15 +119,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const { id } = await params
   const { error } = await supabase
     .from('leads')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ success: true })
   } catch (error) {

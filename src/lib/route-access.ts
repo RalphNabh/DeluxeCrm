@@ -12,15 +12,25 @@ const PUBLIC_EXACT = new Set([
   "/privacy",
   "/forgot-password",
   "/reset-password",
+  "/portal/login",
+  "/client-login",
 ]);
 
-const PUBLIC_PREFIXES = ["/signup/", "/auth/"];
+const PUBLIC_PREFIXES = [
+  "/signup/",
+  "/auth/",
+  "/invite/",
+  "/portal/register",
+];
 
 const SUBSCRIPTION_EXEMPT_PREFIXES = [
   "/subscription",
   "/settings",
   "/api",
   "/profile",
+  "/portal",
+  "/field",
+  "/invite",
 ];
 
 export function isPublicRoute(pathname: string): boolean {

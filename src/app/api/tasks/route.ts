@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { requireUser } from '@/lib/api-auth';
+import { requireOrgMember } from '@/lib/api-auth';
 import { taskCreateSchema } from '@/lib/api-schemas';
 import { captureApiError } from '@/lib/api-error';
 import { parseJsonBody } from '@/lib/validation';
@@ -8,11 +8,9 @@ import { parseJsonBody } from '@/lib/validation';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url);
@@ -40,7 +38,7 @@ export async function GET(request: NextRequest) {
           status
         )
       `)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -74,9 +72,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const auth = await requireUser(supabase);
-    if (!auth.ok) return auth.response;
-    const user = auth.user;
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const parsed = await parseJsonBody(request, taskCreateSchema);
     if (!parsed.ok) return parsed.response;
@@ -96,7 +94,7 @@ export async function POST(request: NextRequest) {
     const { data: task, error } = await supabase
       .from('tasks')
       .insert({
-        user_id: user.id,
+        user_id: user.id, organization_id: orgId,
         title: title.trim(),
         description: description?.trim() || null,
         status,

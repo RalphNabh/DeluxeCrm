@@ -1,3 +1,4 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkAndExecuteAutomations } from '@/lib/automations/executor'
@@ -11,10 +12,9 @@ export async function GET(
     const { id } = await params
     
     // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     // Fetch the estimate with client and line items
     const { data: estimate, error: estimateError } = await supabase
@@ -37,7 +37,7 @@ export async function GET(
         )
       `)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single()
 
     if (estimateError) {
@@ -64,10 +64,9 @@ export async function PUT(
     const supabase = await createClient()
     
     // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { id } = await params
     const body = await request.json()
@@ -98,7 +97,7 @@ export async function PUT(
       .from('estimates')
       .update(updateData)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .select(`
         *,
         clients (
@@ -189,7 +188,7 @@ export async function PUT(
         )
       `)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single()
 
     if (fetchError) {
@@ -226,7 +225,7 @@ export async function PUT(
             updated_at: new Date().toISOString()
           })
           .eq('id', finalEstimate.lead_id)
-          .eq('user_id', user.id)
+          .eq('organization_id', orgId)
 
         if (leadError) {
           console.error('Error updating lead status:', leadError)
@@ -240,7 +239,7 @@ export async function PUT(
       try {
         await checkAndExecuteAutomations('estimate_approved', {
           event: 'estimate_approved',
-          user_id: user.id,
+          user_id: user.id, organization_id: orgId,
           estimate_id: id,
           client_name: finalEstimate.clients?.name || 'Client',
           client_email: finalEstimate.clients?.email || undefined,

@@ -1,14 +1,13 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !userData.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireOrgMember(supabase);
+    if (!auth.ok) return auth.response;
+    const { user, orgId } = auth.ctx;
 
     const timeRange = request.nextUrl.searchParams.get('timeRange') || '30d';
     
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { data: invoices, error: invoicesError } = await supabase
       .from('invoices')
       .select('id, total, status, created_at, client_id')
-      .eq('user_id', userData.user.id)
+      .eq('organization_id', orgId)
       .gte('created_at', startDate.toISOString());
 
     if (invoicesError) {
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
       .select('amount, created_at, invoice_id')
-      .eq('user_id', userData.user.id)
+      .eq('organization_id', orgId)
       .gte('created_at', startDate.toISOString());
 
     if (paymentsError) {
@@ -44,7 +43,7 @@ export async function GET(request: NextRequest) {
     const { data: jobs, error: jobsError } = await supabase
       .from('jobs')
       .select('id, status, created_at, client_id')
-      .eq('user_id', userData.user.id)
+      .eq('organization_id', orgId)
       .gte('created_at', startDate.toISOString());
 
     if (jobsError) {
@@ -55,7 +54,7 @@ export async function GET(request: NextRequest) {
     const { data: estimates, error: estimatesError } = await supabase
       .from('estimates')
       .select('id, total, status, created_at')
-      .eq('user_id', userData.user.id)
+      .eq('organization_id', orgId)
       .gte('created_at', startDate.toISOString());
 
     if (estimatesError) {
@@ -66,7 +65,7 @@ export async function GET(request: NextRequest) {
     const { data: clients, error: clientsError } = await supabase
       .from('clients')
       .select('id, created_at')
-      .eq('user_id', userData.user.id);
+      .eq('organization_id', orgId);
 
     if (clientsError) {
       throw clientsError;
@@ -168,7 +167,7 @@ export async function GET(request: NextRequest) {
     const { data: topClientsData } = await supabase
       .from('clients')
       .select('id, name')
-      .eq('user_id', userData.user.id)
+      .eq('organization_id', orgId)
       .in('id', clientIds);
 
     const topClients = Object.entries(clientRevenue)

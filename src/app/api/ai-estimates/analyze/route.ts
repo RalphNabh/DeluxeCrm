@@ -1,3 +1,4 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
@@ -76,13 +77,9 @@ export async function POST(request: NextRequest) {
   try {
     // ---- 1. Auth ----
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return jsonError(401, "unauthorized", "You must be signed in.");
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
     userId = user.id;
 
     // ---- 2. Rate limit (per user) ----
@@ -149,7 +146,7 @@ export async function POST(request: NextRequest) {
     const { data: session, error: sessionInsertError } = await admin
       .from("ai_estimate_sessions")
       .insert({
-        user_id: user.id,
+        user_id: user.id, organization_id: orgId,
         status: "analyzing",
         context,
       })

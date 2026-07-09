@@ -1,3 +1,4 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireUser } from '@/lib/api-auth'
@@ -13,9 +14,9 @@ export async function PUT(
   try {
     const supabase = await createClient()
     
-    const auth = await requireUser(supabase)
+    const auth = await requireOrgMember(supabase)
     if (!auth.ok) return auth.response
-    const user = auth.user
+    const { user, orgId } = auth.ctx
 
     const { id } = await params
     const parsed = await parseJsonBody(request, clientUpdateSchema)
@@ -31,7 +32,7 @@ export async function PUT(
       .from('clients')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .select(`
         *,
         client_folders (
@@ -49,7 +50,7 @@ export async function PUT(
         .from('clients')
         .update(updatesWithoutFolder)
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
         .select()
         .single()
       
@@ -77,11 +78,9 @@ export async function DELETE(
   try {
     const supabase = await createClient()
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { id: clientId } = await params
 
@@ -91,7 +90,7 @@ export async function DELETE(
       .from('estimates')
       .select('id')
       .eq('client_id', clientId)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
     
     const estimateIds = estimates?.map(e => e.id) || []
 
@@ -100,7 +99,7 @@ export async function DELETE(
       .from('invoices')
       .select('id')
       .eq('client_id', clientId)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
     
     const invoiceIds = invoices?.map(i => i.id) || []
 
@@ -109,7 +108,7 @@ export async function DELETE(
       .from('jobs')
       .select('id')
       .eq('client_id', clientId)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
     
     const jobIds = jobs?.map(j => j.id) || []
 
@@ -186,7 +185,7 @@ export async function DELETE(
       .from('clients')
       .select('name, email')
       .eq('id', clientId)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single()
 
     if (client) {
@@ -195,7 +194,7 @@ export async function DELETE(
       const leadQuery = supabase
         .from('leads')
         .delete()
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
       
       const safeName = escapePostgrestValue(client.name)
       if (client.email) {
@@ -211,7 +210,7 @@ export async function DELETE(
       .from('clients')
       .delete()
       .eq('id', clientId)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })

@@ -102,6 +102,8 @@ export default function ClientDetailPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [portalInviteMessage, setPortalInviteMessage] = useState<string | null>(null)
+  const [invitingPortal, setInvitingPortal] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
@@ -146,6 +148,26 @@ export default function ClientDetailPage() {
       setError(e instanceof Error ? e.message : 'Failed to load client')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const inviteToClientHub = async () => {
+    if (!client?.id) return
+    setInvitingPortal(true)
+    setPortalInviteMessage(null)
+    try {
+      const res = await fetch('/api/portal/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: client.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send invite')
+      setPortalInviteMessage(`Client Hub invite created: ${data.inviteUrl}`)
+    } catch (e) {
+      setPortalInviteMessage(e instanceof Error ? e.message : 'Invite failed')
+    } finally {
+      setInvitingPortal(false)
     }
   }
 
@@ -412,6 +434,21 @@ export default function ClientDetailPage() {
                         <a href={`mailto:${client.email}`} className="text-blue-600 hover:underline">
                           {client.email}
                         </a>
+                      </div>
+                    )}
+                    {client.email && (
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={inviteToClientHub}
+                          disabled={invitingPortal}
+                        >
+                          {invitingPortal ? 'Sending invite...' : 'Invite to Client Hub'}
+                        </Button>
+                        {portalInviteMessage && (
+                          <p className="text-xs text-gray-600 mt-2 break-all">{portalInviteMessage}</p>
+                        )}
                       </div>
                     )}
                     {client.phone && (

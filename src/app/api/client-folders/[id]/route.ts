@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireOrgMember } from '@/lib/api-auth'
 
 export async function PUT(
   request: NextRequest,
@@ -7,8 +8,9 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { id } = await params
     const body = await request.json()
@@ -23,7 +25,7 @@ export async function PUT(
       .from('client_folders')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .select()
       .single()
 
@@ -49,8 +51,9 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { id } = await params
 
@@ -59,14 +62,14 @@ export async function DELETE(
       .from('clients')
       .update({ folder_id: null })
       .eq('folder_id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
 
     // Then delete the folder
     const { error } = await supabase
       .from('client_folders')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
 
     if (error) {
       console.error('Error deleting folder:', error)

@@ -1,6 +1,6 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/api-auth";
 import { parseJsonBody } from "@/lib/validation";
 import { automationCreateSchema } from "@/lib/api-schemas";
 import { captureApiError } from "@/lib/api-error";
@@ -8,13 +8,14 @@ import { captureApiError } from "@/lib/api-error";
 export async function GET() {
   try {
     const supabase = await createClient();
-    const auth = await requireUser(supabase);
+    const auth = await requireOrgMember(supabase);
     if (!auth.ok) return auth.response;
+    const { user, orgId } = auth.ctx;
 
     const { data, error } = await supabase
       .from("automations")
       .select("*")
-      .eq("user_id", auth.user.id)
+      .eq("organization_id", orgId)
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -28,8 +29,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const auth = await requireUser(supabase);
+    const auth = await requireOrgMember(supabase);
     if (!auth.ok) return auth.response;
+    const { user, orgId } = auth.ctx;
 
     const parsed = await parseJsonBody(request, automationCreateSchema);
     if (!parsed.ok) return parsed.response;
@@ -48,7 +50,8 @@ export async function POST(request: NextRequest) {
       .from("automations")
       .insert([
         {
-          user_id: auth.user.id,
+          user_id: user.id,
+          organization_id: orgId,
           name,
           description,
           is_active,

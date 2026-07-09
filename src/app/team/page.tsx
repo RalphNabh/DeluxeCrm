@@ -120,8 +120,8 @@ export default function TeamPage() {
   };
 
   const handleAddMember = async () => {
-    if (!formData.name || !formData.email) {
-      setMessage('Name and email are required');
+    if (!formData.email) {
+      setMessage('Email is required');
       return;
     }
 
@@ -129,25 +129,33 @@ export default function TeamPage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/team', {
+      const roleMap: Record<string, string> = {
+        Worker: 'worker',
+        Manager: 'manager',
+        Admin: 'admin',
+        Owner: 'admin',
+      };
+      const response = await fetch('/api/org/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          email: formData.email,
+          role: roleMap[formData.role] || 'worker',
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add team member');
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to send invitation');
       }
 
-      const newMember = await response.json();
-      setTeamMembers([newMember, ...teamMembers]);
+      const data = await response.json();
+      setMessage(`Invitation sent! Share link: ${data.inviteUrl}`);
       setShowAddMember(false);
-      resetForm();
-      setMessage('Team member added successfully!');
-      setTimeout(() => setMessage(null), 3000);
+      setFormData({ name: '', email: '', phone: '', role: 'Worker', status: 'Pending', notes: '' });
+      fetchTeamMembers();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Failed to add team member');
+      setMessage(err instanceof Error ? err.message : 'Failed to send invitation');
     } finally {
       setSaving(false);
     }

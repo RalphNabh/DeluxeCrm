@@ -207,12 +207,19 @@ export async function checkAndExecuteAutomations(
     console.log(`Checking automations for event: ${triggerEvent}, user_id: ${context.user_id}`);
     
     // Fetch all active automations for this trigger event
-    const { data: automations, error } = await supabase
+    let query = supabase
       .from('automations')
       .select('*')
-      .eq('user_id', context.user_id)
       .eq('trigger_event', triggerEvent)
       .eq('is_active', true);
+
+    if (context.organization_id) {
+      query = query.eq('organization_id', context.organization_id);
+    } else {
+      query = query.eq('user_id', context.user_id);
+    }
+
+    const { data: automations, error } = await query;
 
     if (error) {
       console.error('[AUTOMATION EXECUTOR] Error fetching automations:', error);

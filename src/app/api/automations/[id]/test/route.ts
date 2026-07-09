@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'
+import { requireOrgMember } from '@/lib/api-auth';
 import { executeAutomation } from '@/lib/automations/executor';
 
 export async function POST(
@@ -8,11 +9,9 @@ export async function POST(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { id } = await params;
 
@@ -21,7 +20,7 @@ export async function POST(
       .from('automations')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single();
 
     if (automationError || !automation) {
@@ -31,7 +30,7 @@ export async function POST(
     // Create a test event context with all possible variables
     const baseContext = {
       event: automation.trigger_event,
-      user_id: user.id,
+      user_id: user.id, organization_id: orgId,
       client_name: 'Test Client',
       client_email: user.email || 'test@example.com',
       lead_email: user.email || 'test@example.com',
@@ -96,7 +95,7 @@ export async function POST(
       await supabase
         .from('automation_runs')
         .insert([{
-          user_id: user.id,
+          user_id: user.id, organization_id: orgId,
           automation_id: id,
           event: automation.trigger_event,
           input: testContext,

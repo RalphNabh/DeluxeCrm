@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireOrgMember } from '@/lib/api-auth'
 
 export async function PUT(
   request: NextRequest,
@@ -7,8 +8,9 @@ export async function PUT(
 ) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { id } = await params
     const body = await request.json()
@@ -19,7 +21,7 @@ export async function PUT(
       .from('materials')
       .select('image_url')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single()
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
@@ -48,7 +50,7 @@ export async function PUT(
       .from('materials')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .select()
       .single()
 
@@ -74,8 +76,9 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     const { id } = await params
 
@@ -84,7 +87,7 @@ export async function DELETE(
       .from('materials')
       .select('image_url')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .single()
 
     // Delete image from storage if it exists
@@ -104,7 +107,7 @@ export async function DELETE(
       .from('materials')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
 
     if (error) {
       console.error('Error deleting material:', error)

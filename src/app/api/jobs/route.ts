@@ -1,3 +1,4 @@
+import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireUser } from '@/lib/api-auth'
@@ -10,10 +11,9 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
     
     // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
     // Fetch jobs with client information
     const { data: jobs, error } = await supabase
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
           address
         )
       `)
-      .eq('user_id', user.id)
+      .eq('organization_id', orgId)
       .order('start_time', { ascending: true })
 
     if (error) {
@@ -71,9 +71,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const auth = await requireUser(supabase)
+    const auth = await requireOrgMember(supabase)
     if (!auth.ok) return auth.response
-    const user = auth.user
+    const { user, orgId } = auth.ctx
 
     const parsed = await parseJsonBody(request, jobCreateSchema)
     if (!parsed.ok) return parsed.response
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Create the job
     // Build insert object - only include estimate_id if it exists (column may not exist yet)
     const jobData: Record<string, unknown> = {
-      user_id: user.id,
+      user_id: user.id, organization_id: orgId,
       title,
       client_id,
       start_time,
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
         .from('estimates')
         .update({ status: 'Scheduled', updated_at: new Date().toISOString() })
         .eq('id', estimate_id)
-        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
     }
 
     // Transform the data to include client_name

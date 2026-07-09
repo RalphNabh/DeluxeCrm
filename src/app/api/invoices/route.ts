@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireUser } from '@/lib/api-auth'
+import { requireOrgMember } from '@/lib/api-auth'
 import { invoiceCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 import { parseJsonBody } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const { searchParams } = new URL(request.url)
   const clientId = searchParams.get('client_id')
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
         total
       )
     `)
-    .eq('user_id', user.id)
+    .eq('organization_id', orgId)
     .order('created_at', { ascending: false })
 
   if (clientId) query = query.eq('client_id', clientId)
@@ -86,9 +87,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
   const supabase = await createClient()
-  const auth = await requireUser(supabase)
-  if (!auth.ok) return auth.response
-  const user = auth.user
+  const auth = await requireOrgMember(supabase)
+    if (!auth.ok) return auth.response
+    const { user, orgId } = auth.ctx
 
   const parsed = await parseJsonBody(request, invoiceCreateSchema)
   if (!parsed.ok) return parsed.response
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
 
   // Build insert object - try with estimate_id/job_id first, fall back if columns don't exist
   const baseInvoiceData: Record<string, unknown> = { 
-    user_id: user.id, 
+    user_id: user.id, organization_id: orgId, 
     client_id, 
     invoice_number: invoiceNumber,
     subtotal, 

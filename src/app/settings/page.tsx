@@ -87,6 +87,7 @@ export default function SettingsPage() {
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null)
+  const [seatInfo, setSeatInfo] = useState<{ billableSeats?: number; activeMembers?: number; seatQuantity?: number } | null>(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [portalLoading, setPortalLoading] = useState(false)
 
@@ -97,7 +98,19 @@ export default function SettingsPage() {
       setSettings(JSON.parse(savedSettings))
     }
     fetchSubscriptionStatus()
+    fetchSeatInfo()
   }, [])
+
+  const fetchSeatInfo = async () => {
+    try {
+      const response = await fetch('/api/org/seats')
+      if (response.ok) {
+        setSeatInfo(await response.json())
+      }
+    } catch {
+      // Non-owners may not have access
+    }
+  }
 
   const fetchSubscriptionStatus = async () => {
     try {
@@ -491,6 +504,12 @@ export default function SettingsPage() {
                       {subscriptionStatus.subscription?.cancel_at_period_end && (
                         <p className="text-sm text-orange-700 mt-1">
                           Subscription will cancel at the end of the billing period
+                        </p>
+                      )}
+                      {seatInfo && (
+                        <p className="text-sm text-green-700 mt-2">
+                          Team seats: {seatInfo.billableSeats ?? 1} billed
+                          {seatInfo.activeMembers != null && ` (${seatInfo.activeMembers} team members + owner)`}
                         </p>
                       )}
                     </div>

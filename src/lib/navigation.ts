@@ -12,6 +12,7 @@ import {
   Zap,
   Gift,
   Settings,
+  Inbox,
 } from "lucide-react";
 
 /**
@@ -37,6 +38,7 @@ export const SIDEBAR_ITEMS: readonly NavItem[] = [
   { icon: Package, label: "Materials", href: "/materials" },
   { icon: BarChart3, label: "Reports", href: "/reports" },
   { icon: UsersRound, label: "Team", href: "/team" },
+  { icon: Inbox, label: "Requests", href: "/requests" },
   { icon: Zap, label: "Automations", href: "/automations" },
   { icon: Gift, label: "Affiliates", href: "/affiliates" },
   { icon: Settings, label: "Settings", href: "/settings" },

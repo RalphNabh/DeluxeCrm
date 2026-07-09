@@ -43,11 +43,11 @@ export default function LoginPage() {
         
         // Check if email is verified
         if (data.user && !data.user.email_confirmed_at) {
-          // Email not verified, redirect to verification page
           router.push("/verify-email");
         } else {
-          // Email verified, go to dashboard
-          router.push("/dashboard");
+          const personaRes = await fetch("/api/auth/persona");
+          const persona = await personaRes.json();
+          router.push(persona.redirectTo || "/dashboard");
         }
       }
     } catch (err) {

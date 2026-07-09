@@ -1,6 +1,54 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isPublicRoute, isSubscriptionExempt } from '@/lib/route-access'
+import {
+  isContractorRoute,
+  isFieldRoute,
+  isPortalRoute,
+} from '@/lib/persona'
+import { getDefaultRouteForRole } from '@/lib/rbac'
+import type { OrgRole } from '@/lib/org'
+
+async function getPersonaContext(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+) {
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('persona')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (profile?.persona === 'client') {
+    const { data: portalUser } = await supabase
+      .from('client_portal_users')
+      .select('id')
+      .eq('auth_user_id', userId)
+      .eq('status', 'active')
+      .limit(1)
+      .maybeSingle()
+    if (portalUser) return { type: 'client' as const }
+  }
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('org_id, role')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('joined_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (membership) {
+    return {
+      type: 'contractor' as const,
+      orgId: membership.org_id as string,
+      role: membership.role as OrgRole,
+    }
+  }
+
+  return { type: 'contractor' as const, orgId: null, role: null }
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -28,10 +76,6 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -41,13 +85,15 @@ export async function updateSession(request: NextRequest) {
   const subscriptionExempt = isSubscriptionExempt(pathname)
 
   if (!user && !publicRoute) {
-    // no user, redirect to login page
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    if (isPortalRoute(pathname)) {
+      url.pathname = '/portal/login'
+    } else {
+      url.pathname = '/login'
+    }
     return NextResponse.redirect(url)
   }
 
-  // Logged-in but unverified: only allow verify-email (not signup confirm)
   if (
     user &&
     !user.email_confirmed_at &&
@@ -60,39 +106,70 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Check subscription status for protected routes
-  if (user && !publicRoute && !subscriptionExempt) {
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('status, current_period_end')
-      .eq('user_id', user.id)
-      .single()
+  if (user && !publicRoute) {
+    const persona = await getPersonaContext(supabase, user.id)
 
-    const isActive = subscription && 
-      subscription.status === 'active' && 
-      (!subscription.current_period_end || new Date(subscription.current_period_end) > new Date())
-
-    if (!isActive) {
-      // Redirect to subscription page if no active subscription
-      const url = request.nextUrl.clone()
-      url.pathname = '/subscription'
-      return NextResponse.redirect(url)
+    if (persona.type === 'client') {
+      if (isContractorRoute(pathname) || isFieldRoute(pathname)) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/portal'
+        return NextResponse.redirect(url)
+      }
+    } else if (persona.role === 'worker') {
+      if (isContractorRoute(pathname) && pathname !== '/profile') {
+        const url = request.nextUrl.clone()
+        url.pathname = getDefaultRouteForRole('worker')
+        return NextResponse.redirect(url)
+      }
+    } else if (persona.role) {
+      if (isFieldRoute(pathname)) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
+      if (isPortalRoute(pathname)) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
     }
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
-  // creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
+  if (user && !publicRoute && !subscriptionExempt) {
+    const persona = await getPersonaContext(supabase, user.id)
+
+    if (persona.type !== 'client') {
+      let subscription = null
+
+      if (persona.orgId) {
+        const { data } = await supabase
+          .from('subscriptions')
+          .select('status, current_period_end')
+          .eq('organization_id', persona.orgId)
+          .maybeSingle()
+        subscription = data
+      }
+
+      if (!subscription) {
+        const { data } = await supabase
+          .from('subscriptions')
+          .select('status, current_period_end')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        subscription = data
+      }
+
+      const isActive = subscription &&
+        subscription.status === 'active' &&
+        (!subscription.current_period_end || new Date(subscription.current_period_end) > new Date())
+
+      if (!isActive) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/subscription'
+        return NextResponse.redirect(url)
+      }
+    }
+  }
 
   return supabaseResponse
 }
-
