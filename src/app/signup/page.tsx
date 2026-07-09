@@ -14,8 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
 import { User, Mail, Lock, Phone, Building, Briefcase } from "lucide-react";
+import {
+  formatAuthErrorMessage,
+  SIGNUP_PENDING_EMAIL_KEY,
+} from "@/lib/auth-email-redirect";
 
 export default function SignupPage() {
   const [firstName, setFirstName] = useState("");
@@ -40,7 +43,6 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
 
-    // Validation
     if (!firstName.trim() || !lastName.trim()) {
       setError("First name and last name are required");
       setLoading(false);
@@ -60,108 +62,50 @@ export default function SignupPage() {
     }
 
     try {
-      const supabase = createClient();
-      const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      
-      // Sign up the user
-      console.log('Attempting to sign up user with email:', email);
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/verify-email`,
-          data: {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            full_name: fullName,
-            phone: phone.trim() || undefined,
-            company_name: companyName.trim() || undefined,
-            business_type: businessType && businessType !== 'none' ? businessType : undefined,
-          }
-        }
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          phone: phone.trim() || undefined,
+          company_name: companyName.trim() || undefined,
+          business_type:
+            businessType && businessType !== "none" ? businessType : undefined,
+        }),
       });
 
-      console.log('Signup response:', { 
-        hasUser: !!data?.user, 
-        userId: data?.user?.id,
-        hasError: !!signUpError,
-        error: signUpError,
-        emailConfirmed: data?.user?.email_confirmed_at
-      });
+      const data = (await response.json()) as {
+        error?: string;
+        success?: boolean;
+        email?: string;
+      };
 
-      if (signUpError) {
-        console.error('Signup error:', signUpError);
-        setError(signUpError.message);
-        setLoading(false);
+      if (!response.ok) {
+        setError(formatAuthErrorMessage(data.error || response.statusText));
         return;
       }
 
-      if (data.user) {
-        console.log('User created successfully:', data.user.id);
-        // Try to update user profile with additional information
-        // Note: A trigger automatically creates a basic profile, so we update it
-        // Use retry logic since the session might not be fully established immediately
-        let profileError = null;
-        const maxRetries = 3;
-        
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-          if (attempt > 0) {
-            // Wait before retry (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, 200 * attempt));
-          }
-          
-          const { error } = await supabase
-            .from('user_profiles')
-            .upsert({
-              id: data.user.id,
-              user_id: data.user.id,
-              first_name: firstName.trim() || null,
-              last_name: lastName.trim() || null,
-              full_name: fullName,
-              phone: phone.trim() || null,
-              company_name: companyName.trim() || null,
-              business_type: businessType && businessType !== 'none' ? businessType : null,
-            }, {
-              onConflict: 'id'
-            });
-            
-          if (!error) {
-            // Success, break out of retry loop
-            profileError = null;
-            break;
-          } else {
-            profileError = error;
-          }
-        }
+      const confirmedEmail = data.email || email.trim();
 
-        if (profileError) {
-          // Log detailed error information for debugging
-          console.warn('Could not update profile immediately after signup (attempted', maxRetries, 'times):', {
-            message: profileError.message || 'Unknown error',
-            details: profileError.details,
-            hint: profileError.hint,
-            code: profileError.code,
-          });
-          // Don't fail signup - basic profile was created by trigger
-          // User can update their profile with additional details from settings page
-        }
+      sessionStorage.setItem("showWelcomeNotification", "true");
+      sessionStorage.setItem(
+        SIGNUP_PENDING_EMAIL_KEY,
+        confirmedEmail.toLowerCase(),
+      );
 
-        // Set flag to show welcome notification after email verification
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('showWelcomeNotification', 'true');
-        }
-        
-        // Redirect to verification page
-        router.push("/verify-email");
-      }
+      router.push(
+        `/signup/confirm?email=${encodeURIComponent(confirmedEmail)}`,
+      );
     } catch (err) {
-      setError("An unexpected error occurred");
-      console.error('Signup error:', err);
+      setError(formatAuthErrorMessage(err));
+      console.error("Signup error:", err);
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -172,7 +116,7 @@ export default function SignupPage() {
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{" "}
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link href="/login" className="font-medium text-teal-600 hover:text-teal-700">
               sign in to existing account
             </Link>
           </p>

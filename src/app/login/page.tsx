@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { formatAuthErrorMessage } from "@/lib/auth-email-redirect";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -28,7 +29,12 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setError(error.message);
+        const msg = error.message.toLowerCase();
+        if (msg.includes("email not confirmed") || msg.includes("not verified")) {
+          router.push(`/signup/confirm?email=${encodeURIComponent(email.trim())}`);
+          return;
+        }
+        setError(formatAuthErrorMessage(error.message));
       } else {
         // Set flag to show welcome notification after redirect
         if (typeof window !== 'undefined') {

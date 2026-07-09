@@ -47,12 +47,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in but email is not verified, redirect to verify-email page
-  // (unless they're already on verify-email or public routes)
+  // Logged-in but unverified: only allow verify-email (not signup confirm)
   if (
     user &&
     !user.email_confirmed_at &&
     pathname !== '/verify-email' &&
+    !pathname.startsWith('/signup/confirm') &&
     !publicRoute
   ) {
     const url = request.nextUrl.clone()

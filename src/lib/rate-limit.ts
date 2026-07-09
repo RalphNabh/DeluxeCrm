@@ -20,7 +20,8 @@ type LimiterKey =
   | "contact"
   | "ai-estimate"
   | "email-action"
-  | "email-send";
+  | "email-send"
+  | "signup";
 
 const limiters = new Map<LimiterKey, Ratelimit>();
 
@@ -89,6 +90,14 @@ function getLimiter(key: LimiterKey): Ratelimit | null {
         redis,
         limiter: Ratelimit.slidingWindow(20, "10 m"),
         prefix: "rl:email-send",
+        analytics: true,
+      });
+      break;
+    case "signup":
+      limiter = new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, "10 m"),
+        prefix: "rl:signup",
         analytics: true,
       });
       break;

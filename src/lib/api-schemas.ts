@@ -157,8 +157,14 @@ export const clientFolderSchema = z.object({
   description: z.string().max(500).optional(),
 });
 
-export const affiliateReferralSchema = z.object({
-  referral_code: z.string().trim().min(1).max(50).optional(),
+export const signupSchema = z.object({
+  email: z.string().trim().email().max(254),
+  password: z.string().min(6).max(128),
+  first_name: z.string().trim().min(1).max(100),
+  last_name: z.string().trim().min(1).max(100),
+  phone: z.string().trim().max(50).optional(),
+  company_name: z.string().trim().max(200).optional(),
+  business_type: z.string().trim().max(100).optional(),
 });
 
 export const userProfileUpdateSchema = z.object({
