@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { signupSchema } from "@/lib/api-schemas";
 import { captureApiError } from "@/lib/api-error";
-import { getEmailConfirmationRedirectUrl } from "@/lib/auth-email-redirect";
+import {
+  getEmailConfirmationRedirectUrl,
+  mapAuthError,
+} from "@/lib/auth-email-redirect";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { createOrganizationForUser } from "@/lib/org";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -37,7 +40,22 @@ export async function POST(request: NextRequest) {
     }
 
     const parsed = await parseJsonBody(request, signupSchema);
-    if (!parsed.ok) return parsed.response;
+    if (!parsed.ok) {
+      const body = await parsed.response.clone().json().catch(() => null) as
+        | { error?: string; details?: Record<string, string> }
+        | null;
+      const mapped = mapAuthError(body?.error || "Validation failed", {
+        details: body?.details,
+      });
+      return NextResponse.json(
+        {
+          error: mapped.message,
+          code: mapped.code,
+          details: body?.details,
+        },
+        { status: 400 },
+      );
+    }
 
     const {
       email,
@@ -70,8 +88,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (signUpError) {
+      const mapped = mapAuthError(signUpError.message, {
+        code: signUpError.code ?? null,
+      });
       return NextResponse.json(
-        { error: signUpError.message },
+        {
+          error: mapped.message,
+          code: mapped.code,
+          // Keep raw Supabase text for debugging in Network tab
+          debug: signUpError.message,
+        },
         { status: 400 },
       );
     }
@@ -114,10 +140,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     captureApiError(error, { route: "auth/signup" });
+    const mapped = mapAuthError(
+      error instanceof Error ? error.message : "Unable to create account",
+    );
     const message =
-      error instanceof Error && error.message.includes("not configured")
-        ? "Authentication service is not configured. Please contact support."
-        : "Unable to create account right now. Please try again in a moment.";
-    return NextResponse.json({ error: message }, { status: 503 });
+      mapped.code === "invalid_api_key"
+        ? mapped.message
+        : mapped.code === "network"
+          ? mapped.message
+          : "Unable to create account right now. Please try again in a moment.";
+    return NextResponse.json(
+      { error: message, code: mapped.code },
+      { status: 503 },
+    );
   }
 }

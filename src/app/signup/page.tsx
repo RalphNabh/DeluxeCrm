@@ -17,6 +17,7 @@ import {
 import { User, Mail, Lock, Phone, Building, Briefcase } from "lucide-react";
 import {
   formatAuthErrorMessage,
+  mapAuthError,
   SIGNUP_PENDING_EMAIL_KEY,
 } from "@/lib/auth-email-redirect";
 
@@ -79,12 +80,23 @@ export default function SignupPage() {
 
       const data = (await response.json()) as {
         error?: string;
+        code?: string;
+        debug?: string;
+        details?: Record<string, string>;
         success?: boolean;
         email?: string;
       };
 
       if (!response.ok) {
-        setError(formatAuthErrorMessage(data.error || response.statusText));
+        const mapped = mapAuthError(data.error || response.statusText, {
+          code: data.code,
+          details: data.details,
+        });
+        // Prefer server-mapped message; append debug in console for support
+        if (data.debug) {
+          console.warn("[signup]", data.code, data.debug);
+        }
+        setError(mapped.message || data.error || "Signup failed");
         return;
       }
 
