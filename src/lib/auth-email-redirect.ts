@@ -115,13 +115,19 @@ export function mapAuthError(
   if (
     apiCode.includes("over_email") ||
     apiCode.includes("rate_limit") ||
+    apiCode.includes("request_timeout") ||
     lower.includes("rate limit") ||
     lower.includes("too many") ||
-    lower.includes("email rate limit")
+    lower.includes("email rate limit") ||
+    lower.includes("context deadline exceeded") ||
+    lower.includes("timed out") ||
+    lower.includes("timeout") ||
+    lower.includes("504")
   ) {
     return {
       code: "rate_limited",
-      message: "Too many attempts. Please wait a few minutes and try again.",
+      message:
+        "Signup timed out while sending the confirmation email (Supabase mail is slow or rate-limited). Wait a minute and try again, or configure custom SMTP (e.g. Resend) in Supabase Auth settings.",
     };
   }
 
