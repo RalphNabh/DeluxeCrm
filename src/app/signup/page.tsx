@@ -81,7 +81,7 @@ export default function SignupPage() {
       const data = (await response.json()) as {
         error?: string;
         code?: string;
-        debug?: string;
+        debug?: string | Record<string, unknown>;
         details?: Record<string, string>;
         success?: boolean;
         email?: string;
@@ -92,7 +92,6 @@ export default function SignupPage() {
           code: data.code,
           details: data.details,
         });
-        // Prefer server-mapped message; append debug in console for support
         if (data.debug) {
           console.warn("[signup]", data.code, data.debug);
         }

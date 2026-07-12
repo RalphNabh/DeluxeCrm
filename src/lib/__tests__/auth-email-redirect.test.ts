@@ -39,6 +39,12 @@ describe("mapAuthError", () => {
     assert.match(r.message, /email/i);
   });
 
+  it("maps empty object message from GoTrue", () => {
+    const r = mapAuthError("{}");
+    assert.equal(r.code, "unknown");
+    assert.match(r.message, /database trigger|Auth logs/i);
+  });
+
   it("preserves unknown raw messages", () => {
     const r = mapAuthError("Something weird happened");
     assert.equal(r.code, "unknown");

@@ -165,6 +165,18 @@ export function mapAuthError(
     };
   }
 
+  if (
+    !raw.trim() ||
+    raw.trim() === "{}" ||
+    raw.trim() === "[object Object]"
+  ) {
+    return {
+      code: "unknown",
+      message:
+        "Signup was rejected by Supabase with no details. Usually this means a database trigger failed (check Auth logs), Confirm email / redirect URL settings, or mismatched API keys. Open Supabase → Authentication → Logs for the real error.",
+    };
+  }
+
   return {
     code: "unknown",
     message: raw || "Something went wrong. Please try again.",

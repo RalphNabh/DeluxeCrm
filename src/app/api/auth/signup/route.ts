@@ -22,6 +22,27 @@ function getAuthClient() {
   });
 }
 
+/** Prefer msg/code/status — SDK turns empty GoTrue bodies into message "{}". */
+function serializeAuthError(error: {
+  message?: string;
+  code?: string;
+  status?: number;
+  name?: string;
+}) {
+  const message = error.message?.trim();
+  const usefulMessage =
+    message && message !== "{}" && message !== "[object Object]"
+      ? message
+      : null;
+
+  return {
+    message: usefulMessage,
+    code: error.code ?? null,
+    status: error.status ?? null,
+    name: error.name ?? null,
+  };
+}
+
 /**
  * Server-side signup proxy — browser calls same-origin /api/auth/signup
  * instead of cross-site Supabase (avoids Safari CORS / flaky edge errors).
@@ -88,15 +109,31 @@ export async function POST(request: NextRequest) {
     });
 
     if (signUpError) {
-      const mapped = mapAuthError(signUpError.message, {
-        code: signUpError.code ?? null,
+      const raw = serializeAuthError(signUpError);
+      const mapped = mapAuthError(raw.message || "{}", {
+        code: raw.code,
+      });
+      captureApiError(signUpError, {
+        route: "auth/signup",
+        step: "signUp",
+        authStatus: String(raw.status ?? ""),
+        authCode: raw.code ?? "",
       });
       return NextResponse.json(
         {
           error: mapped.message,
           code: mapped.code,
-          // Keep raw Supabase text for debugging in Network tab
-          debug: signUpError.message,
+          debug: {
+            ...raw,
+            // Helps confirm which project Vercel is talking to
+            supabaseHost: (() => {
+              try {
+                return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").host;
+              } catch {
+                return null;
+              }
+            })(),
+          },
         },
         { status: 400 },
       );
