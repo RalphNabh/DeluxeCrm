@@ -37,7 +37,9 @@ export default function PrivacyPage() {
         </p>
         <h2>Your rights</h2>
         <p>
-          You may access, export, or delete your CRM data from Settings. To delete your
+          You may access, export, or delete your CRM data from Settings. Account deletion
+          cancels any active paid membership, removes your company data we are not required
+          to keep, and deletes your login. To delete your
           auth account entirely, contact{" "}
           <a href="mailto:support@dyluxepro.com">support@dyluxepro.com</a>.
         </p>

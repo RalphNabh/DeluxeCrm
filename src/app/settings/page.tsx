@@ -85,6 +85,7 @@ export default function SettingsPage() {
   })
   const [changingPassword, setChangingPassword] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null)
   const [seatInfo, setSeatInfo] = useState<{ billableSeats?: number; activeMembers?: number; seatQuantity?: number } | null>(null)
@@ -268,32 +269,47 @@ export default function SettingsPage() {
   }
 
   const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') {
+      setMessage('Type DELETE to confirm account deletion.')
+      return
+    }
+
     setDeletingAccount(true)
     setMessage(null)
 
     try {
-      // Call backend API to delete account
       const response = await fetch('/api/user/delete-account', {
-        method: 'DELETE'
+        method: 'DELETE',
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        setMessage(errorData.error || 'Failed to delete account. Please contact support.')
-      } else {
-        setMessage('Account deleted successfully. Redirecting...')
-        // Sign out and redirect (create client inside function to avoid build-time errors)
-        const supabase = createClient()
-        await supabase.auth.signOut()
-        setTimeout(() => {
-          router.push('/login')
-        }, 2000)
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string
+        code?: string
+        message?: string
       }
-    } catch (error) {
+
+      if (!response.ok) {
+        setMessage(
+          data.error || 'Failed to delete account. Please contact support.',
+        )
+        return
+      }
+
+      setShowDeleteDialog(false)
+      setMessage(
+        data.message ||
+          'Account and membership deleted. Redirecting...',
+      )
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      setTimeout(() => {
+        router.push('/login')
+      }, 1500)
+    } catch {
       setMessage('Failed to delete account. Please contact support.')
     } finally {
       setDeletingAccount(false)
-      setTimeout(() => setMessage(null), 5000)
+      setTimeout(() => setMessage(null), 8000)
     }
   }
 
@@ -635,9 +651,17 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between p-4 rounded-lg bg-red-50 border border-red-200">
                   <div>
                     <h3 className="font-medium text-red-600">Delete Account</h3>
-                    <p className="text-sm text-gray-600">Permanently delete your account and all data</p>
+                    <p className="text-sm text-gray-600">
+                      Permanently delete your account, company data, and cancel membership
+                    </p>
                   </div>
-                  <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                  <Dialog
+                    open={showDeleteDialog}
+                    onOpenChange={(open) => {
+                      setShowDeleteDialog(open)
+                      if (!open) setDeleteConfirmText('')
+                    }}
+                  >
                     <DialogTrigger asChild>
                       <Button variant="destructive" disabled={deletingAccount}>
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -648,31 +672,58 @@ export default function SettingsPage() {
                       <DialogHeader>
                         <DialogTitle className="text-red-600">Delete Account</DialogTitle>
                         <DialogDescription>
-                          This action cannot be undone. This will permanently delete your account and all associated data including clients, estimates, invoices, and jobs.
+                          This cannot be undone. Your login, CRM data, and paid membership
+                          will be removed.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                           <p className="text-sm text-red-800 mb-2">
-                            <strong>Warning:</strong> This will permanently delete:
+                            <strong>This will permanently:</strong>
                           </p>
                           <ul className="list-disc list-inside text-sm text-red-700 space-y-1 mb-3">
-                            <li>All your clients</li>
-                            <li>All your estimates</li>
-                            <li>All your invoices</li>
-                            <li>All your jobs</li>
-                            <li>All your settings and preferences</li>
+                            <li>Cancel your Stripe subscription / monthly membership</li>
+                            <li>Delete your company data (clients, jobs, estimates, invoices)</li>
+                            <li>Remove your login so you cannot sign in again</li>
                           </ul>
                           <p className="text-xs text-red-600 mt-3">
-                            You will be signed out immediately after deletion. This action cannot be undone.
+                            If you have team members, remove them first. Export your data above
+                            if you need a copy.
                           </p>
                         </div>
+                        <div>
+                          <Label htmlFor="deleteConfirm">
+                            Type <span className="font-semibold">DELETE</span> to confirm
+                          </Label>
+                          <Input
+                            id="deleteConfirm"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                            className="mt-2"
+                            placeholder="DELETE"
+                            autoComplete="off"
+                            disabled={deletingAccount}
+                          />
+                        </div>
                         <div className="flex justify-end space-x-2 pt-4">
-                          <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteDialog(false)}
+                            disabled={deletingAccount}
+                          >
                             Cancel
                           </Button>
-                          <Button variant="destructive" onClick={handleDeleteAccount} disabled={deletingAccount}>
-                            {deletingAccount ? 'Deleting...' : 'Permanently Delete Account'}
+                          <Button
+                            variant="destructive"
+                            onClick={handleDeleteAccount}
+                            disabled={
+                              deletingAccount ||
+                              deleteConfirmText.trim().toUpperCase() !== 'DELETE'
+                            }
+                          >
+                            {deletingAccount
+                              ? 'Deleting...'
+                              : 'Permanently Delete Account'}
                           </Button>
                         </div>
                       </div>
