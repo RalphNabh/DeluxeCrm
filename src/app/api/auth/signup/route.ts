@@ -4,6 +4,7 @@ import { signupSchema } from "@/lib/api-schemas";
 import { captureApiError } from "@/lib/api-error";
 import {
   getEmailConfirmationRedirectUrl,
+  isObfuscatedExistingSignup,
   mapAuthError,
 } from "@/lib/auth-email-redirect";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
@@ -41,6 +42,78 @@ function serializeAuthError(error: {
     status: error.status ?? null,
     name: error.name ?? null,
   };
+}
+
+function emailTakenResponse() {
+  const mapped = mapAuthError("User already registered", {
+    code: "email_taken",
+  });
+  return NextResponse.json(
+    {
+      error: mapped.message,
+      code: "email_taken" as const,
+    },
+    { status: 409 },
+  );
+}
+
+/**
+ * Look up an auth user by email via Admin API (service role).
+ * Used to block signup when the address is already verified.
+ */
+async function findAuthUserByEmail(email: string): Promise<{
+  id: string;
+  email?: string;
+  email_confirmed_at?: string | null;
+} | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+
+  try {
+    const res = await fetch(
+      `${url}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${key}`,
+          apikey: key,
+        },
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      users?: Array<{
+        id: string;
+        email?: string;
+        email_confirmed_at?: string | null;
+      }>;
+      id?: string;
+      email?: string;
+      email_confirmed_at?: string | null;
+    };
+
+    const users = Array.isArray(json.users)
+      ? json.users
+      : json.id
+        ? [
+            json as {
+              id: string;
+              email?: string;
+              email_confirmed_at?: string | null;
+            },
+          ]
+        : [];
+
+    const normalized = email.trim().toLowerCase();
+    return (
+      users.find((u) => u.email?.toLowerCase() === normalized) ??
+      users[0] ??
+      null
+    );
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -91,6 +164,12 @@ export async function POST(request: NextRequest) {
     const fullName = `${first_name} ${last_name}`;
     const emailRedirectTo = getEmailConfirmationRedirectUrl();
 
+    // Block verified emails before calling signUp (avoids fake "check email" page)
+    const existing = await findAuthUserByEmail(email);
+    if (existing?.email_confirmed_at) {
+      return emailTakenResponse();
+    }
+
     const supabase = getAuthClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
@@ -135,8 +214,13 @@ export async function POST(request: NextRequest) {
             })(),
           },
         },
-        { status: 400 },
+        { status: mapped.code === "email_taken" ? 409 : 400 },
       );
+    }
+
+    // Fallback: GoTrue obfuscates existing confirmed users as empty identities
+    if (isObfuscatedExistingSignup(data.user)) {
+      return emailTakenResponse();
     }
 
     // Enrich profile via service role (no browser session required)

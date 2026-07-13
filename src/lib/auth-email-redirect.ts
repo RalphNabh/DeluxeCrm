@@ -65,7 +65,7 @@ export function mapAuthError(
     return {
       code: "email_taken",
       message:
-        "This email is already in use. Try signing in, or use a different email.",
+        "This email is already signed up. Please sign in instead, or use a different email.",
     };
   }
 
@@ -192,4 +192,16 @@ export function mapAuthError(
 /** Map Supabase / network errors to user-friendly signup messages. */
 export function formatAuthErrorMessage(error: unknown): string {
   return mapAuthError(error).message;
+}
+
+/**
+ * Supabase returns a user with empty `identities` when signup is called for an
+ * existing confirmed account (email confirmations enabled).
+ */
+export function isObfuscatedExistingSignup(user: {
+  identities?: unknown[] | null;
+} | null): boolean {
+  return (
+    !!user && Array.isArray(user.identities) && user.identities.length === 0
+  );
 }

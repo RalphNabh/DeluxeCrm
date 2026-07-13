@@ -6,7 +6,7 @@ describe("mapAuthError", () => {
   it("maps email already registered", () => {
     const r = mapAuthError("User already registered");
     assert.equal(r.code, "email_taken");
-    assert.match(r.message, /already in use/i);
+    assert.match(r.message, /already signed up/i);
   });
 
   it("maps weak password", () => {
