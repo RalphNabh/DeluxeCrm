@@ -30,6 +30,35 @@ If users are signing up but not appearing in Supabase, and no email verification
    - **Use Supabase's built-in email service** (for development/testing)
    - **Or configure custom SMTP** (for production)
 
+#### Production: Resend custom SMTP (recommended)
+
+Supabase’s default mailer often times out on signup (`504` / `context deadline exceeded`). Use Resend:
+
+1. Open Supabase project **DyluxeCRM** (`pmozvpszerfwbegptlar`)
+2. Go to **Project Settings → Authentication → SMTP Settings**  
+   (or **Authentication → Emails → SMTP**)
+3. Enable **Custom SMTP** and fill in:
+
+| Field | Value |
+|--------|--------|
+| Sender email | `noreply@support.deluxecrm.com` (must match a domain verified in Resend) |
+| Sender name | `DyluxePro` |
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | Your Resend API key (`re_…` — same as `RESEND_API_KEY` in Vercel) |
+| Minimum interval | leave default or `60` seconds |
+
+4. Save
+5. Keep **Confirm email** enabled for production
+6. Test: sign up with a real inbox → check Resend dashboard → Emails for delivery
+
+**Notes**
+- Username is literally the word `resend`, not your email.
+- Password is the API key, not your Resend account password.
+- If send fails, verify the domain for `support.deluxecrm.com` (or change sender to an address on a verified domain) in [Resend Domains](https://resend.com/domains).
+- App transactional mail already uses `RESEND_FROM_EMAIL=DyluxePro <noreply@support.deluxecrm.com>` — Auth SMTP should use the same domain.
+
 ### 4. Check if Users are Being Created
 
 **In Supabase Dashboard:**
