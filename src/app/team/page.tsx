@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +59,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useTeamQuery, useInvalidateQueries } from "@/lib/query/hooks";
+import { CardGridSkeleton } from "@/components/ui/page-skeletons";
 
 interface TeamMember {
   id: string;
@@ -76,15 +78,13 @@ interface TeamMember {
 }
 
 export default function TeamPage() {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddMember, setShowAddMember] = useState(false);
   const [showEditMember, setShowEditMember] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const invalidate = useInvalidateQueries();
   
   // Form state
   const [formData, setFormData] = useState({
@@ -97,27 +97,17 @@ export default function TeamPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchTeamMembers();
-  }, []);
+  const {
+    data,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useTeamQuery();
 
-  const fetchTeamMembers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/team');
-      if (!response.ok) {
-        throw new Error('Failed to fetch team members');
-      }
-      const data = await response.json();
-      setTeamMembers(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch team members');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const teamMembers = (data ?? []) as TeamMember[];
+
+  const error =
+    queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch team members" : null;
 
   const handleAddMember = async () => {
     if (!formData.email) {
@@ -153,7 +143,7 @@ export default function TeamPage() {
       setMessage(`Invitation sent! Share link: ${data.inviteUrl}`);
       setShowAddMember(false);
       setFormData({ name: '', email: '', phone: '', role: 'Worker', status: 'Pending', notes: '' });
-      fetchTeamMembers();
+      await invalidate.team();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to send invitation');
     } finally {
@@ -195,11 +185,10 @@ export default function TeamPage() {
         throw new Error(errorData.error || 'Failed to update team member');
       }
 
-      const updatedMember = await response.json();
-      setTeamMembers(teamMembers.map(m => m.id === updatedMember.id ? updatedMember : m));
       setShowEditMember(false);
       setEditingMember(null);
       resetForm();
+      await invalidate.team();
       setMessage('Team member updated successfully!');
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
@@ -223,7 +212,7 @@ export default function TeamPage() {
         throw new Error('Failed to delete team member');
       }
 
-      setTeamMembers(teamMembers.filter(m => m.id !== id));
+      await invalidate.team();
       setMessage('Team member removed successfully!');
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
@@ -290,23 +279,17 @@ export default function TeamPage() {
     }
   };
 
-  const filteredMembers = teamMembers.filter(member =>
-    member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (member.phone && member.phone.includes(searchQuery))
+  const filteredMembers = useMemo(
+    () =>
+      teamMembers.filter(
+        (member) =>
+          member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          member.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (member.phone && member.phone.includes(searchQuery)),
+      ),
+    [teamMembers, searchQuery],
   );
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading team members...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -496,6 +479,10 @@ export default function TeamPage() {
 
         {/* Main Content */}
         <main className="flex-1 p-6">
+          {isLoading && !data ? (
+            <CardGridSkeleton />
+          ) : (
+          <>
           {message && !showAddMember && !showEditMember && (
             <div className={`mb-4 p-4 rounded-md border ${
               message.includes('success') 
@@ -726,6 +713,8 @@ export default function TeamPage() {
                 </Button>
               )}
             </div>
+          )}
+          </>
           )}
         </main>
       </div>

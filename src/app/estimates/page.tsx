@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +48,8 @@ import StatsCards from "@/components/ui/stats-cards";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { Package, Sparkles } from "lucide-react";
+import { useEstimatesQuery, useJobsQuery } from "@/lib/query/hooks";
+import { ListPageSkeleton } from "@/components/ui/page-skeletons";
 
 interface Estimate {
   id: string;
@@ -76,75 +78,54 @@ interface Estimate {
 }
 
 export default function EstimatePage() {
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
-  const [allEstimates, setAllEstimates] = useState<Estimate[]>([]); // Store all estimates for stats
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [linkedJobsMap, setLinkedJobsMap] = useState<Record<string, any[]>>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    fetchEstimates();
-  }, [selectedTag]);
+  const {
+    data,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useEstimatesQuery();
+  const { data: jobsData } = useJobsQuery();
 
-  const fetchEstimates = async () => {
-    try {
-      const response = await fetch('/api/estimates');
-      if (!response.ok) {
-        throw new Error('Failed to fetch estimates');
+  const allEstimates = (data ?? []) as Estimate[];
+  const jobs = (jobsData ?? []) as Array<Record<string, unknown>>;
+
+  const availableTags = useMemo(() => {
+    const allTags = new Set<string>();
+    allEstimates.forEach((estimate) => {
+      if (estimate.tags && Array.isArray(estimate.tags)) {
+        estimate.tags.forEach((tag) => allTags.add(tag));
       }
-      const data = await response.json();
-      setEstimates(data);
-      setAllEstimates(data); // Store all estimates for accurate stats
-      
-      // Extract all unique tags from estimates
-      const allTags = new Set<string>()
-      data.forEach((estimate: Estimate) => {
-        if (estimate.tags && Array.isArray(estimate.tags)) {
-          estimate.tags.forEach(tag => allTags.add(tag))
-        }
-      })
-      setAvailableTags(Array.from(allTags).sort())
-      
-      // Filter by tag if selected
-      if (selectedTag) {
-        const filtered = data.filter((estimate: Estimate) => 
-          estimate.tags && Array.isArray(estimate.tags) && estimate.tags.includes(selectedTag)
-        )
-        setEstimates(filtered)
-      } else {
-        setEstimates(data)
+    });
+    return Array.from(allTags).sort();
+  }, [allEstimates]);
+
+  const estimates = useMemo(() => {
+    if (!selectedTag) return allEstimates;
+    return allEstimates.filter(
+      (estimate) =>
+        estimate.tags &&
+        Array.isArray(estimate.tags) &&
+        estimate.tags.includes(selectedTag),
+    );
+  }, [allEstimates, selectedTag]);
+
+  const linkedJobsMap = useMemo(() => {
+    const jobsMap: Record<string, unknown[]> = {};
+    allEstimates.forEach((estimate) => {
+      const linked = jobs.filter((job) => job.estimate_id === estimate.id);
+      if (linked.length > 0) {
+        jobsMap[estimate.id] = linked;
       }
-      
-      // Fetch linked jobs for all estimates
-      try {
-        const jobsResponse = await fetch('/api/jobs');
-        if (jobsResponse.ok) {
-          const jobs = await jobsResponse.json();
-          const jobsMap: Record<string, any[]> = {};
-          data.forEach((estimate: Estimate) => {
-            const linked = jobs.filter((job: Record<string, unknown>) => 
-              job.estimate_id === estimate.id
-            );
-            if (linked.length > 0) {
-              jobsMap[estimate.id] = linked;
-            }
-          });
-          setLinkedJobsMap(jobsMap);
-        }
-      } catch (e) {
-        // Column may not exist yet, ignore
-        console.log('Could not fetch linked jobs:', e);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+    return jobsMap;
+  }, [allEstimates, jobs]);
+
+  const error =
+    queryError instanceof Error ? queryError.message : queryError ? "An error occurred" : null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -158,23 +139,12 @@ export default function EstimatePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading estimates...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (error && !data) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error: {error}</p>
-          <Button onClick={fetchEstimates}>Try Again</Button>
+          <Button onClick={() => refetch()}>Try Again</Button>
         </div>
       </div>
     );
@@ -283,6 +253,10 @@ export default function EstimatePage() {
 
         {/* Estimates Content */}
         <main className="flex-1 p-6">
+          {isLoading && !data ? (
+            <ListPageSkeleton />
+          ) : (
+          <>
           {/* Stats Cards */}
           <StatsCards
             stats={[
@@ -423,6 +397,8 @@ export default function EstimatePage() {
                 </Card>
               ))}
             </div>
+          )}
+          </>
           )}
         </main>
       </div>

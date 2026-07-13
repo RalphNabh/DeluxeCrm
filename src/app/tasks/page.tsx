@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +60,13 @@ import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
 import PageSidebar from "@/components/layout/page-sidebar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import {
+  useTasksQuery,
+  useClientsQuery,
+  useJobsQuery,
+  useInvalidateQueries,
+} from "@/lib/query/hooks";
+import { ListPageSkeleton } from "@/components/ui/page-skeletons";
 
 interface Task {
   id: string;
@@ -101,18 +108,13 @@ interface Job {
 }
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const invalidate = useInvalidateQueries();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -125,68 +127,34 @@ export default function TasksPage() {
     assigned_to: ""
   });
 
-  useEffect(() => {
-    fetchTasks();
-    fetchClients();
-    fetchJobs();
-  }, [selectedTag, selectedStatus]);
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useTasksQuery({ tag: selectedTag, status: selectedStatus });
+  const { data: clientsData } = useClientsQuery();
+  const { data: jobsData } = useJobsQuery();
 
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      let url = '/api/tasks';
-      const params = new URLSearchParams();
-      if (selectedTag) params.append('tag', selectedTag);
-      if (selectedStatus) params.append('status', selectedStatus);
-      if (params.toString()) url += `?${params.toString()}`;
+  const tasks = (data ?? []) as Task[];
+  const clients = (clientsData ?? []) as Client[];
+  const jobs = (jobsData ?? []) as Job[];
 
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch tasks');
-      const data = await response.json();
-      setTasks(data);
-
-      // Extract all unique tags (filter out empty strings)
-      const allTags = new Set<string>();
-      data.forEach((task: Task) => {
-        if (task.tags && Array.isArray(task.tags)) {
-          task.tags.forEach(tag => {
-            if (tag && tag.trim() !== '') {
-              allTags.add(tag);
-            }
-          });
-        }
-      });
-      setAvailableTags(Array.from(allTags).sort());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchClients = async () => {
-    try {
-      const response = await fetch('/api/clients');
-      if (response.ok) {
-        const data = await response.json();
-        setClients(data);
+  const availableTags = useMemo(() => {
+    const allTags = new Set<string>();
+    tasks.forEach((task) => {
+      if (task.tags && Array.isArray(task.tags)) {
+        task.tags.forEach((tag) => {
+          if (tag && tag.trim() !== "") {
+            allTags.add(tag);
+          }
+        });
       }
-    } catch (err) {
-      console.error('Error fetching clients:', err);
-    }
-  };
+    });
+    return Array.from(allTags).sort();
+  }, [tasks]);
 
-  const fetchJobs = async () => {
-    try {
-      const response = await fetch('/api/jobs');
-      if (response.ok) {
-        const data = await response.json();
-        setJobs(data);
-      }
-    } catch (err) {
-      console.error('Error fetching jobs:', err);
-    }
-  };
+  const error =
+    queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch tasks" : null;
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -246,7 +214,7 @@ export default function TasksPage() {
 
       if (!response.ok) throw new Error('Failed to create task');
       
-      await fetchTasks();
+      await invalidate.tasks();
       resetForm();
       setShowTaskDialog(false);
     } catch (err) {
@@ -276,7 +244,7 @@ export default function TasksPage() {
 
       if (!response.ok) throw new Error('Failed to update task');
       
-      await fetchTasks();
+      await invalidate.tasks();
       setEditingTask(null);
       resetForm();
       setShowTaskDialog(false);
@@ -295,7 +263,7 @@ export default function TasksPage() {
 
       if (!response.ok) throw new Error('Failed to delete task');
       
-      await fetchTasks();
+      await invalidate.tasks();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete task');
     }
@@ -311,7 +279,7 @@ export default function TasksPage() {
 
       if (!response.ok) throw new Error('Failed to update task status');
       
-      await fetchTasks();
+      await invalidate.tasks();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to update task status');
     }
@@ -370,17 +338,6 @@ export default function TasksPage() {
     if (!dueDate) return false;
     return new Date(dueDate) < new Date() && new Date(dueDate).toDateString() !== new Date().toDateString();
   };
-
-  if (loading && tasks.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading tasks...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -499,6 +456,10 @@ export default function TasksPage() {
 
         {/* Tasks Content */}
         <main className="flex-1 p-6">
+          {isLoading && !data ? (
+            <ListPageSkeleton />
+          ) : (
+          <>
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
               {error}
@@ -580,6 +541,8 @@ export default function TasksPage() {
               </Card>
             )}
           </div>
+          </>
+          )}
         </main>
       </div>
 

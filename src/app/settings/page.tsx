@@ -403,57 +403,6 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {!loadingSubscription && subscriptionStatus?.isActive && (
-              <div
-                role="status"
-                className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-teal-900 shadow-sm"
-              >
-                <div className="flex items-start gap-3">
-                  <CreditCard className="h-5 w-5 mt-0.5 shrink-0 text-teal-700" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">
-                      Your membership is still active
-                    </p>
-                    <p className="text-sm text-teal-800 mt-1">
-                      Status:{' '}
-                      <span className="font-medium capitalize">
-                        {subscriptionStatus.status}
-                      </span>
-                      {subscriptionStatus.subscription?.current_period_end && (
-                        <>
-                          {' '}
-                          · Renews{' '}
-                          {new Date(
-                            subscriptionStatus.subscription.current_period_end,
-                          ).toLocaleDateString()}
-                        </>
-                      )}
-                      {subscriptionStatus.subscription?.cancel_at_period_end && (
-                        <> · Scheduled to cancel at period end</>
-                      )}
-                    </p>
-                    <p className="text-sm text-teal-700 mt-2">
-                      Deleting your account will cancel this membership and stop future
-                      charges.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0 border-teal-300 bg-white"
-                    onClick={handleManageSubscription}
-                    disabled={portalLoading}
-                  >
-                    {portalLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Manage'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-
             {/* General Settings */}
             <Card className="border-gray-200 bg-white">
               <CardHeader>
@@ -561,7 +510,7 @@ export default function SettingsPage() {
                       <div className="flex items-center mb-2">
                         <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                         <h3 className="font-medium text-green-800">
-                          Membership is still active
+                          Active Subscription
                         </h3>
                       </div>
                       <p className="text-sm text-green-700">

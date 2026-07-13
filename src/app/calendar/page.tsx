@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,6 +54,8 @@ import PageSidebar from "@/components/layout/page-sidebar";
 import JobCreationModal from "@/components/jobs/job-creation-modal";
 import JobEditModal from "@/components/jobs/job-edit-modal";
 import { calculateEventPositions, type PositionedEvent } from "@/lib/utils/calendar-overlap";
+import { useJobsQuery, useInvalidateQueries } from "@/lib/query/hooks";
+import { CalendarSkeleton } from "@/components/ui/page-skeletons";
 
 interface Job {
   id: string;
@@ -81,52 +83,43 @@ interface Job {
 }
 
 export default function CalendarPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day'>('week');
   const [showAddJob, setShowAddJob] = useState(false);
   const [showEditJob, setShowEditJob] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const invalidate = useInvalidateQueries();
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
+  const {
+    data,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useJobsQuery();
 
-  const fetchJobs = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/jobs');
-      if (!response.ok) throw new Error('Failed to fetch jobs');
-      const data = await response.json();
-      setJobs(data);
-      
-      // Extract all unique tags from jobs
-      const allTags = new Set<string>();
-      data.forEach((job: Job) => {
-        if (job.tags && Array.isArray(job.tags)) {
-          job.tags.forEach(tag => allTags.add(tag));
-        }
-      });
-      setAvailableTags(Array.from(allTags).sort());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch jobs');
-    } finally {
-      setLoading(false);
-    }
+  const jobs = (data ?? []) as Job[];
+
+  const availableTags = useMemo(() => {
+    const allTags = new Set<string>();
+    jobs.forEach((job) => {
+      if (job.tags && Array.isArray(job.tags)) {
+        job.tags.forEach((tag) => allTags.add(tag));
+      }
+    });
+    return Array.from(allTags).sort();
+  }, [jobs]);
+
+  const error =
+    queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch jobs" : null;
+
+  const handleJobCreated = async (_newJob: Job) => {
+    await invalidate.jobs();
   };
 
-  const handleJobCreated = (newJob: Job) => {
-    setJobs(prev => [...prev, newJob]);
-  };
-
-  const handleJobUpdated = (updatedJob: Job) => {
-    // Refresh the jobs list to ensure we have the latest data
-    fetchJobs();
+  const handleJobUpdated = async (_updatedJob: Job) => {
+    await invalidate.jobs();
     setSelectedJob(null);
   };
 
@@ -262,24 +255,13 @@ export default function CalendarPage() {
     setSelectedDate(new Date());
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading calendar...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (error && !data) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <p className="text-red-600 mb-4">Error: {error}</p>
-          <Button onClick={fetchJobs}>Try Again</Button>
+          <Button onClick={() => refetch()}>Try Again</Button>
         </div>
       </div>
     );
@@ -422,6 +404,10 @@ export default function CalendarPage() {
 
         {/* Calendar Content */}
         <main className="flex-1 p-6">
+          {isLoading && !data ? (
+            <CalendarSkeleton />
+          ) : (
+          <>
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               {selectedDate.toLocaleDateString('en-US', { 
@@ -1113,6 +1099,8 @@ export default function CalendarPage() {
                 </Button>
               </div>
             </div>
+          )}
+          </>
           )}
         </main>
       </div>

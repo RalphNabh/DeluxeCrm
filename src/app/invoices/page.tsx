@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useInvoicesQuery, useInvalidateQueries } from '@/lib/query/hooks'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,6 +46,7 @@ import PageHeader from '@/components/layout/page-header'
 import StatsCards from '@/components/ui/stats-cards'
 import EmptyState from '@/components/ui/empty-state'
 import { NotificationBell } from '@/components/notifications/notification-bell'
+import { ListPageSkeleton } from '@/components/ui/page-skeletons'
 
 interface Invoice {
   id: string;
@@ -63,38 +65,30 @@ interface Invoice {
 }
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    fetchInvoices();
-  }, [debouncedQuery]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const invalidate = useInvalidateQueries();
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 300);
     return () => clearTimeout(t);
   }, [query]);
 
-  const fetchInvoices = async () => {
-    try {
-      const url = debouncedQuery ? `/api/invoices?q=${encodeURIComponent(debouncedQuery)}` : '/api/invoices';
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch invoices');
-      }
-      const data = await response.json();
-      setInvoices(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useInvoicesQuery({ q: debouncedQuery });
+
+  const invoices = (data ?? []) as Invoice[];
+
+  const error =
+    actionError ||
+    (queryError instanceof Error ? queryError.message : queryError ? 'An error occurred' : null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -123,7 +117,7 @@ export default function InvoicesPage() {
     }
 
     setSendingEmail(invoice.id)
-    setError(null)
+    setActionError(null)
 
     try {
       const response = await fetch('/api/email/send-invoice', {
@@ -141,34 +135,23 @@ export default function InvoicesPage() {
         throw new Error(errorData.error || 'Failed to send email')
       }
 
-      // Refresh invoices to get updated status
-      await fetchInvoices()
+      await invalidate.invoices()
       alert('Invoice sent successfully!')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send email')
-      alert(err instanceof Error ? err.message : 'Failed to send email')
+      const message = err instanceof Error ? err.message : 'Failed to send email'
+      setActionError(message)
+      alert(message)
     } finally {
       setSendingEmail(null)
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading invoices...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (error && !data) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error: {error}</p>
-          <Button onClick={fetchInvoices}>Try Again</Button>
+          <Button onClick={() => refetch()}>Try Again</Button>
         </div>
       </div>
     );
@@ -226,6 +209,10 @@ export default function InvoicesPage() {
 
         {/* Invoices Content */}
         <main className="flex-1 p-6">
+          {isLoading && !data ? (
+            <ListPageSkeleton />
+          ) : (
+          <>
           {/* Enhanced Stats Cards */}
           <StatsCards
             stats={[
@@ -369,6 +356,8 @@ export default function InvoicesPage() {
                 );
               })}
             </div>
+          )}
+          </>
           )}
         </main>
       </div>

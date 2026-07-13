@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +43,8 @@ import {
 import UserProfile from "@/components/layout/user-profile";
 import PageSidebar from "@/components/layout/page-sidebar";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+import { useMaterialsQuery, useInvalidateQueries } from "@/lib/query/hooks";
+import { CardGridSkeleton } from "@/components/ui/page-skeletons";
 
 interface Material {
   id: string;
@@ -58,13 +60,11 @@ interface Material {
 }
 
 export default function MaterialsPage() {
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showNewMaterial, setShowNewMaterial] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const invalidate = useInvalidateQueries();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -77,25 +77,17 @@ export default function MaterialsPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    fetchMaterials();
-  }, []);
+  const {
+    data,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useMaterialsQuery();
 
-  const fetchMaterials = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/materials");
-      if (!response.ok) {
-        throw new Error("Failed to fetch materials");
-      }
-      const data = await response.json();
-      setMaterials(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const materials = (data ?? []) as Material[];
+
+  const error =
+    queryError instanceof Error ? queryError.message : queryError ? "An error occurred" : null;
 
   const handleCreateMaterial = async () => {
     if (!formData.name.trim()) return;
@@ -119,7 +111,7 @@ export default function MaterialsPage() {
         throw new Error(errorData.error || "Failed to create material");
       }
 
-      await fetchMaterials();
+      await invalidate.materials();
       setShowNewMaterial(false);
       resetForm();
     } catch (err) {
@@ -148,7 +140,7 @@ export default function MaterialsPage() {
 
       if (!response.ok) throw new Error("Failed to update material");
 
-      await fetchMaterials();
+      await invalidate.materials();
       setEditingMaterial(null);
       resetForm();
     } catch (err) {
@@ -166,7 +158,7 @@ export default function MaterialsPage() {
 
       if (!response.ok) throw new Error("Failed to delete material");
 
-      await fetchMaterials();
+      await invalidate.materials();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete material");
     }
@@ -279,29 +271,24 @@ export default function MaterialsPage() {
     setImagePreview(material.image_url || null);
   };
 
-  const categories = Array.from(
-    new Set(materials.map((m) => m.category).filter(Boolean))
-  ).sort();
+  const categories = useMemo(
+    () =>
+      Array.from(new Set(materials.map((m) => m.category).filter(Boolean))).sort(),
+    [materials],
+  );
 
-  const filteredMaterials = materials.filter((material) => {
-    const matchesSearch =
-      material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      material.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || material.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading materials...</p>
-        </div>
-      </div>
-    );
-  }
+  const filteredMaterials = useMemo(
+    () =>
+      materials.filter((material) => {
+        const matchesSearch =
+          material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          material.description?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory =
+          selectedCategory === "all" || material.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+      }),
+    [materials, searchTerm, selectedCategory],
+  );
 
   return (
       <div className="min-h-screen bg-gray-50 flex">
@@ -505,6 +492,10 @@ export default function MaterialsPage() {
 
         {/* Content */}
         <main className="flex-1 p-6">
+          {isLoading && !data ? (
+            <CardGridSkeleton />
+          ) : (
+          <>
           {/* Filters */}
           <div className="mb-6 flex items-center space-x-4">
             <div className="relative flex-1 max-w-md">
@@ -773,6 +764,8 @@ export default function MaterialsPage() {
               )}
             </DialogContent>
           </Dialog>
+          </>
+          )}
         </main>
       </div>
     </div>

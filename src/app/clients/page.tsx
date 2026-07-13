@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +54,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  useClientsQuery,
+  useClientFoldersQuery,
+  useInvalidateQueries,
+} from "@/lib/query/hooks";
+import { ListPageSkeleton } from "@/components/ui/page-skeletons";
 
 interface ClientFolder {
   id: string;
@@ -78,81 +84,61 @@ interface Client {
 }
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [allClients, setAllClients] = useState<Client[]>([]); // Store all clients for stats
-  const [folders, setFolders] = useState<ClientFolder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-
-  useEffect(() => {
-    fetchClients();
-    fetchFolders();
-  }, [debouncedQuery, selectedFolderId, selectedTag]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const invalidate = useInvalidateQueries();
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 300);
     return () => clearTimeout(t);
   }, [query]);
 
-  const fetchClients = async () => {
-    try {
-      const url = debouncedQuery ? `/api/clients?q=${encodeURIComponent(debouncedQuery)}` : '/api/clients';
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Failed to fetch clients');
-      }
-      const data = await response.json();
-      
-      // Extract all unique tags from clients
-      const allTags = new Set<string>()
-      data.forEach((client: Client) => {
-        if (client.tags && Array.isArray(client.tags)) {
-          client.tags.forEach(tag => allTags.add(tag))
-        }
-      })
-      setAvailableTags(Array.from(allTags).sort())
+  const {
+    data: allClients = [],
+    isLoading,
+    error: clientsError,
+    refetch: refetchClients,
+  } = useClientsQuery(debouncedQuery);
 
-      // Filter by folder if selected
-      let filteredData = data;
-      if (selectedFolderId) {
-        filteredData = filteredData.filter((client: Client) => client.folder_id === selectedFolderId);
-      }
+  const { data: foldersData = [], refetch: refetchFolders } = useClientFoldersQuery();
 
-      // Filter by tag if selected
-      if (selectedTag) {
-        filteredData = filteredData.filter((client: Client) => 
-          client.tags && Array.isArray(client.tags) && client.tags.includes(selectedTag)
-        );
+  const typedClients = allClients as Client[];
+  const folders = foldersData as ClientFolder[];
+
+  const availableTags = useMemo(() => {
+    const allTags = new Set<string>();
+    typedClients.forEach((client) => {
+      if (client.tags && Array.isArray(client.tags)) {
+        client.tags.forEach((tag) => allTags.add(tag));
       }
-      
-      setClients(filteredData);
-      setAllClients(data); // Store all clients for accurate stats
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
+    });
+    return Array.from(allTags).sort();
+  }, [typedClients]);
+
+  const clients = useMemo(() => {
+    let filtered = typedClients;
+    if (selectedFolderId) {
+      filtered = filtered.filter((client) => client.folder_id === selectedFolderId);
     }
-  };
-
-  const fetchFolders = async () => {
-    try {
-      const response = await fetch('/api/client-folders');
-      if (response.ok) {
-        const data = await response.json();
-        setFolders(data || []);
-      }
-    } catch (err) {
-      // Silently fail if folders don't exist yet
-      console.log('Folders not available:', err);
+    if (selectedTag) {
+      filtered = filtered.filter(
+        (client) =>
+          client.tags &&
+          Array.isArray(client.tags) &&
+          client.tags.includes(selectedTag),
+      );
     }
-  };
+    return filtered;
+  }, [typedClients, selectedFolderId, selectedTag]);
+
+  const error =
+    actionError ||
+    (clientsError instanceof Error ? clientsError.message : null);
 
   const handleDeleteClient = async (id: string) => {
     if (!confirm('Are you sure you want to delete this client?')) {
@@ -168,9 +154,9 @@ export default function ClientsPage() {
         throw new Error('Failed to delete client');
       }
       
-      setClients(clients.filter(client => client.id !== id));
+      await invalidate.clients();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete client');
+      setActionError(err instanceof Error ? err.message : 'Failed to delete client');
     }
   };
 
@@ -186,30 +172,18 @@ export default function ClientsPage() {
         throw new Error('Failed to move client');
       }
 
-      // Refresh clients list
-      fetchClients();
+      await invalidate.clients();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to move client');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading clients...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (error && typedClients.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error: {error}</p>
-          <Button onClick={fetchClients}>Try Again</Button>
+          <Button onClick={() => refetchClients()}>Try Again</Button>
         </div>
       </div>
     );
@@ -271,15 +245,19 @@ export default function ClientsPage() {
 
           {/* Clients Content */}
         <main className="flex-1 p-6">
-
+          {isLoading ? (
+            <ListPageSkeleton />
+          ) : (
+          <>
           {/* Folder Manager */}
           {showFilters && (
           <div className="mb-6 space-y-4">
             <FolderManager
               folders={folders}
               onFoldersChange={() => {
-                fetchFolders();
-                fetchClients();
+                void refetchFolders();
+                void invalidate.clientFolders();
+                void invalidate.clients();
               }}
               selectedFolderId={selectedFolderId}
               onFolderSelect={setSelectedFolderId}
@@ -329,21 +307,21 @@ export default function ClientsPage() {
             stats={[
               {
                 label: "Total Clients",
-                value: allClients.length,
+                value: typedClients.length,
                 icon: Users,
                 iconColor: "text-blue-600",
                 iconBg: "bg-blue-100"
               },
               {
                 label: "Active Clients",
-                value: allClients.length,
+                value: typedClients.length,
                 icon: CheckCircle,
                 iconColor: "text-blue-600",
                 iconBg: "bg-blue-100"
               },
               {
                 label: "Total Value",
-                value: formatCurrencyWithSymbol(allClients.reduce((sum, c) => sum + Number(c.total_value || 0), 0)),
+                value: formatCurrencyWithSymbol(typedClients.reduce((sum, c) => sum + Number(c.total_value || 0), 0)),
                 icon: DollarSign,
                 iconColor: "text-orange-600",
                 iconBg: "bg-orange-100"
@@ -521,6 +499,8 @@ export default function ClientsPage() {
               ))
             )}
           </div>
+          </>
+          )}
         </main>
       </div>
     </div>

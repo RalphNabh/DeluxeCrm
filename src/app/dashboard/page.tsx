@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,16 @@ import { DashboardTour } from "@/components/tutorial/dashboard-tour";
 import { HelpCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useNotifications } from "@/components/notifications/notification-provider";
+import {
+  useLeadsQuery,
+  useEstimatesQuery,
+  useClientsQuery,
+  useClientFoldersQuery,
+  useTasksQuery,
+  usePipelineStagesQuery,
+  useInvalidateQueries,
+} from "@/lib/query/hooks";
+import { DashboardSkeleton } from "@/components/ui/page-skeletons";
 
 type LeadFolder = {
   id: string;
@@ -485,12 +495,111 @@ function DroppableStage({
   );
 }
 
+function enrichLeads(
+  leadsData: Lead[],
+  estimatesData: any[] | undefined,
+  clientsData: any[] | undefined,
+): Lead[] {
+  const enriched = leadsData.map((lead) => ({ ...lead }));
+
+  if (estimatesData) {
+    enriched.forEach((lead) => {
+      const matchingEstimates = estimatesData.filter((est: any) => {
+        const clientEmail = est.clients?.email?.toLowerCase();
+        const clientName = est.clients?.name?.toLowerCase();
+        const leadEmail = lead.email?.toLowerCase();
+        const leadName = lead.name?.toLowerCase();
+
+        return (
+          (leadEmail && clientEmail && clientEmail === leadEmail) ||
+          (leadName && clientName && clientName === leadName)
+        );
+      });
+
+      if (matchingEstimates.length > 0) {
+        const latestEstimate = matchingEstimates.sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )[0] as any;
+        lead.value = latestEstimate.total || lead.value || 0;
+        if (latestEstimate.client_id) {
+          lead.client_id = latestEstimate.client_id;
+        }
+      }
+    });
+  }
+
+  if (clientsData) {
+    enriched.forEach((lead) => {
+      if (lead.folder_id) return;
+
+      let matchedClient: any = null;
+      if (lead.client_id) {
+        matchedClient = clientsData.find((c: any) => c.id === lead.client_id);
+      }
+
+      if (!matchedClient) {
+        matchedClient = clientsData.find((c: any) => {
+          const emailMatch =
+            lead.email &&
+            c.email &&
+            lead.email.toLowerCase() === c.email.toLowerCase();
+          const nameMatch =
+            lead.name &&
+            c.name &&
+            lead.name.toLowerCase() === c.name.toLowerCase();
+          return emailMatch || nameMatch;
+        });
+      }
+
+      if (matchedClient && matchedClient.folder_id) {
+        lead.folder_id = matchedClient.folder_id;
+        if (matchedClient.client_folders) {
+          lead.client_folders = matchedClient.client_folders;
+        }
+      }
+    });
+  }
+
+  return enriched;
+}
+
+function extractTagsFromLeads(leadsData: Lead[]): string[] {
+  const allTags = new Set<string>();
+  leadsData.forEach((lead) => {
+    if (lead.tags && Array.isArray(lead.tags)) {
+      lead.tags.forEach((tag) => {
+        if (tag && tag.trim() !== "") {
+          allTags.add(tag);
+        }
+      });
+    }
+  });
+  return Array.from(allTags).sort();
+}
+
 export default function Dashboard() {
+  const leadsQuery = useLeadsQuery();
+  const stagesQuery = usePipelineStagesQuery();
+  const estimatesQuery = useEstimatesQuery();
+  const clientsQuery = useClientsQuery();
+  const foldersQuery = useClientFoldersQuery();
+  const tasksQuery = useTasksQuery();
+  const invalidate = useInvalidateQueries();
+
+  const lastSyncedLeadsAt = useRef(0);
+  const lastSyncedStagesAt = useRef(0);
+  const lastSyncedEstimatesAt = useRef(0);
+  const lastSyncedClientsAt = useRef(0);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const loading =
+    (leadsQuery.isLoading && !leadsQuery.data) ||
+    (stagesQuery.isLoading && !stagesQuery.data);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showStageDialog, setShowStageDialog] = useState(false);
   const [editingStage, setEditingStage] = useState<PipelineStage | null>(null);
@@ -520,135 +629,88 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch pipeline stages first
-        const stagesRes = await fetch("/api/pipeline-stages");
-        if (!stagesRes.ok) throw new Error("Failed to load pipeline stages");
-        const stagesData = await stagesRes.json();
-        setStages(stagesData.sort((a: PipelineStage, b: PipelineStage) => a.position - b.position));
+    if (leadsQuery.error) {
+      const msg =
+        leadsQuery.error instanceof Error
+          ? leadsQuery.error.message
+          : "Failed to load leads";
+      console.error("Failed to load leads:", leadsQuery.error);
+      setError(msg);
+    } else if (stagesQuery.error) {
+      const msg =
+        stagesQuery.error instanceof Error
+          ? stagesQuery.error.message
+          : "Failed to load pipeline stages";
+      console.error("Failed to load pipeline stages:", stagesQuery.error);
+      setError(msg);
+    } else {
+      setError(null);
+    }
+  }, [leadsQuery.error, stagesQuery.error]);
 
-        // Then fetch leads, estimates, folders, clients, and tasks to enrich with values and folder info
-        const [leadsRes, estimatesRes, foldersRes, clientsRes, tasksRes] = await Promise.all([
-          fetch("/api/leads"),
-          fetch("/api/estimates"),
-          fetch("/api/client-folders"),
-          fetch("/api/clients"),
-          fetch("/api/tasks")
-        ]);
-        
-        if (!leadsRes.ok) {
-          const errorData = await leadsRes.json().catch(() => ({}));
-          console.error('Failed to load leads:', errorData);
-          throw new Error(errorData.error || "Failed to load leads");
-        }
-        const leadsData = await leadsRes.json();
-        
-        // Fetch folders
-        let foldersData: LeadFolder[] = [];
-        if (foldersRes.ok) {
-          foldersData = await foldersRes.json() || [];
-          setFolders(foldersData);
-        }
-        
-        // Fetch clients to get folder information for linked leads
-        let clientsData: any[] = [];
-        if (clientsRes.ok) {
-          clientsData = await clientsRes.json() || [];
-        }
-        
-        // Fetch estimates to update lead values
-        if (estimatesRes.ok) {
-          const estimatesData = await estimatesRes.json();
-          // Match estimates to leads and update values
-          leadsData.forEach((lead: Lead) => {
-            // Find estimates for this lead by matching client email/name
-            const matchingEstimates = estimatesData.filter((est: any) => {
-              const clientEmail = est.clients?.email?.toLowerCase();
-              const clientName = est.clients?.name?.toLowerCase();
-              const leadEmail = lead.email?.toLowerCase();
-              const leadName = lead.name?.toLowerCase();
-              
-              return (leadEmail && clientEmail && clientEmail === leadEmail) ||
-                     (leadName && clientName && clientName === leadName);
-            });
-            
-            // Update lead value with latest estimate total if exists
-            if (matchingEstimates.length > 0) {
-              const latestEstimate = matchingEstimates.sort((a: any, b: any) => 
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-              )[0];
-              lead.value = latestEstimate.total || lead.value || 0;
-              // Store client_id if available
-              if (latestEstimate.client_id) {
-                lead.client_id = latestEstimate.client_id;
-              }
-            }
-          });
-        }
-        
-        // Match leads to clients and inherit folder_id if lead doesn't have one
-        leadsData.forEach((lead: Lead) => {
-          // If lead already has folder_id, skip
-          if (lead.folder_id) return;
-          
-          // Try to find matching client by client_id first
-          let matchedClient = null;
-          if (lead.client_id) {
-            matchedClient = clientsData.find((c: any) => c.id === lead.client_id);
-          }
-          
-          // If no match by client_id, try by email or name
-          if (!matchedClient) {
-            matchedClient = clientsData.find((c: any) => {
-              const emailMatch = lead.email && c.email && 
-                lead.email.toLowerCase() === c.email.toLowerCase();
-              const nameMatch = lead.name && c.name && 
-                lead.name.toLowerCase() === c.name.toLowerCase();
-              return emailMatch || nameMatch;
-            });
-          }
-          
-          // If we found a matching client with a folder, inherit the folder info
-          if (matchedClient && matchedClient.folder_id) {
-            lead.folder_id = matchedClient.folder_id;
-            // Also copy the folder details if available
-            if (matchedClient.client_folders) {
-              lead.client_folders = matchedClient.client_folders;
-            }
-          }
-        });
-        
-        setLeads(leadsData);
-        
-        // Fetch tasks for the widget
-        if (tasksRes.ok) {
-          const tasksData = await tasksRes.json() || [];
-          setTasks(tasksData);
-        }
-        
-        // Extract all unique tags from leads
-        const allTags = new Set<string>();
-        leadsData.forEach((lead: Lead) => {
-          if (lead.tags && Array.isArray(lead.tags)) {
-            lead.tags.forEach(tag => {
-              if (tag && tag.trim() !== '') {
-                allTags.add(tag);
-              }
-            });
-          }
-        });
-        setAvailableTags(Array.from(allTags).sort());
-      } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : "Error loading data";
-        console.error('Error loading dashboard data:', e);
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  useEffect(() => {
+    if (!stagesQuery.data) return;
+
+    const shouldSync =
+      stages.length === 0 ||
+      stagesQuery.dataUpdatedAt !== lastSyncedStagesAt.current;
+    if (!shouldSync) return;
+
+    const sorted = [...(stagesQuery.data as PipelineStage[])].sort(
+      (a, b) => a.position - b.position,
+    );
+    setStages(sorted);
+    lastSyncedStagesAt.current = stagesQuery.dataUpdatedAt;
+  }, [stagesQuery.data, stagesQuery.dataUpdatedAt, stages.length]);
+
+  useEffect(() => {
+    if (foldersQuery.data) {
+      setFolders(foldersQuery.data as LeadFolder[]);
+    }
+  }, [foldersQuery.data, foldersQuery.dataUpdatedAt]);
+
+  useEffect(() => {
+    if (tasksQuery.data) {
+      setTasks(tasksQuery.data);
+    }
+  }, [tasksQuery.data, tasksQuery.dataUpdatedAt]);
+
+  useEffect(() => {
+    if (!leadsQuery.data) return;
+
+    const leadsChanged =
+      leadsQuery.dataUpdatedAt !== lastSyncedLeadsAt.current;
+    const estimatesChanged =
+      estimatesQuery.dataUpdatedAt !== lastSyncedEstimatesAt.current;
+    const clientsChanged =
+      clientsQuery.dataUpdatedAt !== lastSyncedClientsAt.current;
+
+    const shouldSync =
+      leads.length === 0 ||
+      leadsChanged ||
+      (lastSyncedLeadsAt.current > 0 && (estimatesChanged || clientsChanged));
+    if (!shouldSync) return;
+
+    const enriched = enrichLeads(
+      leadsQuery.data as Lead[],
+      estimatesQuery.data,
+      clientsQuery.data,
+    );
+    setLeads(enriched);
+    setAvailableTags(extractTagsFromLeads(enriched));
+
+    lastSyncedLeadsAt.current = leadsQuery.dataUpdatedAt;
+    lastSyncedEstimatesAt.current = estimatesQuery.dataUpdatedAt;
+    lastSyncedClientsAt.current = clientsQuery.dataUpdatedAt;
+  }, [
+    leadsQuery.data,
+    leadsQuery.dataUpdatedAt,
+    leads.length,
+    estimatesQuery.data,
+    estimatesQuery.dataUpdatedAt,
+    clientsQuery.data,
+    clientsQuery.dataUpdatedAt,
+  ]);
 
   // Show welcome notification after login/signup
   useEffect(() => {
@@ -775,6 +837,7 @@ export default function Dashboard() {
         }
         return l;
       }));
+      invalidate.leads();
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Failed to update lead";
       console.error('Error updating lead status:', e);
@@ -826,6 +889,7 @@ export default function Dashboard() {
       setStages(prev => [...prev, newStage].sort((a, b) => a.position - b.position));
       setNewStageName("");
       setShowStageDialog(false);
+      invalidate.pipelineStages();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create stage");
     }
@@ -859,6 +923,7 @@ export default function Dashboard() {
       setNewStageName("");
       setEditingStage(null);
       setShowStageDialog(false);
+      invalidate.pipelineStages();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update stage");
     }
@@ -894,6 +959,7 @@ export default function Dashboard() {
           const error = await res.json();
           throw new Error(error.error || "Failed to delete stage");
         }
+        invalidate.pipelineStages();
       } catch (e) {
         console.error("Error deleting stage:", e);
         // Restore stage if deletion fails
@@ -1066,18 +1132,9 @@ export default function Dashboard() {
           <div className="mb-6 space-y-4">
             <FolderManager
               folders={folders}
-              onFoldersChange={async () => {
-                // Refetch folders and leads
-                const foldersRes = await fetch("/api/client-folders");
-                if (foldersRes.ok) {
-                  const foldersData = await foldersRes.json();
-                  setFolders(foldersData || []);
-                }
-                const leadsRes = await fetch("/api/leads");
-                if (leadsRes.ok) {
-                  const leadsData = await leadsRes.json();
-                  setLeads(leadsData);
-                }
+              onFoldersChange={() => {
+                invalidate.clientFolders();
+                invalidate.leads();
               }}
               selectedFolderId={selectedFolderId}
               onFolderSelect={setSelectedFolderId}
@@ -1271,6 +1328,10 @@ export default function Dashboard() {
           )}
 
           {/* Pipeline Stats */}
+          {loading ? (
+            <DashboardSkeleton />
+          ) : (
+          <>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Pipeline Overview</h2>
             <Dialog open={showStageDialog} onOpenChange={setShowStageDialog}>
@@ -1363,8 +1424,7 @@ export default function Dashboard() {
               ) : null}
             </DragOverlay>
           </DndContext>
-          {loading && (
-            <div className="text-center text-sm text-gray-500 mt-6">Loading leads...</div>
+          </>
           )}
           {error && (
             <div className="text-center text-sm text-red-600 mt-6">{error}</div>

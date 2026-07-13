@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
+import { useClientsQuery, useEstimatesQuery, useInvalidateQueries } from '@/lib/query/hooks'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -53,9 +54,13 @@ function CreateInvoiceContent() {
   const estimateId = searchParams.get('estimateId')
   const jobId = searchParams.get('jobId')
   const clientId = searchParams.get('clientId')
+  const invalidate = useInvalidateQueries()
   
-  const [clients, setClients] = useState<Client[]>([])
-  const [estimates, setEstimates] = useState<Estimate[]>([])
+  const { data: clientsData } = useClientsQuery()
+  const { data: estimatesData } = useEstimatesQuery()
+  const clients = (clientsData ?? []) as Client[]
+  const estimates = (estimatesData ?? []) as Estimate[]
+
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null)
   const [lineItems, setLineItems] = useState<LineItem[]>([])
@@ -73,12 +78,8 @@ function CreateInvoiceContent() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchClients()
     fetchUserEmail()
-    if (estimateId) {
-      fetchEstimates()
-    }
-  }, [estimateId])
+  }, [])
 
   const fetchUserEmail = async () => {
     try {
@@ -108,28 +109,6 @@ function CreateInvoiceContent() {
       }
     }
   }, [form.estimate_id, estimates])
-
-  const fetchClients = async () => {
-    try {
-      const response = await fetch('/api/clients')
-      if (!response.ok) throw new Error('Failed to fetch clients')
-      const data = await response.json()
-      setClients(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch clients')
-    }
-  }
-
-  const fetchEstimates = async () => {
-    try {
-      const response = await fetch('/api/estimates')
-      if (!response.ok) throw new Error('Failed to fetch estimates')
-      const data = await response.json()
-      setEstimates(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch estimates')
-    }
-  }
 
   const addLineItem = () => {
     setLineItems([...lineItems, {
@@ -210,6 +189,7 @@ function CreateInvoiceContent() {
       }
 
       const invoice = await response.json()
+      await invalidate.invoices()
       router.push(`/invoices/${invoice.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create invoice')

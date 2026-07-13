@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +60,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAutomationsQuery, useInvalidateQueries } from "@/lib/query/hooks";
+import { ListPageSkeleton } from "@/components/ui/page-skeletons";
 
 type Automation = {
   id: string;
@@ -178,9 +180,6 @@ const AUTOMATION_TEMPLATES = [
 ];
 
 export default function AutomationsPage() {
-  const [automations, setAutomations] = useState<Automation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showNewAutomation, setShowNewAutomation] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [customName, setCustomName] = useState('');
@@ -192,23 +191,21 @@ export default function AutomationsPage() {
   const [editBody, setEditBody] = useState('');
   const [updating, setUpdating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const invalidate = useInvalidateQueries();
 
-  useEffect(() => {
-    fetchAutomations();
-  }, []);
+  const {
+    data,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useAutomationsQuery();
 
-  const fetchAutomations = async () => {
-    try {
-      const res = await fetch('/api/automations');
-      if (!res.ok) throw new Error('Failed to fetch automations');
-      const data = await res.json();
-      setAutomations(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch automations');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const automations = (data ?? []) as Automation[];
+
+  const error =
+    actionError ||
+    (queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch automations" : null);
 
   const toggleAutomation = async (id: string, current: boolean) => {
     try {
@@ -217,13 +214,13 @@ export default function AutomationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !current })
       });
-      setAutomations(prev => prev.map(a => a.id === id ? { ...a, is_active: !current } : a));
+      await invalidate.automations();
     } catch {}
   };
 
   const createAutomation = async () => {
     if (!selectedTemplate) {
-      setError('Please select an automation template');
+      setActionError('Please select an automation template');
       return;
     }
 
@@ -231,7 +228,7 @@ export default function AutomationsPage() {
     if (!template) return;
 
     setCreating(true);
-    setError(null);
+    setActionError(null);
 
     try {
       // Use custom messages if provided, otherwise use template defaults
@@ -259,15 +256,14 @@ export default function AutomationsPage() {
         throw new Error(errorData.error || 'Failed to create automation');
       }
 
-      const newAutomation = await response.json();
-      setAutomations(prev => [newAutomation, ...prev]);
+      await invalidate.automations();
       setShowNewAutomation(false);
       setSelectedTemplate('');
       setCustomName('');
       setCustomSubject('');
       setCustomBody('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create automation');
+      setActionError(e instanceof Error ? e.message : 'Failed to create automation');
     } finally {
       setCreating(false);
     }
@@ -287,14 +283,14 @@ export default function AutomationsPage() {
     setEditingAutomation(null);
     setEditSubject('');
     setEditBody('');
-    setError(null);
+    setActionError(null);
   };
 
   const updateAutomation = async () => {
     if (!editingAutomation) return;
 
     setUpdating(true);
-    setError(null);
+    setActionError(null);
 
     try {
       // Preserve existing payload fields and update subject/body
@@ -317,11 +313,10 @@ export default function AutomationsPage() {
         throw new Error(errorData.error || 'Failed to update automation');
       }
 
-      const updated = await response.json();
-      setAutomations(prev => prev.map(a => a.id === updated.id ? updated : a));
+      await invalidate.automations();
       closeEditDialog();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update automation');
+      setActionError(e instanceof Error ? e.message : 'Failed to update automation');
     } finally {
       setUpdating(false);
     }
@@ -337,9 +332,9 @@ export default function AutomationsPage() {
 
       if (!response.ok) throw new Error('Failed to delete automation');
 
-      setAutomations(prev => prev.filter(a => a.id !== id));
+      await invalidate.automations();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete automation');
+      setActionError(e instanceof Error ? e.message : 'Failed to delete automation');
     }
   };
 
@@ -382,17 +377,6 @@ export default function AutomationsPage() {
     };
     return labels[action] || action;
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading automations...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -551,7 +535,7 @@ export default function AutomationsPage() {
                         setCustomName('');
                         setCustomSubject('');
                         setCustomBody('');
-                        setError(null);
+                        setActionError(null);
                       }}>
                         Cancel
                       </Button>
@@ -597,6 +581,10 @@ export default function AutomationsPage() {
 
         {/* Automations Content */}
         <main className="flex-1 p-6">
+          {isLoading && !data ? (
+            <ListPageSkeleton cards={3} />
+          ) : (
+          <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="border-0 shadow-sm">
@@ -755,6 +743,8 @@ export default function AutomationsPage() {
                 </Card>
               ))}
             </div>
+          )}
+          </>
           )}
         </main>
       </div>

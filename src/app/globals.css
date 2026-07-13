@@ -237,6 +237,29 @@ body {
   animation: heroFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* YouTube-style skeleton shimmer */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #e5e7eb 0%,
+    #e5e7eb 35%,
+    #f3f4f6 50%,
+    #e5e7eb 65%,
+    #e5e7eb 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .aurora-blob,
@@ -245,8 +268,12 @@ body {
   .animate-float,
   .hero-fade,
   .animate-fade-in-up,
-  .stagger-item {
+  .stagger-item,
+  .skeleton-shimmer {
     animation: none !important;
+  }
+  .skeleton-shimmer {
+    background: #e5e7eb;
   }
   .hero-fade {
     opacity: 1;

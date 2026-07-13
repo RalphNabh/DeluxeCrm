@@ -191,6 +191,22 @@ AS $$
   );
 $$;
 
+CREATE OR REPLACE FUNCTION public.is_org_admin(p_org_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.organization_members
+    WHERE user_id = auth.uid()
+      AND org_id = p_org_id
+      AND status = 'active'
+      AND role IN ('owner', 'admin')
+  );
+$$;
+
 -- =============================================================================
 -- Backfill: one org per existing contractor user
 -- =============================================================================
@@ -299,43 +315,26 @@ CREATE POLICY "Members can view their orgs" ON public.organizations
 
 DROP POLICY IF EXISTS "Owners can update their orgs" ON public.organizations;
 CREATE POLICY "Owners can update their orgs" ON public.organizations
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.organization_members
-      WHERE org_id = organizations.id
-        AND user_id = auth.uid()
-        AND role IN ('owner', 'admin')
-        AND status = 'active'
-    )
-  );
+  FOR UPDATE USING (public.is_org_admin(id));
 
 DROP POLICY IF EXISTS "Members can view org memberships" ON public.organization_members;
 CREATE POLICY "Members can view org memberships" ON public.organization_members
-  FOR SELECT USING (org_id IN (SELECT public.user_org_ids()));
+  FOR SELECT USING (
+    user_id = auth.uid()
+    OR org_id IN (SELECT public.user_org_ids())
+  );
 
+-- Must use SECURITY DEFINER helpers — querying organization_members inside its
+-- own policy causes infinite recursion and breaks /api/clients (403).
 DROP POLICY IF EXISTS "Admins can manage memberships" ON public.organization_members;
 CREATE POLICY "Admins can manage memberships" ON public.organization_members
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.organization_members om
-      WHERE om.org_id = organization_members.org_id
-        AND om.user_id = auth.uid()
-        AND om.role IN ('owner', 'admin')
-        AND om.status = 'active'
-    )
-  );
+  FOR ALL USING (public.is_org_admin(org_id))
+  WITH CHECK (public.is_org_admin(org_id));
 
 DROP POLICY IF EXISTS "Admins can manage invitations" ON public.organization_invitations;
 CREATE POLICY "Admins can manage invitations" ON public.organization_invitations
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.organization_members om
-      WHERE om.org_id = organization_invitations.org_id
-        AND om.user_id = auth.uid()
-        AND om.role IN ('owner', 'admin')
-        AND om.status = 'active'
-    )
-  );
+  FOR ALL USING (public.is_org_admin(org_id))
+  WITH CHECK (public.is_org_admin(org_id));
 
 DROP POLICY IF EXISTS "Anyone can read invitation by token" ON public.organization_invitations;
 CREATE POLICY "Anyone can read invitation by token" ON public.organization_invitations

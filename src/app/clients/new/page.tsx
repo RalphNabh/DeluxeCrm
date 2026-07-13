@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { ArrowLeft, Save, Menu } from 'lucide-react'
 import PageSidebar from '@/components/layout/page-sidebar'
+import { useClientFoldersQuery, useInvalidateQueries } from '@/lib/query/hooks'
 
 interface ClientFolder {
   id: string
@@ -27,10 +28,12 @@ export default function NewClientPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [folders, setFolders] = useState<ClientFolder[]>([])
   const [folderId, setFolderId] = useState<string | null>(null)
   const [tagsInput, setTagsInput] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const invalidate = useInvalidateQueries()
+  const { data: foldersData } = useClientFoldersQuery()
+  const folders = (foldersData ?? []) as ClientFolder[]
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -38,22 +41,6 @@ export default function NewClientPage() {
     address: '',
     notes: ''
   })
-
-  useEffect(() => {
-    // Load folders
-    const loadFolders = async () => {
-      try {
-        const res = await fetch('/api/client-folders')
-        if (res.ok) {
-          const data = await res.json()
-          setFolders(data || [])
-        }
-      } catch (e) {
-        console.log('Could not load folders:', e)
-      }
-    }
-    loadFolders()
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,6 +71,7 @@ export default function NewClientPage() {
         throw new Error(errorData.error || 'Failed to create client')
       }
 
+      await invalidate.clients()
       router.push('/clients')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
