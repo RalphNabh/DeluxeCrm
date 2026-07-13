@@ -390,13 +390,66 @@ export default function SettingsPage() {
 
             {message && (
               <div className={`rounded-md p-4 border transition-all ${
-                message.includes('success') 
+                message.includes('success') || message.includes('deleted')
                   ? 'bg-green-50 text-green-700 border-green-200' 
                   : 'bg-red-50 text-red-700 border-red-200'
               }`}>
                 <div className="flex items-center">
-                  {message.includes('success') && <CheckCircle className="h-5 w-5 mr-2" />}
+                  {(message.includes('success') || message.includes('deleted')) && (
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                  )}
                   {message}
+                </div>
+              </div>
+            )}
+
+            {!loadingSubscription && subscriptionStatus?.isActive && (
+              <div
+                role="status"
+                className="rounded-lg border border-teal-200 bg-teal-50 p-4 text-teal-900 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <CreditCard className="h-5 w-5 mt-0.5 shrink-0 text-teal-700" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">
+                      Your membership is still active
+                    </p>
+                    <p className="text-sm text-teal-800 mt-1">
+                      Status:{' '}
+                      <span className="font-medium capitalize">
+                        {subscriptionStatus.status}
+                      </span>
+                      {subscriptionStatus.subscription?.current_period_end && (
+                        <>
+                          {' '}
+                          · Renews{' '}
+                          {new Date(
+                            subscriptionStatus.subscription.current_period_end,
+                          ).toLocaleDateString()}
+                        </>
+                      )}
+                      {subscriptionStatus.subscription?.cancel_at_period_end && (
+                        <> · Scheduled to cancel at period end</>
+                      )}
+                    </p>
+                    <p className="text-sm text-teal-700 mt-2">
+                      Deleting your account will cancel this membership and stop future
+                      charges.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 border-teal-300 bg-white"
+                    onClick={handleManageSubscription}
+                    disabled={portalLoading}
+                  >
+                    {portalLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Manage'
+                    )}
+                  </Button>
                 </div>
               </div>
             )}
@@ -507,25 +560,34 @@ export default function SettingsPage() {
                     <div className="p-4 rounded-lg bg-green-50 border border-green-200">
                       <div className="flex items-center mb-2">
                         <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-                        <h3 className="font-medium text-green-800">Active Subscription</h3>
+                        <h3 className="font-medium text-green-800">
+                          Membership is still active
+                        </h3>
                       </div>
                       <p className="text-sm text-green-700">
-                        Status: <span className="font-medium capitalize">{subscriptionStatus.status}</span>
+                        Status:{' '}
+                        <span className="font-medium capitalize">
+                          {subscriptionStatus.status}
+                        </span>
                       </p>
                       {subscriptionStatus.subscription?.current_period_end && (
                         <p className="text-sm text-green-700 mt-1">
-                          Renews: {new Date(subscriptionStatus.subscription.current_period_end).toLocaleDateString()}
+                          Renews:{' '}
+                          {new Date(
+                            subscriptionStatus.subscription.current_period_end,
+                          ).toLocaleDateString()}
                         </p>
                       )}
                       {subscriptionStatus.subscription?.cancel_at_period_end && (
                         <p className="text-sm text-orange-700 mt-1">
-                          Subscription will cancel at the end of the billing period
+                          Membership is set to cancel at the end of the billing period
                         </p>
                       )}
                       {seatInfo && (
                         <p className="text-sm text-green-700 mt-2">
                           Team seats: {seatInfo.billableSeats ?? 1} billed
-                          {seatInfo.activeMembers != null && ` (${seatInfo.activeMembers} team members + owner)`}
+                          {seatInfo.activeMembers != null &&
+                            ` (${seatInfo.activeMembers} team members + owner)`}
                         </p>
                       )}
                     </div>
@@ -677,6 +739,31 @@ export default function SettingsPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
+                        {subscriptionStatus?.isActive && (
+                          <div
+                            role="alert"
+                            className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
+                          >
+                            <p className="font-semibold flex items-center gap-2">
+                              <CreditCard className="h-4 w-4" />
+                              Membership is still active
+                            </p>
+                            <p className="text-sm mt-1">
+                              Your paid plan is currently billed. Deleting your account will
+                              cancel that membership and stop future charges.
+                              {subscriptionStatus.subscription?.current_period_end && (
+                                <>
+                                  {' '}
+                                  Current period ends{' '}
+                                  {new Date(
+                                    subscriptionStatus.subscription.current_period_end,
+                                  ).toLocaleDateString()}
+                                  .
+                                </>
+                              )}
+                            </p>
+                          </div>
+                        )}
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                           <p className="text-sm text-red-800 mb-2">
                             <strong>This will permanently:</strong>
