@@ -18,6 +18,7 @@ import { paymentCreateSchema } from "../api-schemas.ts";
 
 const PAYMENT_COLUMNS = columnsOf("payments");
 const ESTIMATE_COLUMNS = columnsOf("estimates");
+const LEAD_COLUMNS = columnsOf("leads");
 
 describe("migration column parsing", () => {
   it("finds columns declared in create table", () => {
@@ -29,6 +30,8 @@ describe("migration column parsing", () => {
     // Added by 20250104000000_repair_schema_drift.sql, not the baseline.
     assert.ok(ESTIMATE_COLUMNS.has("sent_at"));
     assert.ok(ESTIMATE_COLUMNS.has("estimate_number"));
+    assert.ok(ESTIMATE_COLUMNS.has("valid_until"));
+    assert.ok(LEAD_COLUMNS.has("client_id"));
   });
 
   it("does not treat table constraints as columns", () => {

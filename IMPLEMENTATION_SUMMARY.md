@@ -16,7 +16,7 @@
 ### 2. Client Folders and Tags System
 - **Status**: ✅ Completed (Backend + Partial UI)
 - **Changes**:
-  - Created `supabase-client-folders-tags-schema.sql` with:
+  - Client folders/tags schema (now in `supabase/migrations/` baseline) with:
     - `tags` array column in `clients` table
     - `client_folders` table for organizing clients
     - `folder_id` foreign key in `clients` table
@@ -67,11 +67,10 @@
 
 ## 📋 Database Schema Updates Needed
 
-Run the following SQL migration in Supabase:
+Apply migrations with the Supabase CLI (see `supabase/README.md`):
 
-```sql
--- Run: supabase-client-folders-tags-schema.sql
--- This adds tags, folders, and folder_id support to clients
+```bash
+npx supabase db push
 ```
 
 ## 🎯 Next Steps

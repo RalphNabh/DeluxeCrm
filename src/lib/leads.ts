@@ -55,3 +55,49 @@ export async function findMatchingLead(
 
   return null;
 }
+
+/**
+ * pipeline_stages is the source of truth for lead status names. The old
+ * leads.status CHECK contradicted that; after it was dropped, the API must
+ * reject values that are not a stage for this org.
+ */
+export async function isOrgPipelineStage(
+  supabase: SupabaseClient,
+  orgId: string,
+  status: string,
+): Promise<boolean> {
+  const name = status.trim();
+  if (!name) return false;
+
+  const { data, error } = await supabase
+    .from("pipeline_stages")
+    .select("id")
+    .eq("organization_id", orgId)
+    .eq("name", name)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    // If stages have not been seeded yet, allow the write so the first lead
+    // create (default "New Leads") is not blocked on a chicken-and-egg.
+    if (
+      error.message?.includes("does not exist") ||
+      error.code === "42P01" ||
+      error.code === "PGRST205"
+    ) {
+      return true;
+    }
+    throw error;
+  }
+
+  if (data) return true;
+
+  // Empty stage list means the org has never customized the board; accept the
+  // value so built-in defaults still work until stages are created.
+  const { count } = await supabase
+    .from("pipeline_stages")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", orgId);
+
+  return (count ?? 0) === 0;
+}

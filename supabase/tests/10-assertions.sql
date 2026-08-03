@@ -105,6 +105,19 @@ begin
     'leads.status CHECK dropped so custom pipeline stages can be saved'
   );
 
+  -- Explicit lead↔client link so creating a client does not spawn a duplicate
+  -- pipeline card, and deleting a client can clean up by FK rather than name.
+  raise notice 'lead-client link';
+  perform pg_temp.expect(pg_temp.has_column('leads', 'client_id'), 'leads.client_id exists');
+  perform pg_temp.expect(
+    exists (
+      select 1 from pg_indexes
+      where schemaname = 'public'
+        and indexname = 'idx_estimates_number_per_org'
+    ),
+    'estimates number unique index exists'
+  );
+
   raise notice 'every tenant table carries organization_id';
   foreach tenant_table in array tenant_tables loop
     perform pg_temp.expect(

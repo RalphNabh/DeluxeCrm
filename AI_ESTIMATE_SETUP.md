@@ -36,8 +36,13 @@ Numbers assume GPT-4o at ~$0.02/call (3-5 photos, single response).
 
 ## 2. Supabase schema
 
-Run [`supabase-ai-estimates-schema.sql`](supabase-ai-estimates-schema.sql)
-in the Supabase SQL Editor. It creates:
+AI estimate tables ship in `supabase/migrations/` (baseline). Apply with:
+
+```bash
+npx supabase db push
+```
+
+That includes:
 
 - `public.ai_estimate_sessions` — one row per photo-to-estimate session.
 - `public.ai_estimate_usage` — per-user, per-month counter for quota enforcement.

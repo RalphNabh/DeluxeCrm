@@ -105,12 +105,12 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 ## Step 7: Run Database Migration
 
-Run the subscription schema migration in your Supabase dashboard:
+Subscriptions live in `supabase/migrations/`. Apply with the CLI (see `supabase/README.md`):
 
-1. Go to your Supabase project
-2. Navigate to **SQL Editor**
-3. Copy and paste the contents of `supabase-subscriptions-schema.sql`
-4. Click **Run**
+```bash
+npx supabase link --project-ref <ref>
+npx supabase db push
+```
 
 ## Step 8: Configure Stripe Customer Portal (Optional but Recommended)
 

@@ -65,6 +65,16 @@ npx supabase migration repair --status applied 00000000000000
 npx supabase db push
 ```
 
+That `db push` applies `20250104000000_repair_schema_drift` (estimate columns,
+`Changes Requested`, dropped `leads.status` CHECK, `leads.client_id`) and any
+later migrations. After push, smoke:
+
+1. Record a payment on an invoice
+2. Download an invoice PDF (`?download=true`)
+3. Convert a request → estimate
+4. Drag a lead to a custom pipeline stage
+5. Create a client that already has a matching lead (no duplicate card)
+
 ## Two things the baseline deliberately changes
 
 - **`setup-materials-table.sql` was dropped.** It duplicated

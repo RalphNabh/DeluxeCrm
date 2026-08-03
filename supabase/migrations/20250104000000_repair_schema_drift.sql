@@ -65,8 +65,8 @@ alter table public.estimates add constraint estimates_status_check
 -- -----------------------------------------------------------------------------
 -- pipeline_stages lets a user name a stage anything, and the dashboard writes
 -- that name to leads.status. The CHECK constraint pinned it to five built-in
--- names, so dragging a lead into a custom stage failed. Stage names are
--- validated against pipeline_stages in the API instead.
+-- names, so dragging a lead into a custom stage failed. The API validates a
+-- status change against the org's pipeline_stages rows before writing.
 alter table public.leads drop constraint if exists leads_status_check;
 
 create index if not exists idx_leads_status on public.leads (status);

@@ -65,11 +65,10 @@ Example:
 
 ### 1. Run Database Schema
 
-If you haven't already, run the affiliate schema in Supabase:
+Affiliate tables ship in `supabase/migrations/`. Apply with:
 
-```sql
--- Run: supabase-affiliates-schema.sql
--- This creates the affiliates and referrals tables
+```bash
+npx supabase db push
 ```
 
 ### 2. Webhook Already Configured

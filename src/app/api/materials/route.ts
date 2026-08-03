@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       // Check if table doesn't exist
       if (errorCode === '42P01' || errorMessage.includes('does not exist')) {
         return NextResponse.json({ 
-          error: 'Materials table does not exist. Please run the database migration: supabase-materials-schema.sql',
+          error: 'Materials table does not exist. Apply pending Supabase migrations (supabase db push), then retry.',
           details: error 
         }, { status: 500 })
       }
