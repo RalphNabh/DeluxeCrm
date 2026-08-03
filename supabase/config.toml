@@ -1,0 +1,11 @@
+# Supabase CLI configuration.
+# Used by `npx supabase migration new` and `npx supabase db push`.
+# See supabase/README.md for the migration workflow.
+
+project_id = "dyluxepro"
+
+[db]
+major_version = 16
+
+[db.migrations]
+schema_paths = []
