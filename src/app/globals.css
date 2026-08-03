@@ -7,20 +7,32 @@
   --card-foreground: 222.2 47.4% 11.2%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 47.4% 11.2%;
-  --primary: 189 94% 36%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 188 94% 29%;
-  --secondary-foreground: 210 40% 98%;
+  --primary: 170 71% 28%;
+  --primary-foreground: 152 40% 97%;
+  --secondary: 172 66% 21%;
+  --secondary-foreground: 152 40% 97%;
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 186 100% 42%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 155 66% 64%;
+  --accent-foreground: 172 60% 12%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 189 94% 36%;
+  --ring: 170 71% 28%;
   --radius: 0.75rem;
+
+  /* Marketing — slate ink + DyluxePro logo mint */
+  --mkt-ink: #1e293b;
+  --mkt-ink-elevated: #273549;
+  --mkt-utility: #152033;
+  --mkt-signal: #65dfad;
+  --mkt-signal-deep: #45c294;
+  --mkt-signal-ink: #0f5f51;
+  --mkt-paper: #f1f5f9;
+  --mkt-paper-deep: #e2e8f0;
+  --mkt-mist: #94a3b8;
+  --mkt-cta-text: #0b2a23;
 }
 
 @theme inline {
@@ -43,8 +55,10 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-jakarta);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-jakarta);
+  --font-body: var(--font-jakarta);
 }
 
 * {
@@ -54,8 +68,10 @@
 body {
   background: #f8fafc;
   color: hsl(var(--foreground));
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-jakarta), var(--font-sans), system-ui, sans-serif;
   min-height: 100vh;
+  font-feature-settings: "ss01" on, "cv11" on;
+  letter-spacing: -0.011em;
 }
 
 /* Enhanced card shadows */
@@ -260,6 +276,131 @@ body {
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
+/* Marketing — contractor portrait marquee */
+@keyframes mkt-marquee-down {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes mkt-marquee-up {
+  from {
+    transform: translateY(-50%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.mkt-marquee-down {
+  animation: mkt-marquee-down linear infinite;
+}
+
+.mkt-marquee-up {
+  animation: mkt-marquee-up linear infinite;
+}
+
+.mkt-grain {
+  position: relative;
+}
+
+.mkt-grain::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  z-index: 1;
+}
+
+.mkt-page {
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  color: #f8fafc;
+  letter-spacing: -0.015em;
+}
+
+.mkt-page .mkt-brand {
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.mkt-page .mkt-display {
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.mkt-utility {
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.mkt-cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: 0.5rem;
+  background: var(--mkt-signal);
+  color: var(--mkt-cta-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.mkt-cta-primary:hover {
+  background: var(--mkt-signal-deep);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.mkt-cta-primary:active {
+  transform: translateY(0);
+}
+
+.mkt-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--mkt-signal);
+  background: transparent;
+  color: var(--mkt-signal);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    color 0.15s ease;
+}
+
+.mkt-cta-secondary:hover {
+  background: color-mix(in srgb, var(--mkt-signal) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.mkt-cta-secondary:active {
+  transform: translateY(0);
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .aurora-blob,
@@ -269,7 +410,9 @@ body {
   .hero-fade,
   .animate-fade-in-up,
   .stagger-item,
-  .skeleton-shimmer {
+  .skeleton-shimmer,
+  .mkt-marquee-down,
+  .mkt-marquee-up {
     animation: none !important;
   }
   .skeleton-shimmer {
@@ -278,6 +421,10 @@ body {
   .hero-fade {
     opacity: 1;
     transform: none;
+  }
+  .mkt-marquee-down,
+  .mkt-marquee-up {
+    transform: none !important;
   }
 }
 

@@ -1,411 +1,337 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Users,
-  FileText,
-  Zap,
-  ArrowRight,
-  Mail,
-} from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import { LogIn, Mail, Star } from "lucide-react";
+import { ContractorMarquee } from "@/components/marketing/contractor-marquee";
+import { SupportChatWidget } from "@/components/marketing/support-chat";
 
-const ROTATING_WORDS = ["faster.", "smarter.", "easier."];
+const copy = {
+  en: {
+    french: "Français",
+    login: "Log in",
+    workflow: "Workflow",
+    pricing: "Pricing",
+    contact: "Contact",
+    startFree: "Start free",
+    seePlans: "See plans",
+    headline: "Quotes out. Crews booked. Paid.",
+    sub: "The job desk for contractors — clients, estimates, schedules, and invoices in one place so your crew stays on the tools, not in email threads.",
+    noCard: "No credit card required. Cancel anytime.",
+    trust1Title: "Built for the field",
+    trust1Body: "Estimates, jobs, and invoices that match how crews work",
+    trust2Title: "Setup in minutes",
+    trust2Body: "Import clients and send your first estimate the same day",
+  },
+  fr: {
+    french: "English",
+    login: "Connexion",
+    workflow: "Flux de travail",
+    pricing: "Tarifs",
+    contact: "Contact",
+    startFree: "Essai gratuit",
+    seePlans: "Voir les forfaits",
+    headline: "Soumissions envoyées. Équipes planifiées. Payé.",
+    sub: "Le bureau de chantier pour entrepreneurs — clients, estimations, horaires et factures au même endroit, pour que votre équipe reste sur le terrain.",
+    noCard: "Aucune carte de crédit requise. Annulez en tout temps.",
+    trust1Title: "Conçu pour le terrain",
+    trust1Body: "Estimations, jobs et factures adaptés au travail des équipes",
+    trust2Title: "Prêt en quelques minutes",
+    trust2Body: "Importez vos clients et envoyez votre première estimation le jour même",
+  },
+} as const;
 
 export default function Home() {
-  const [wordIndex, setWordIndex] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setWordIndex((i) => (i + 1) % ROTATING_WORDS.length);
-    }, 2400);
-    return () => clearInterval(id);
-  }, []);
+  const [lang, setLang] = useState<"en" | "fr">("en");
+  const t = copy[lang];
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="border-b border-gray-100 bg-white/80 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-500 bg-clip-text text-transparent tracking-tight">
-                  DyluxePro
-                </h1>
-              </div>
-            </div>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                <Link
-                  href="#features"
-                  className="text-gray-700 hover:text-teal-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Features
-                </Link>
-                <Link
-                  href="/contact"
-                  className="text-gray-700 hover:text-teal-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Contact
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/signup">Get Started</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden isolate">
-        {/* Animated aurora backdrop */}
-        <div className="absolute inset-0 -z-10" aria-hidden="true">
-          <div
-            className="aurora-blob"
-            style={{
-              top: "-10%",
-              left: "-10%",
-              width: "560px",
-              height: "560px",
-              background:
-                "radial-gradient(circle at center, rgba(13, 148, 136, 0.55), rgba(13, 148, 136, 0) 70%)",
-            }}
-          />
-          <div
-            className="aurora-blob aurora-blob-alt"
-            style={{
-              top: "20%",
-              right: "-15%",
-              width: "640px",
-              height: "640px",
-              background:
-                "radial-gradient(circle at center, rgba(6, 182, 212, 0.45), rgba(6, 182, 212, 0) 70%)",
-              animationDelay: "-6s",
-            }}
-          />
-          <div
-            className="aurora-blob"
-            style={{
-              bottom: "-20%",
-              left: "20%",
-              width: "480px",
-              height: "480px",
-              background:
-                "radial-gradient(circle at center, rgba(16, 185, 129, 0.4), rgba(16, 185, 129, 0) 70%)",
-              animationDelay: "-12s",
-            }}
-          />
-          {/* Subtle grid overlay */}
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(15,23,42,1) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,1) 1px, transparent 1px)",
-              backgroundSize: "48px 48px",
-            }}
-          />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-          <div className="text-center">
-            <div
-              className="hero-fade inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50/80 px-4 py-1.5 text-sm font-medium text-teal-700 mb-6"
-              style={{ animationDelay: "0.05s" }}
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-500"></span>
-              </span>
-              Built for contractors. Loved by their crews.
-            </div>
-
-            <h1
-              className="hero-fade text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 tracking-tight"
-              style={{ animationDelay: "0.15s" }}
-            >
-              Close more jobs,{" "}
-              <span className="relative inline-block min-w-[6.5ch] text-left">
-                {ROTATING_WORDS.map((w, i) => (
-                  <span
-                    key={w}
-                    className={`gradient-text absolute left-0 top-0 transition-all duration-500 ease-out ${
-                      i === wordIndex
-                        ? "opacity-100 translate-y-0"
-                        : "opacity-0 -translate-y-3"
-                    }`}
-                    aria-hidden={i !== wordIndex}
-                  >
-                    {w}
-                  </span>
-                ))}
-                {/* Invisible placeholder uses longest word to reserve width */}
-                <span className="invisible">
-                  {ROTATING_WORDS.reduce((a, b) => (a.length >= b.length ? a : b))}
-                </span>
-              </span>
-            </h1>
-
-            <p
-              className="hero-fade text-lg md:text-xl text-gray-600 mb-10 max-w-3xl mx-auto"
-              style={{ animationDelay: "0.25s" }}
-            >
-              Organize clients, send estimates, and automate follow-ups — all in one place.
-              The CRM built specifically for contractors.
-            </p>
-
-            <div
-              className="hero-fade flex flex-col sm:flex-row gap-4 justify-center"
-              style={{ animationDelay: "0.35s" }}
-            >
-              <Button
-                size="lg"
-                className="bg-teal-600 hover:bg-teal-700 shadow-lg shadow-teal-600/20 hover:shadow-xl hover:shadow-teal-600/30 transition-all hover:-translate-y-0.5"
-                asChild
+    <div className="mkt-page min-h-screen bg-[var(--mkt-ink)]" lang={lang}>
+      <header className="relative z-20">
+        {/* Utility bar — Jobber-style, no hard rules */}
+        <div className="bg-[var(--mkt-utility)]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-end">
+            <div className="mkt-utility flex items-center gap-3.5 text-[15px] font-bold text-white">
+              <button
+                type="button"
+                onClick={() => setLang((prev) => (prev === "en" ? "fr" : "en"))}
+                className="hover:text-white/90 transition-colors"
               >
-                <Link href="/signup">
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/login">Sign In</Link>
-              </Button>
-            </div>
-
-            <div
-              className="hero-fade mt-6 text-sm text-gray-500"
-              style={{ animationDelay: "0.45s" }}
-            >
-              No credit card required · Cancel anytime · 14-day free trial
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
-              Everything you need to grow your business
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Streamline your contractor operations with powerful tools designed for your trade.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Users,
-                title: "Organize Clients",
-                desc: "Keep all client information, project history, and communication in one place. Never lose track of a lead again.",
-              },
-              {
-                icon: FileText,
-                title: "Send Estimates",
-                desc: "Create professional estimates in minutes. Track approval status and follow up automatically with built-in reminders.",
-              },
-              {
-                icon: Zap,
-                title: "Automate Workflows",
-                desc: "Set up automated follow-ups, thank you emails, and task reminders. Focus on the work while we handle the admin.",
-              },
-            ].map(({ icon: Icon, title, desc }) => (
-              <Card
-                key={title}
-                className="stagger-item group border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                {t.french}
+              </button>
+              <span
+                className="inline-block h-3.5 w-px bg-white/40"
+                aria-hidden
+              />
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 hover:text-white/90 transition-colors"
               >
-                <CardHeader>
-                  <div className="w-12 h-12 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl flex items-center justify-center mb-4 ring-1 ring-teal-100 group-hover:scale-110 transition-transform">
-                    <Icon className="h-6 w-6 text-teal-600" />
-                  </div>
-                  <CardTitle className="text-xl">{title}</CardTitle>
-                  <CardDescription className="text-base">{desc}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
+                {t.login}
+                <LogIn className="h-4 w-4 opacity-90" aria-hidden />
+              </Link>
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* Dashboard Preview */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
-              See DyluxePro in action
-            </h2>
-            <p className="text-lg text-gray-600">
-              Get a glimpse of your new workflow with our intuitive dashboard.
-            </p>
+        {/* Main nav — whitespace only, no border line */}
+        <div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <Link
+              href="/"
+              className="mkt-brand inline-flex items-center gap-2.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--mkt-signal)]"
+            >
+              <Image
+                src="/logo.png"
+                alt=""
+                width={40}
+                height={40}
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg"
+                priority
+              />
+              DyluxePro
+            </Link>
+
+            <nav className="hidden md:flex items-center gap-8 text-sm text-white/75">
+              <a href="#workflow" className="hover:text-white transition-colors">
+                {t.workflow}
+              </a>
+              <Link href="/subscription" className="hover:text-white transition-colors">
+                {t.pricing}
+              </Link>
+              <Link href="/contact" className="hover:text-white transition-colors">
+                {t.contact}
+              </Link>
+            </nav>
+
+            <Link
+              href="/signup"
+              className="mkt-cta-primary !min-h-0 !py-2 !px-3.5 !text-sm !shadow-none"
+            >
+              {t.startFree}
+            </Link>
           </div>
+        </div>
+      </header>
 
-          <div className="relative">
-            {/* Glow behind preview */}
-            <div
-              className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-teal-400/20 via-cyan-400/20 to-emerald-400/20 blur-2xl"
-              aria-hidden="true"
-            />
-            <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-float">
-              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-teal-400 rounded-full"></div>
+      {/* Hero — one composition */}
+      <section className="mkt-grain relative overflow-hidden">
+        <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14 lg:pt-10 lg:pb-16">
+          <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-10 lg:gap-8 items-center">
+            <div className="max-w-xl">
+              <h1 className="mkt-display text-[clamp(2.4rem,5.4vw,3.75rem)] font-extrabold leading-[1.02] tracking-tight text-white mb-5">
+                {t.headline}
+              </h1>
+              <p className="text-base sm:text-lg text-white/65 leading-relaxed mb-8 max-w-md">
+                {t.sub}
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-3.5">
+                <Link href="/signup" className="mkt-cta-primary flex-1 sm:flex-none sm:min-w-[11.5rem]">
+                  {t.startFree}
+                </Link>
+                <Link
+                  href="/subscription"
+                  className="mkt-cta-secondary flex-1 sm:flex-none sm:min-w-[11.5rem]"
+                >
+                  {t.seePlans}
+                </Link>
+              </div>
+
+              <p className="mt-3 text-sm text-white/50">{t.noCard}</p>
+
+              {/* Trust at the decision point */}
+              <div className="mt-8 flex flex-wrap gap-6 sm:gap-10">
+                <div>
+                  <div className="flex items-center gap-1.5 text-[var(--mkt-signal)]">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <Star
+                        key={i}
+                        className="h-3.5 w-3.5 fill-current"
+                        strokeWidth={0}
+                      />
+                    ))}
                   </div>
-                  <div className="text-sm text-gray-500">DyluxePro CRM Dashboard</div>
+                  <p className="mt-1.5 text-sm font-semibold text-white">
+                    {t.trust1Title}
+                  </p>
+                  <p className="text-xs text-white/50">{t.trust1Body}</p>
                 </div>
-              </div>
-              <div className="p-4 md:p-8">
-                <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
-                  <div className="grid grid-cols-5 gap-4 md:gap-6 min-w-[800px] md:min-w-0">
-                    {["New Leads", "Estimate Sent", "Approved", "Job Scheduled", "Completed"].map(
-                      (stage, index) => (
-                        <div key={stage} className="space-y-4 min-w-[140px]">
-                          <div className="text-center">
-                            <h3 className="font-semibold text-gray-900 mb-2 text-sm md:text-base whitespace-nowrap">
-                              {stage}
-                            </h3>
-                            <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="progress-bar h-1 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full"
-                                style={{ width: `${(index + 1) * 20}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                          <div className="space-y-3">
-                            {index < 3 && (
-                              <Card className="p-3 hover:shadow-md transition-shadow cursor-pointer">
-                                <div className="text-sm font-medium text-gray-900 break-words">
-                                  Johnson Residence
-                                </div>
-                                <div className="text-xs text-gray-500 break-words">
-                                  123 Oak Street
-                                </div>
-                                <div className="text-sm font-semibold text-teal-600 mt-1">
-                                  $2,450
-                                </div>
-                              </Card>
-                            )}
-                          </div>
-                        </div>
-                      ),
-                    )}
+                <div>
+                  <div className="flex items-center gap-1.5 text-[var(--mkt-signal)]">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <Star
+                        key={i}
+                        className="h-3.5 w-3.5 fill-current"
+                        strokeWidth={0}
+                      />
+                    ))}
                   </div>
+                  <p className="mt-1.5 text-sm font-semibold text-white">
+                    {t.trust2Title}
+                  </p>
+                  <p className="text-xs text-white/50">{t.trust2Body}</p>
                 </div>
               </div>
             </div>
+
+            <div className="relative lg:-mr-4">
+              <ContractorMarquee />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Social Proof */}
-      <section className="py-16 bg-gradient-to-br from-teal-600 via-teal-700 to-emerald-700 relative overflow-hidden">
+      {/* Next section — one job */}
+      <section
+        id="workflow"
+        className="relative bg-[var(--mkt-paper)] text-[var(--mkt-ink)] py-20 sm:py-24"
+      >
         <div
-          className="absolute inset-0 opacity-10"
+          className="absolute inset-0 opacity-40 pointer-events-none"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 20% 20%, white 1px, transparent 1px), radial-gradient(circle at 80% 70%, white 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
+              "radial-gradient(circle at 1px 1px, rgba(20,17,15,0.12) 1px, transparent 0)",
+            backgroundSize: "22px 22px",
           }}
-          aria-hidden="true"
+          aria-hidden
         />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="grid md:grid-cols-3 gap-8 text-white">
-            <div className="stagger-item">
-              <div className="text-4xl font-bold mb-2">500+</div>
-              <div className="text-teal-100">Contractor Companies</div>
-            </div>
-            <div className="stagger-item">
-              <div className="text-4xl font-bold mb-2">$2M+</div>
-              <div className="text-teal-100">Revenue Managed</div>
-            </div>
-            <div className="stagger-item">
-              <div className="text-4xl font-bold mb-2">98%</div>
-              <div className="text-teal-100">Customer Satisfaction</div>
-            </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-2xl mx-auto text-center mb-14">
+            <h2 className="mkt-display text-3xl sm:text-4xl font-bold tracking-tight mb-3">
+              One desk for the whole job
+            </h2>
+            <p className="text-lg text-[var(--mkt-ink)]/65">
+              Quote it, schedule it, finish it, get paid — without jumping between
+              five apps.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 md:gap-10">
+            {[
+              {
+                step: "01",
+                title: "Win the work",
+                body: "Build sharp estimates, send them in a tap, and chase approvals before the lead goes cold.",
+              },
+              {
+                step: "02",
+                title: "Run the crew",
+                body: "Turn approved jobs into a calendar your team can actually follow from the truck.",
+              },
+              {
+                step: "03",
+                title: "Collect the check",
+                body: "Invoice from the same record you estimated — less retyping, fewer lost payments.",
+              },
+            ].map((item) => (
+              <div key={item.step} className="border-t-2 border-[var(--mkt-ink)] pt-5">
+                <p className="mkt-brand text-sm font-bold text-[var(--mkt-signal-ink)] mb-2">
+                  {item.step}
+                </p>
+                <h3 className="mkt-display text-xl font-bold mb-2">{item.title}</h3>
+                <p className="text-[var(--mkt-ink)]/70 leading-relaxed">{item.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center rounded-md bg-[var(--mkt-ink)] px-6 py-3 text-sm font-bold text-[var(--mkt-paper)] hover:bg-black transition"
+            >
+              Start free
+            </Link>
+            <Link
+              href="/contact"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--mkt-ink)]/25 px-6 py-3 text-sm font-semibold text-[var(--mkt-ink)] hover:bg-black/5 transition"
+            >
+              Talk with us
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer id="contact" className="bg-gray-900 text-white py-12">
+      <footer className="bg-[var(--mkt-ink-elevated)] border-t border-white/8 py-12 text-white/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-xl font-bold bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-transparent mb-4">
+              <p className="mkt-brand inline-flex items-center gap-2 text-xl font-extrabold text-[var(--mkt-signal)] mb-3">
+                <Image
+                  src="/logo.png"
+                  alt=""
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 rounded-md"
+                />
                 DyluxePro
-              </h3>
-              <p className="text-gray-400">
-                The CRM built specifically for contractors and trade professionals.
+              </p>
+              <p className="text-sm leading-relaxed text-white/55">
+                Contractor CRM for quotes, crews, and getting paid.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-gray-400">
+              <p className="text-sm font-semibold text-white mb-3">Product</p>
+              <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="#features" className="hover:text-white transition-colors">
-                    Features
-                  </Link>
+                  <a href="#workflow" className="hover:text-white transition-colors">
+                    Workflow
+                  </a>
                 </li>
                 <li>
-                  <Link href="/login" className="hover:text-white transition-colors">
-                    Login
+                  <Link href="/subscription" className="hover:text-white transition-colors">
+                    Pricing
                   </Link>
                 </li>
                 <li>
                   <Link href="/signup" className="hover:text-white transition-colors">
-                    Sign Up
+                    Start free
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Resources</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/dashboard" className="hover:text-white transition-colors">
-                    Dashboard
-                  </Link>
-                </li>
+              <p className="text-sm font-semibold text-white mb-3">Company</p>
+              <ul className="space-y-2 text-sm">
                 <li>
                   <Link href="/contact" className="hover:text-white transition-colors">
                     Contact
                   </Link>
                 </li>
                 <li>
-                  <Link href="/settings" className="hover:text-white transition-colors">
-                    Settings
+                  <Link href="/privacy" className="hover:text-white transition-colors">
+                    Privacy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="hover:text-white transition-colors">
+                    Terms
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Contact</h4>
-              <div className="space-y-2 text-gray-400">
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 mr-2" />
+              <p className="text-sm font-semibold text-white mb-3">Support</p>
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="h-4 w-4 text-[var(--mkt-signal)]" />
+                <a
+                  href="mailto:support@dyluxepro.com"
+                  className="hover:text-white transition-colors"
+                >
                   support@dyluxepro.com
-                </div>
+                </a>
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 DyluxePro. All rights reserved.</p>
+          <div className="mt-10 pt-6 border-t border-white/8 text-center text-xs text-white/40">
+            © {new Date().getFullYear()} DyluxePro. All rights reserved.
           </div>
         </div>
       </footer>
+
+      <SupportChatWidget />
     </div>
   );
 }

@@ -37,6 +37,9 @@ export default function SignupPage() {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window === "undefined") return;
+    const prefill = new URLSearchParams(window.location.search).get("email");
+    if (prefill) setEmail(prefill);
   }, []);
 
   const handleSignup = async (e: React.FormEvent) => {

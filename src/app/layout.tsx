@@ -1,25 +1,29 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TutorialWrapper } from "@/components/tutorial/tutorial-wrapper";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { NotificationToast } from "@/components/notifications/notification-toast";
 import { QueryProvider } from "@/components/providers/query-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/** App + marketing type system — clean geometric sans (Jobber-adjacent, not Inter/Geist). */
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
   title: "DyluxePro CRM | Professional Contractor Management",
-  description: "Professional contractor CRM solution. Manage clients, estimates, invoices, and projects all in one place.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://dyluxepro.com'),
+  description:
+    "Quotes out. Crews booked. Paid. Contractor CRM for estimates, schedules, and invoices.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://dyluxepro.com"),
   icons: {
     icon: [
       { url: "/icons/icon-32.png", type: "image/png", sizes: "32x32" },
@@ -30,8 +34,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "DyluxePro CRM",
-    description: "Professional contractor CRM solution",
-    url: process.env.NEXT_PUBLIC_APP_URL || 'https://dyluxepro.com',
+    description: "The job desk for contractors — quotes, crews, and getting paid.",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://dyluxepro.com",
     siteName: "DyluxePro",
     type: "website",
     images: [{ url: "/logo.png", width: 512, height: 512, alt: "DyluxePro" }],
@@ -46,7 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="light">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${jakarta.variable} ${jetbrainsMono.variable} ${jakarta.className} antialiased`}
       >
         <QueryProvider>
           <NotificationProvider>
