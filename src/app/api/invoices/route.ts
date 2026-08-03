@@ -31,6 +31,12 @@ export async function GET(request: NextRequest) {
         unit,
         unit_price,
         total
+      ),
+      payments (
+        id,
+        amount,
+        payment_method,
+        payment_date
       )
     `)
     .eq('organization_id', orgId)

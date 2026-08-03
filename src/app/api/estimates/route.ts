@@ -5,6 +5,7 @@ import { requireOrgMember } from '@/lib/api-auth'
 import { parseJsonBody } from '@/lib/validation'
 import { estimateCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
+import { estimateValidUntil, nextEstimateNumber } from '@/lib/document-numbers'
 
 // GET: list estimates
 export async function GET(request: NextRequest) {
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
   const tax = Math.round(subtotal * 0.13 * 100) / 100
   const total = subtotal + tax
 
+  const estimateNumber = await nextEstimateNumber(supabase, orgId)
+
   const { data: estimate, error } = await supabase
     .from('estimates')
     .insert([{ 
@@ -82,6 +85,8 @@ export async function POST(request: Request) {
       tax, 
       total, 
       status: 'Draft',
+      estimate_number: estimateNumber,
+      valid_until: estimateValidUntil(),
       contract_message: contract_message || null
     }])
     .select()

@@ -12,9 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `npm test` uses --experimental-strip-types, which needs Node 22+.
+      # On Node 20 the test step aborted before the build ever ran.
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - run: npm ci

@@ -70,10 +70,18 @@ export const sendInvoiceEmailSchema = z.object({
   clientName: z.string().trim().min(1).max(200),
 });
 
+// Field names match the payments table exactly. They previously did not: the
+// schema wanted `method`, the UI sent `payment_method`, and the insert wrote
+// `method`/`paid_at` to columns named `payment_method`/`payment_date`.
 export const paymentCreateSchema = z.object({
   invoice_id: z.string().uuid(),
   amount: z.number().positive().max(10_000_000),
-  method: z.string().trim().min(1).max(100),
+  payment_method: z.string().trim().min(1).max(100),
+  payment_date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD")
+    .optional(),
   reference: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(2000).optional(),
 });

@@ -14,13 +14,14 @@ interface ServiceRequest {
   description?: string;
   status: string;
   created_at: string;
-  clients?: { name?: string; email?: string };
+  clients?: { id?: string; name?: string; email?: string };
 }
 
 export default function RequestsInboxPage() {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const load = () => {
@@ -44,8 +45,15 @@ export default function RequestsInboxPage() {
   };
 
   const convertToEstimate = (req: ServiceRequest) => {
+    if (!req.clients?.id) {
+      setError("This request is not linked to a client, so it cannot be quoted.");
+      return;
+    }
+
+    // /estimates/new reports back with converted_estimate_id once the quote is
+    // saved, which is what moves the request to "quoted".
     const params = new URLSearchParams({
-      clientId: req.clients ? "" : "",
+      clientId: req.clients.id,
       title: req.title,
       fromRequest: req.id,
     });
@@ -68,6 +76,9 @@ export default function RequestsInboxPage() {
           <h1 className="text-xl font-bold">Service Requests</h1>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+          {error && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          )}
           {loading && <p className="text-gray-500">Loading...</p>}
           {requests.map((req) => (
             <Card key={req.id}>

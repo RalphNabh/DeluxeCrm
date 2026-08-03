@@ -6,6 +6,7 @@ import { escapePostgrestValue } from '@/lib/postgrest-escape'
 import { parseJsonBody } from '@/lib/validation'
 import { clientCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
+import { findMatchingLead } from '@/lib/leads'
 
 export async function GET(request: NextRequest) {
   try {
@@ -64,9 +65,18 @@ export async function POST(request: Request) {
     }
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-    await supabase.from('leads').insert([{
-      user_id: user.id, organization_id: orgId, name, address, phone, email, value: 0, status: 'New Leads',
-    }])
+    // A client with no pipeline card is invisible on the dashboard, so seed one.
+    // Only when nothing already represents this person, otherwise saving a
+    // client twice (or converting a lead) leaves duplicate cards behind.
+    const existingLead = await findMatchingLead(supabase, orgId, { email, name })
+    if (!existingLead) {
+      await supabase.from('leads').insert([{
+        user_id: user.id, organization_id: orgId, name, address, phone, email,
+        value: 0, status: 'New Leads', client_id: client.id,
+      }])
+    } else if (!existingLead.client_id) {
+      await supabase.from('leads').update({ client_id: client.id }).eq('id', existingLead.id)
+    }
 
     await checkAndExecuteAutomations('client_created', {
       event: 'client_created', user_id: user.id, organization_id: orgId,

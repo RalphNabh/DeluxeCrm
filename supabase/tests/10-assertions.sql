@@ -89,6 +89,22 @@ begin
   perform pg_temp.expect(pg_temp.has_column('payments', 'user_id'), 'payments.user_id exists');
   perform pg_temp.expect(pg_temp.has_column('payments', 'organization_id'), 'payments.organization_id exists');
 
+  -- Columns the application reads that no schema file ever defined.
+  raise notice 'estimate columns the app reads';
+  perform pg_temp.expect(pg_temp.has_column('estimates', 'sent_at'), 'estimates.sent_at exists');
+  perform pg_temp.expect(pg_temp.has_column('estimates', 'estimate_number'), 'estimates.estimate_number exists');
+  perform pg_temp.expect(pg_temp.has_column('estimates', 'valid_until'), 'estimates.valid_until exists');
+
+  raise notice 'status constraints match what the app writes';
+  perform pg_temp.expect(
+    pg_temp.check_clause('estimates', 'Changes Requested'),
+    'estimates status CHECK allows ''Changes Requested'''
+  );
+  perform pg_temp.expect(
+    not pg_temp.check_clause('leads', 'Estimate Sent'),
+    'leads.status CHECK dropped so custom pipeline stages can be saved'
+  );
+
   raise notice 'every tenant table carries organization_id';
   foreach tenant_table in array tenant_tables loop
     perform pg_temp.expect(
