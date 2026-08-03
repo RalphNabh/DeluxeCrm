@@ -1,4 +1,7 @@
 export const queryKeys = {
+  me: {
+    all: ["me"] as const,
+  },
   clients: {
     all: ["clients"] as const,
     list: (q?: string) => ["clients", "list", q ?? ""] as const,

@@ -90,6 +90,21 @@ export const checkoutBodySchema = z.object({
   priceId: z.string().startsWith("price_"),
 });
 
+// The Team page lists accepted members alongside pending invitations, so an
+// update has to say which it is addressing.
+export const teamMemberUpdateSchema = z.object({
+  kind: z.enum(["member", "invitation"]).default("member"),
+  role: z.enum(["Owner", "Admin", "Manager", "Worker"]).optional(),
+  status: z.enum(["Active", "Disabled"]).optional(),
+});
+
+export const teamInviteSchema = z.object({
+  email: z.string().trim().email().max(254),
+  role: z.enum(["admin", "manager", "worker"]).default("worker"),
+  name: z.string().trim().max(200).optional(),
+  phone: z.string().trim().max(50).optional(),
+});
+
 export const jobCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
   client_id: z.string().uuid(),

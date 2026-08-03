@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { LucideIcon, X } from "lucide-react";
 import UserProfile from "@/components/layout/user-profile";
 import { Button } from "@/components/ui/button";
-import { SIDEBAR_ITEMS, isNavItemActive, type NavItem } from "@/lib/navigation";
+import { isNavItemActive, navItemsForRole, type NavItem } from "@/lib/navigation";
+import { useCurrentMemberQuery } from "@/lib/query/hooks";
 
 /**
  * Legacy item shape used by older pages that pass `items` directly.
@@ -33,10 +34,14 @@ interface PageSidebarProps {
 
 export default function PageSidebar({ items, isOpen = false, onClose }: PageSidebarProps) {
   const pathname = usePathname();
+  const { data: member } = useCurrentMemberQuery();
+
+  // Until the role is known, show the unfiltered list rather than flashing a
+  // shortened menu and then expanding it.
   const resolvedItems: readonly NavItem[] =
     items && items.length > 0
       ? (items as readonly NavItem[])
-      : SIDEBAR_ITEMS;
+      : navItemsForRole(member?.role);
 
   const handleLinkClick = () => {
     // Close sidebar on mobile when a link is clicked.

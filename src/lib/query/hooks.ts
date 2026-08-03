@@ -4,6 +4,35 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/query/fetch";
 import { queryKeys } from "@/lib/query/keys";
 
+import type { OrgRole } from "@/lib/org";
+import type { Permission } from "@/lib/rbac";
+
+export type CurrentMember = {
+  userId: string;
+  orgId: string;
+  role: OrgRole;
+  permissions: Permission[];
+  organizationName: string | null;
+  fullName: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+};
+
+/**
+ * The signed-in member's role and permissions.
+ *
+ * Cached for the session because a role changes rarely and several layout
+ * components need it on every page.
+ */
+export function useCurrentMemberQuery() {
+  return useQuery({
+    queryKey: queryKeys.me.all,
+    queryFn: () => fetchJson<CurrentMember>("/api/org/me"),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
 export function useClientsQuery(q?: string) {
   const query = q?.trim() ?? "";
   return useQuery({
