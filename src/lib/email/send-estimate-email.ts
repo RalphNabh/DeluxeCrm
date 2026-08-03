@@ -3,13 +3,24 @@ import { createClient } from '@/lib/supabase/server';
 import { checkAndExecuteAutomations } from '@/lib/automations/executor';
 import { getAppUrl, isDevelopment } from '@/lib/env';
 import { buildEstimateActionUrl } from '@/lib/estimate-action-token';
+import { findMatchingLead } from '@/lib/leads';
+
+/**
+ * Who is sending. Scoping by organization rather than by user matters: a manager
+ * sending a quote the owner drafted previously matched nothing and failed.
+ */
+export type EmailActor = {
+  userId: string;
+  orgId: string;
+};
 
 export async function sendEstimateEmail(
   estimateId: string,
   clientEmail: string,
   clientName: string,
-  userId: string
+  actor: EmailActor
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { userId, orgId } = actor;
   try {
     const supabase = await createClient();
 
@@ -33,7 +44,7 @@ export async function sendEstimateEmail(
         )
       `)
       .eq('id', estimateId)
-      .eq('user_id', userId)
+      .eq('organization_id', orgId)
       .single();
 
     if (estimateError || !estimate) {
@@ -208,39 +219,22 @@ export async function sendEstimateEmail(
         updated_at: new Date().toISOString()
       })
       .eq('id', estimateId)
-      .eq('user_id', userId);
+      .eq('organization_id', orgId);
 
     // If estimate has a linked lead, update the lead status to "Estimate Sent"
     let leadToUpdate = estimate.lead_id
 
-    // If no lead_id, try to find lead by matching client email/name
-    if (!leadToUpdate && estimate.clients) {
-      const clientEmail = estimate.clients.email
-      const clientName = estimate.clients.name
-
-      if (clientEmail || clientName) {
-        let query = supabase
-          .from('leads')
-          .select('id')
-          .eq('user_id', userId)
-          .in('status', ['New Leads', 'Estimate Sent']) // Only update leads in these stages
-
-        if (clientEmail && clientName) {
-          query = query.or(`email.eq.${clientEmail},name.ilike.%${clientName}%`)
-        } else if (clientEmail) {
-          query = query.eq('email', clientEmail)
-        } else if (clientName) {
-          query = query.ilike('name', `%${clientName}%`)
-        }
-
-        const { data: matchingLeads, error: findError } = await query.limit(1)
-
-        if (!findError && matchingLeads && matchingLeads.length > 0) {
-          leadToUpdate = matchingLeads[0].id
-          console.log(`[SEND ESTIMATE] Found lead by client match: ${leadToUpdate}`)
-        } else {
-          console.log('[SEND ESTIMATE] No matching lead found by email/name')
-        }
+    // Otherwise find the pipeline card for this client. Prefers the explicit
+    // leads.client_id link, falling back to email then name for cards created
+    // before that column existed.
+    if (!leadToUpdate && estimate.client_id) {
+      const matched = await findMatchingLead(supabase, orgId, {
+        clientId: estimate.client_id,
+        email: estimate.clients?.email,
+        name: estimate.clients?.name,
+      })
+      if (matched) {
+        leadToUpdate = matched.id
       }
     }
 
@@ -252,12 +246,12 @@ export async function sendEstimateEmail(
           updated_at: new Date().toISOString()
         })
         .eq('id', leadToUpdate)
-        .eq('user_id', userId)
+        .eq('organization_id', orgId)
         .select()
 
       if (leadUpdateError) {
         console.error('[SEND ESTIMATE] Error updating lead status to "Estimate Sent":', leadUpdateError)
-        console.error('[SEND ESTIMATE] Lead ID:', leadToUpdate, 'User ID:', userId)
+        console.error('[SEND ESTIMATE] Lead ID:', leadToUpdate, 'Org ID:', orgId)
         // Don't fail the request if lead update fails, just log it
       } else {
         console.log(`[SEND ESTIMATE] Lead ${leadToUpdate} status updated to "Estimate Sent"`)
@@ -281,6 +275,7 @@ export async function sendEstimateEmail(
     await checkAndExecuteAutomations('estimate_sent', {
       event: 'estimate_sent',
       user_id: userId,
+      organization_id: orgId,
       estimate_id: estimateId,
       client_name: clientName,
       client_email: clientEmail,

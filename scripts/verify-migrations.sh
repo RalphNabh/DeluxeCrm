@@ -60,6 +60,9 @@ done
 echo "==> asserting schema invariants"
 psql_run "$TARGET_URI" -f "${REPO_ROOT}/supabase/tests/10-assertions.sql"
 
+echo "==> asserting row level security behaviour"
+psql_run "$TARGET_URI" -f "${REPO_ROOT}/supabase/tests/20-rls-behaviour.sql"
+
 if [[ $KEEP -eq 0 ]]; then
   psql_run "$ADMIN_URI" -c "drop database if exists ${DB_NAME} with (force);" >/dev/null
 else

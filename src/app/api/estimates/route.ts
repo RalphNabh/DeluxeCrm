@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     if (client?.email) {
       try {
         // Send email directly using the shared function
-        const emailResult = await sendEstimateEmail(estimate.id, client.email, client.name, user.id)
+        const emailResult = await sendEstimateEmail(estimate.id, client.email, client.name, { userId: user.id, orgId })
         
         if (!emailResult.success) {
           console.error('Failed to send email:', emailResult.error)

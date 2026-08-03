@@ -113,6 +113,76 @@ begin
     );
   end loop;
 
+  -- Team collaboration depends on these. While they were owner-only, a
+  -- teammate saw an empty app no matter what the API sent.
+  raise notice 'tenant tables are readable by the organization, not just the owner';
+  foreach tenant_table in array tenant_tables loop
+    perform pg_temp.expect(
+      exists (
+        select 1 from pg_policies
+        where schemaname = 'public'
+          and tablename = tenant_table
+          and cmd in ('SELECT', 'ALL')
+          and qual like '%is_org_%'
+      ),
+      format('%s has an org-scoped read policy', tenant_table)
+    );
+    perform pg_temp.expect(
+      not exists (
+        select 1 from pg_policies
+        where schemaname = 'public'
+          and tablename = tenant_table
+          and coalesce(qual, with_check) = '(auth.uid() = user_id)'
+      ),
+      format('%s has no owner-only policy left', tenant_table)
+    );
+  end loop;
+
+  raise notice 'line items inherit access from their document';
+  perform pg_temp.expect(
+    exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = 'estimate_line_items'
+        and qual like '%is_org_manager_or_above%'
+    ),
+    'estimate_line_items delegates to estimates'
+  );
+  perform pg_temp.expect(
+    exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = 'invoice_line_items'
+        and qual like '%is_org_manager_or_above%'
+    ),
+    'invoice_line_items delegates to invoices'
+  );
+
+  raise notice 'workers are limited to what they are assigned';
+  perform pg_temp.expect(
+    exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = 'jobs'
+        and cmd = 'SELECT' and qual like '%user_is_assigned_to_job%'
+    ),
+    'jobs read policy honours job assignments'
+  );
+  perform pg_temp.expect(
+    exists (
+      select 1 from pg_policies
+      where schemaname = 'public' and tablename = 'clients'
+        and cmd = 'SELECT' and qual like '%user_is_assigned_to_client%'
+    ),
+    'clients read policy honours client assignments'
+  );
+
+  raise notice 'pipeline stage names are unique per organization';
+  perform pg_temp.expect(
+    exists (
+      select 1 from pg_indexes
+      where schemaname = 'public' and indexname = 'idx_pipeline_stages_org_name'
+    ),
+    'pipeline_stages has an org-scoped unique name index'
+  );
+
   raise notice 'automations are not world-readable';
   perform pg_temp.expect(
     not exists (

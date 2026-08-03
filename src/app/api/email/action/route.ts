@@ -7,7 +7,12 @@ import { parseJsonBody } from '@/lib/validation'
 import { verifyEstimateActionToken } from '@/lib/estimate-action-token'
 import { captureApiError } from '@/lib/api-error'
 import { getAppUrl, isDevelopment } from '@/lib/env'
-import { escapePostgrestValue } from '@/lib/postgrest-escape'
+import { findMatchingLead } from '@/lib/leads'
+import {
+  getFromAddress,
+  getResendClient,
+  isEmailConfigured,
+} from '@/lib/email/resend-client'
 
 const actionSchema = z.object({
   estimateId: z.string().uuid(),
@@ -40,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const { data: estimate, error: estimateError } = await supabase
       .from('estimates')
-      .select('user_id, lead_id, client_id, clients(email, name)')
+      .select('user_id, organization_id, lead_id, client_id, estimate_number, clients(email, name)')
       .eq('id', estimateId)
       .single()
 
@@ -58,6 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = estimate.user_id
+    const orgId = estimate.organization_id as string | null
 
     let contractorEmail = ''
     try {
@@ -72,19 +78,23 @@ export async function POST(request: NextRequest) {
     let newStatus = ''
     let emailSubject = ''
     let emailMessage = ''
-    let recipientEmail = ''
     const displayName = clientName || clientRecord.name || 'Client'
+    const reference = (estimate.estimate_number as string | null) || estimateId.slice(0, 8)
+
+    // Both outcomes notify the contractor, because the contractor is the one who
+    // has to act. "Request changes" used to email the client back instead, so
+    // the contractor never found out anything had been asked for. The client
+    // already sees a confirmation on the /estimate-action page.
+    const recipientEmail = contractorEmail
 
     if (action === 'approve') {
       newStatus = 'Approved'
-      emailSubject = `Estimate Approved by ${displayName} - ${estimateId.slice(0, 8)}`
-      emailMessage = `Great news! Your estimate has been approved by ${displayName}.`
-      recipientEmail = contractorEmail
+      emailSubject = `Estimate approved by ${displayName} - ${reference}`
+      emailMessage = `Great news! ${displayName} approved estimate ${reference}.`
     } else {
       newStatus = 'Changes Requested'
-      emailSubject = `Estimate Changes Requested - ${estimateId.slice(0, 8)}`
-      emailMessage = `Thank you for your feedback. We'll review your requested changes and get back to you with an updated estimate.`
-      recipientEmail = clientEmail
+      emailSubject = `Changes requested by ${displayName} - ${reference}`
+      emailMessage = `${displayName} asked for changes to estimate ${reference}. Review it and send an updated version.`
     }
 
     const { error: updateError } = await supabase
@@ -94,7 +104,6 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', estimateId)
-      .eq('user_id', userId)
 
     if (updateError) {
       captureApiError(updateError, { route: 'email/action' })
@@ -104,39 +113,18 @@ export async function POST(request: NextRequest) {
     if (action === 'approve') {
       let leadToUpdate = estimate.lead_id
 
-      if (!leadToUpdate && clientRecord) {
-        const safeEmail = clientRecord.email
-          ? escapePostgrestValue(clientRecord.email)
-          : ''
-        const safeName = clientRecord.name
-          ? escapePostgrestValue(clientRecord.name)
-          : ''
-
-        let orFilter = ''
-        if (safeEmail && safeName) {
-          orFilter = `email.eq.${safeEmail},name.eq.${safeName}`
-        } else if (safeEmail) {
-          orFilter = `email.eq.${safeEmail}`
-        } else if (safeName) {
-          orFilter = `name.eq.${safeName}`
-        }
-
-        if (orFilter) {
-          const { data: matchingLeads } = await supabase
-            .from('leads')
-            .select('id')
-            .eq('user_id', userId)
-            .or(orFilter)
-            .in('status', ['New Leads', 'Estimate Sent'])
-            .limit(1)
-
-          if (matchingLeads?.[0]) {
-            leadToUpdate = matchingLeads[0].id
-            await supabase
-              .from('estimates')
-              .update({ lead_id: leadToUpdate })
-              .eq('id', estimateId)
-          }
+      if (!leadToUpdate && orgId) {
+        const matched = await findMatchingLead(supabase, orgId, {
+          clientId: estimate.client_id as string | undefined,
+          email: clientRecord.email,
+          name: clientRecord.name,
+        })
+        if (matched) {
+          leadToUpdate = matched.id
+          await supabase
+            .from('estimates')
+            .update({ lead_id: leadToUpdate })
+            .eq('id', estimateId)
         }
       }
 
@@ -148,13 +136,13 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', leadToUpdate)
-          .eq('user_id', userId)
       }
 
       try {
         await checkAndExecuteAutomations('estimate_approved', {
           event: 'estimate_approved',
           user_id: userId,
+          organization_id: orgId ?? undefined,
           estimate_id: estimateId,
           client_name: displayName,
           client_email: clientEmail,
@@ -164,12 +152,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const apiKey = process.env.RESEND_API_KEY
-    if (apiKey && recipientEmail) {
-      const { Resend } = await import('resend')
-      const resend = new Resend(apiKey)
-      const fromEmail =
-        process.env.RESEND_FROM_EMAIL || 'DyluxePro <onboarding@resend.dev>'
+    if (isEmailConfigured() && recipientEmail) {
+      const resend = getResendClient()
+      const fromEmail = getFromAddress()
       let emailToSend = recipientEmail
 
       if (isDevelopment() && process.env.RESEND_VERIFIED_EMAIL) {
@@ -181,11 +166,7 @@ export async function POST(request: NextRequest) {
         <html><body style="font-family: Arial, sans-serif;">
           <h2>${newStatus}</h2>
           <p>${emailMessage}</p>
-          ${
-            action === 'approve'
-              ? `<p><a href="${appUrl}/estimates/${estimateId}">View estimate in dashboard</a></p>`
-              : ''
-          }
+          <p><a href="${appUrl}/estimates/${estimateId}">View estimate in dashboard</a></p>
         </body></html>
       `
 
