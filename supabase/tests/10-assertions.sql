@@ -215,6 +215,60 @@ begin
       format('RLS enabled on %s', tenant_table)
     );
   end loop;
+
+  -- Phase 1: one membership model. Legacy team_members contact cards are gone.
+  raise notice 'team membership is unified on organization_members';
+  perform pg_temp.expect(pg_temp.has_column('user_profiles', 'email'), 'user_profiles.email exists');
+  perform pg_temp.expect(
+    pg_temp.has_column('organization_invitations', 'invited_name'),
+    'organization_invitations.invited_name exists'
+  );
+  perform pg_temp.expect(
+    pg_temp.has_column('organization_invitations', 'revoked_at'),
+    'organization_invitations.revoked_at exists'
+  );
+  perform pg_temp.expect(
+    not exists (
+      select 1 from information_schema.tables
+      where table_schema = 'public' and table_name = 'team_members'
+    ),
+    'legacy team_members table is gone'
+  );
+
+  raise notice 'phase 2–5 schema';
+  perform pg_temp.expect(pg_temp.has_column('organizations', 'stripe_connect_account_id'), 'organizations.stripe_connect_account_id exists');
+  perform pg_temp.expect(pg_temp.has_column('payments', 'source'), 'payments.source exists');
+  perform pg_temp.expect(
+    exists (
+      select 1 from information_schema.tables
+      where table_schema = 'public' and table_name = 'visits'
+    ),
+    'visits table exists'
+  );
+  perform pg_temp.expect(
+    exists (
+      select 1 from information_schema.tables
+      where table_schema = 'public' and table_name = 'automation_jobs'
+    ),
+    'automation_jobs table exists'
+  );
+  perform pg_temp.expect(
+    exists (select 1 from pg_proc where proname = 'increment_ai_usage'),
+    'increment_ai_usage function exists'
+  );
+
+  raise notice 'payment and invite hardening';
+  perform pg_temp.expect(pg_temp.has_column('stripe_webhook_events', 'status'), 'stripe_webhook_events.status exists');
+  perform pg_temp.expect(pg_temp.has_column('invoices', 'pending_checkout_session_id'), 'invoices.pending_checkout_session_id exists');
+  perform pg_temp.expect(
+    not exists (
+      select 1 from pg_policies
+      where schemaname = 'public'
+        and tablename = 'organization_invitations'
+        and policyname = 'Anyone can read invitation by token'
+    ),
+    'open invitation SELECT policy is gone'
+  );
 end $$;
 
 \echo 'all schema invariants hold'

@@ -9,12 +9,11 @@ import { teamInviteSchema } from "@/lib/api-schemas";
 import { sendTeamInviteEmail } from "@/lib/email/send-invite-email";
 import { displayNameFor, roleLabel } from "@/lib/team";
 import { listOrgMembers, listPendingInvitations } from "@/lib/team-members";
-import { requireOrgMember } from "@/lib/api-auth";
 
 export async function GET() {
   try {
     const supabase = await createClient();
-    const auth = await requireOrgMember(supabase);
+    const auth = await requirePermission(supabase, "invite_team");
     if (!auth.ok) return auth.response;
 
     const [invitations, members] = await Promise.all([
@@ -22,7 +21,12 @@ export async function GET() {
       listOrgMembers(supabase, auth.ctx.orgId),
     ]);
 
-    return NextResponse.json({ invitations, members });
+    // Never return raw invite tokens — accepting uses the emailed link only.
+    const safeInvitations = invitations.map(
+      ({ token: _token, ...rest }) => rest,
+    );
+
+    return NextResponse.json({ invitations: safeInvitations, members });
   } catch (error) {
     captureApiError(error, { route: "org/invitations/GET" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

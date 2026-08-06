@@ -71,6 +71,17 @@ export async function GET(request: NextRequest) {
       throw clientsError;
     }
 
+    // Pipeline conversion (leads → estimates → jobs)
+    const { data: leads, error: leadsError } = await supabase
+      .from('leads')
+      .select('id, status, created_at')
+      .eq('organization_id', orgId)
+      .gte('created_at', startDate.toISOString());
+
+    if (leadsError) {
+      throw leadsError;
+    }
+
     // Calculate metrics
     const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const completedJobs = jobs.filter(j => j.status === 'Completed').length;
@@ -104,6 +115,20 @@ export async function GET(request: NextRequest) {
     const totalEstimates = estimates.length;
     const approvedEstimates = estimates.filter(e => e.status === 'Approved').length;
     const estimateConversion = totalEstimates > 0 ? (approvedEstimates / totalEstimates) * 100 : 0;
+
+    const totalLeads = leads?.length ?? 0;
+    const leadsToEstimate = totalLeads > 0
+      ? ((estimates?.length ?? 0) / totalLeads) * 100
+      : 0;
+    const estimateToJob = (estimates?.length ?? 0) > 0
+      ? ((jobs?.length ?? 0) / (estimates?.length ?? 1)) * 100
+      : 0;
+    const pipelineConversion = {
+      totalLeads,
+      leadsToEstimate,
+      estimateToJob,
+      overall: totalLeads > 0 ? ((jobs?.length ?? 0) / totalLeads) * 100 : 0,
+    };
 
     // Calculate revenue by month
     const revenueByMonth: Record<string, { revenue: number; jobs: number }> = {};
@@ -195,7 +220,8 @@ export async function GET(request: NextRequest) {
         clientGrowth,
         averageJobValue,
         totalEstimates,
-        estimateConversion
+        estimateConversion,
+        pipelineConversion,
       },
       revenueData,
       topClients

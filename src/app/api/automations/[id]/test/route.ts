@@ -57,6 +57,11 @@ export async function POST(
       ...(automation.trigger_event === 'job_completed' && {
         job_id: 'test-job-id',
       }),
+      ...(automation.trigger_event === 'visit_completed' && {
+        visit_id: 'test-visit-id',
+        job_id: 'test-job-id',
+        job_title: 'Test Job',
+      }),
       ...(automation.trigger_event === 'lead_estimate_sent' && {
         lead_id: 'test-lead-id',
         lead_name: 'Test Lead',
@@ -87,8 +92,10 @@ export async function POST(
       })
     };
 
-    // Execute the automation
-    const result = await executeAutomation(automation, testContext);
+    // Execute immediately (skip delay enqueue) so tests send now
+    const result = await executeAutomation(automation, testContext, {
+      skipDelay: true,
+    });
 
     // Log the run (don't fail if logging fails)
     try {

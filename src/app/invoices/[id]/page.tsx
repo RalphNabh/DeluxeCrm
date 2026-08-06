@@ -112,6 +112,7 @@ export default function InvoiceDetailPage() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [isEditingInvoiceNumber, setIsEditingInvoiceNumber] = useState(false)
   const [editedInvoiceNumber, setEditedInvoiceNumber] = useState('')
   const [generatingPDF, setGeneratingPDF] = useState(false)
@@ -129,6 +130,37 @@ export default function InvoiceDetailPage() {
     if (params.id) {
       fetchInvoice()
     }
+  }, [params.id])
+
+  // Return from Stripe Checkout: verify session_id with the server (never trust ?paid=1).
+  useEffect(() => {
+    if (!params.id || typeof window === "undefined") return
+    const sessionId = new URLSearchParams(window.location.search).get("session_id")
+    if (!sessionId) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `/api/invoices/${params.id}/confirm-checkout?session_id=${encodeURIComponent(sessionId)}`,
+        )
+        const data = await res.json()
+        if (cancelled) return
+        if (data.paid) {
+          await fetchInvoice()
+        }
+      } catch {
+        // Webhook may still land; invoice poll on next load.
+      } finally {
+        if (!cancelled) {
+          window.history.replaceState({}, "", `/invoices/${params.id}`)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id])
 
   // `?download=true` arrives from the invoices list. The invoice has to be
@@ -268,6 +300,28 @@ export default function InvoiceDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to generate PDF. Please try again.')
     } finally {
       setGeneratingPDF(false)
+    }
+  }
+
+  const startOnlineCheckout = async () => {
+    if (!invoice) return
+    setCheckoutLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/checkout`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create payment link')
+      }
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create payment link')
+    } finally {
+      setCheckoutLoading(false)
     }
   }
 
@@ -679,10 +733,20 @@ export default function InvoiceDetailPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle>Payments</CardTitle>
                   {!showPaymentForm && remaining > 0 && (
-                    <Button onClick={() => setShowPaymentForm(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Payment
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={startOnlineCheckout}
+                        disabled={checkoutLoading}
+                      >
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        {checkoutLoading ? 'Opening…' : 'Pay online'}
+                      </Button>
+                      <Button onClick={() => setShowPaymentForm(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Payment
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>

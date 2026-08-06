@@ -14,6 +14,7 @@ interface ServiceRequest {
   description?: string;
   status: string;
   created_at: string;
+  photos?: string[];
   clients?: { id?: string; name?: string; email?: string };
 }
 
@@ -89,9 +90,23 @@ export default function RequestsInboxPage() {
                   {new Date(req.created_at).toLocaleDateString()}
                 </p>
               </CardHeader>
-              {req.description && (
-                <CardContent className="text-sm text-gray-600 pb-2">
-                  {req.description}
+              {(req.description || (Array.isArray(req.photos) && req.photos.length > 0)) && (
+                <CardContent className="text-sm text-gray-600 pb-2 space-y-2">
+                  {req.description && <p>{req.description}</p>}
+                  {Array.isArray(req.photos) && req.photos.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {req.photos.map((url) => (
+                        <a key={url} href={url} target="_blank" rel="noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt=""
+                            className="h-16 w-16 object-cover rounded border"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               )}
               <CardContent className="flex flex-wrap gap-2 pt-0">

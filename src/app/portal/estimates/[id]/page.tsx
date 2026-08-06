@@ -1,0 +1,208 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+
+type LineItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  total: number;
+};
+
+type Estimate = {
+  id: string;
+  estimate_number: string;
+  status: string;
+  subtotal: number;
+  tax: number;
+  total: number;
+  notes?: string;
+  contract_message?: string;
+  valid_until?: string;
+  estimate_line_items?: LineItem[];
+};
+
+export default function PortalEstimatePage() {
+  const params = useParams();
+  const id = params.id as string;
+  const router = useRouter();
+  const [estimate, setEstimate] = useState<Estimate | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [contractAgreed, setContractAgreed] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/portal/estimates/${id}`)
+      .then(async (r) => {
+        if (r.status === 401) {
+          router.push("/portal/login");
+          return null;
+        }
+        const data = await r.json();
+        if (!r.ok) {
+          setError(data.error || "Failed to load estimate");
+          return null;
+        }
+        return data as Estimate;
+      })
+      .then((d) => d && setEstimate(d))
+      .finally(() => setLoading(false));
+  }, [id, router]);
+
+  const canAct =
+    estimate &&
+    ["Sent", "Changes Requested"].includes(estimate.status) &&
+    !acting;
+
+  const runAction = async (action: "approve" | "request_changes") => {
+    if (!estimate) return;
+    if (action === "approve" && estimate.contract_message && !contractAgreed) {
+      setError("Please agree to the terms before approving.");
+      return;
+    }
+    setActing(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/portal/estimates/${id}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Action failed");
+        return;
+      }
+      setEstimate({ ...estimate, status: data.status });
+      setMessage(data.message || "Updated");
+    } finally {
+      setActing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 text-sm text-gray-500">
+        Loading estimate…
+      </div>
+    );
+  }
+
+  if (!estimate) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <p className="text-red-600 text-sm">{error || "Estimate not found"}</p>
+        <Link href="/portal" className="text-sm text-blue-600 underline mt-2 inline-block">
+          Back to Hub
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b px-4 py-4 flex justify-between items-center">
+        <h1 className="text-xl font-bold text-gray-900">
+          Estimate {estimate.estimate_number}
+        </h1>
+        <Link href="/portal">
+          <Button variant="outline" size="sm">
+            Back to Hub
+          </Button>
+        </Link>
+      </header>
+
+      <main className="max-w-2xl mx-auto p-4 space-y-4">
+        {error && (
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        )}
+        {message && (
+          <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+            {message}
+          </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex justify-between">
+              <span>Status</span>
+              <span className="font-normal text-gray-600">{estimate.status}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {(estimate.estimate_line_items ?? []).map((li) => (
+              <div key={li.id} className="flex justify-between border-b py-2">
+                <span>
+                  {li.description} × {li.quantity}
+                </span>
+                <span>{formatCurrencyWithSymbol(li.total)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between pt-2">
+              <span>Subtotal</span>
+              <span>{formatCurrencyWithSymbol(estimate.subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>{formatCurrencyWithSymbol(estimate.tax)}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-base">
+              <span>Total</span>
+              <span>{formatCurrencyWithSymbol(estimate.total)}</span>
+            </div>
+            {estimate.notes && (
+              <p className="text-gray-600 pt-2 whitespace-pre-wrap">{estimate.notes}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {estimate.contract_message && canAct && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Terms</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {estimate.contract_message}
+              </p>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={contractAgreed}
+                  onChange={(e) => setContractAgreed(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>I agree to the terms above</span>
+              </label>
+            </CardContent>
+          </Card>
+        )}
+
+        {canAct && (
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => runAction("approve")} disabled={acting}>
+              Approve estimate
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => runAction("request_changes")}
+              disabled={acting}
+            >
+              Request changes
+            </Button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

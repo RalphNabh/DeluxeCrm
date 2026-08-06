@@ -56,6 +56,12 @@ interface BusinessMetrics {
   averageJobValue: number;
   totalEstimates: number;
   estimateConversion: number;
+  pipelineConversion?: {
+    totalLeads: number;
+    leadsToEstimate: number;
+    estimateToJob: number;
+    overall: number;
+  };
 }
 
 interface RevenueData {
@@ -350,6 +356,43 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {metrics.pipelineConversion && (
+            <Card className="border-0 shadow-lg mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Target className="h-5 w-5 mr-2" />
+                  Pipeline conversion
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Leads</p>
+                    <p className="text-xl font-semibold">{metrics.pipelineConversion.totalLeads}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Lead → Estimate</p>
+                    <p className="text-xl font-semibold">
+                      {metrics.pipelineConversion.leadsToEstimate.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Estimate → Job</p>
+                    <p className="text-xl font-semibold">
+                      {metrics.pipelineConversion.estimateToJob.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Overall</p>
+                    <p className="text-xl font-semibold">
+                      {metrics.pipelineConversion.overall.toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Revenue Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

@@ -114,11 +114,23 @@ export const jobCreateSchema = z.object({
   status: z.string().trim().max(50).optional(),
   location: optionalString,
   description: z.string().max(10000).optional(),
-  estimated_duration: z.string().max(100).optional(),
+  estimated_duration: z.union([z.string().max(100), z.number()]).optional(),
   team_members: z.union([z.array(z.string()), z.string()]).optional(),
   equipment: z.union([z.array(z.string()), z.string()]).optional(),
   notes: z.string().max(5000).optional(),
   tags: z.union([z.array(z.string()), z.string()]).optional(),
+  // Recurrence (null / omitted = one-time job)
+  recurrence_freq: z.enum(['daily', 'weekly', 'monthly']).optional().nullable(),
+  recurrence_interval: z.number().int().min(1).max(365).optional(),
+  recurrence_byweekday: z.array(z.enum(['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'])).optional().nullable(),
+  recurrence_until: z.string().trim().max(20).optional().nullable(),
+  recurrence_count: z.number().int().min(1).max(1000).optional().nullable(),
+  timezone: z.string().trim().max(100).optional().nullable(),
+});
+
+/** Partial update — same fields as create, all optional except we ignore unknown keys. */
+export const jobUpdateSchema = jobCreateSchema.partial().extend({
+  status: z.string().trim().max(50).optional(),
 });
 
 export const taskCreateSchema = z.object({

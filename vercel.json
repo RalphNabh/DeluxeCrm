@@ -4,6 +4,18 @@
     {
       "path": "/api/ai-estimates/cron/cleanup",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/automations/cron/process",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/automations/cron/overdue",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/visits/cron/extend",
+      "schedule": "0 5 * * *"
     }
   ]
 }

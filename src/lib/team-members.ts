@@ -52,7 +52,8 @@ export async function listOrgMembers(
     .eq("org_id", orgId)
     .order("joined_at", { ascending: true });
 
-  if (error || !memberships?.length) return [];
+  if (error) throw error;
+  if (!memberships?.length) return [];
 
   const userIds = memberships.map((m: MembershipRow) => m.user_id);
   const { data: profiles } = await supabase
@@ -182,7 +183,6 @@ export async function buildTeamList(
     last_active: null,
     jobs_completed: 0,
     total_hours: 0,
-    invite_token: invitation.token,
   }));
 
   return [...members, ...pending];

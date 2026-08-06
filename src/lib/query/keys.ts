@@ -26,6 +26,11 @@ export const queryKeys = {
     list: () => ["jobs", "list"] as const,
     detail: (id: string) => ["jobs", "detail", id] as const,
   },
+  visits: {
+    all: ["visits"] as const,
+    list: (from?: string, to?: string) =>
+      ["visits", "list", from ?? "", to ?? ""] as const,
+  },
   tasks: {
     all: ["tasks"] as const,
     list: (tag?: string | null, status?: string | null) =>

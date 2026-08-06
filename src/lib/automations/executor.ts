@@ -1,8 +1,7 @@
-import { createClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { isTwilioConfigured, sendTwilioSms } from '@/lib/sms/twilio';
 
-// Initialize Resend client with error handling
 const getResendClient = () => {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -11,28 +10,153 @@ const getResendClient = () => {
   return new Resend(apiKey);
 };
 
+function getFromEmail(): string {
+  return process.env.RESEND_FROM_EMAIL || 'DyluxePro <onboarding@resend.dev>';
+}
+
 type Automation = {
   id: string;
   user_id: string;
+  organization_id?: string | null;
   name: string;
   trigger_event: string;
   action_type: string;
-  action_payload: any;
+  action_payload: Record<string, unknown> | null;
 };
 
 type AutomationContext = {
   event: string;
   user_id: string;
-  [key: string]: any;
+  organization_id?: string;
+  [key: string]: unknown;
 };
+
+type ExecuteOptions = {
+  /** When true, skip delay enqueue (used by job processor / test runs). */
+  skipDelay?: boolean;
+};
+
+function replaceTemplateVariables(text: string, context: AutomationContext): string {
+  let result = text;
+  for (const key in context) {
+    const value = context[key];
+    if (value !== null && value !== undefined) {
+      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value));
+    }
+  }
+  return result;
+}
+
+function getServiceRoleClient(): SupabaseClient {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for automations in production.');
+    }
+    return createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+  }
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+async function isOrgSmsEnabled(
+  supabase: SupabaseClient,
+  organizationId: string | undefined,
+): Promise<boolean> {
+  if (!organizationId) return false;
+  const { data } = await supabase
+    .from('organizations')
+    .select('settings')
+    .eq('id', organizationId)
+    .maybeSingle();
+
+  const settings = (data?.settings ?? {}) as Record<string, unknown>;
+  return settings.sms_notifications === true;
+}
+
+function buildDedupeKey(
+  automation: Automation,
+  context: AutomationContext,
+  runAt: Date,
+): string {
+  const entity =
+    (context.invoice_id as string) ||
+    (context.estimate_id as string) ||
+    (context.client_id as string) ||
+    (context.lead_id as string) ||
+    (context.job_id as string) ||
+    'na';
+  const day = runAt.toISOString().slice(0, 10);
+  return `${automation.id}:${context.event}:${entity}:${day}`;
+}
+
+async function enqueueAutomationJob(
+  supabase: SupabaseClient,
+  automation: Automation,
+  context: AutomationContext,
+  delayDays: number,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const organizationId = context.organization_id || automation.organization_id;
+  if (!organizationId) {
+    return {
+      success: false,
+      error: 'Cannot schedule automation: missing organization_id',
+    };
+  }
+
+  const runAt = new Date();
+  runAt.setUTCDate(runAt.getUTCDate() + delayDays);
+  const dedupeKey = buildDedupeKey(automation, context, runAt);
+
+  const { error } = await supabase.from('automation_jobs').insert({
+    organization_id: organizationId,
+    automation_id: automation.id,
+    run_at: runAt.toISOString(),
+    payload: { context },
+    status: 'pending',
+    dedupe_key: dedupeKey,
+  });
+
+  if (error) {
+    // Unique violation → already queued
+    if (error.code === '23505') {
+      return {
+        success: true,
+        message: `Automation already scheduled (dedupe: ${dedupeKey})`,
+      };
+    }
+    console.error('[AUTOMATION] Failed to enqueue job:', error);
+    return { success: false, error: error.message };
+  }
+
+  return {
+    success: true,
+    message: `Automation scheduled for ${runAt.toISOString()} (${delayDays} day delay)`,
+  };
+}
 
 export async function executeAutomation(
   automation: Automation,
-  context: AutomationContext
+  context: AutomationContext,
+  options: ExecuteOptions = {},
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
+    const delayDays = Number(automation.action_payload?.delay_days) || 0;
+    if (!options.skipDelay && delayDays > 0) {
+      const supabase = getServiceRoleClient();
+      return await enqueueAutomationJob(supabase, automation, context, delayDays);
+    }
+
     if (automation.action_type === 'send_email') {
       return await executeSendEmail(automation, context);
+    }
+
+    if (automation.action_type === 'send_sms') {
+      return await executeSendSms(automation, context);
     }
 
     return { success: false, error: `Unknown action type: ${automation.action_type}` };
@@ -40,62 +164,44 @@ export async function executeAutomation(
     console.error('Error executing automation:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
 
 async function executeSendEmail(
   automation: Automation,
-  context: AutomationContext
+  context: AutomationContext,
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    // Check if Resend API key is configured
     if (!process.env.RESEND_API_KEY) {
       return {
         success: false,
-        error: 'Email service is not configured. Please set RESEND_API_KEY in your environment variables.'
+        error: 'Email service is not configured. Please set RESEND_API_KEY in your environment variables.',
       };
     }
 
     const resend = getResendClient();
-    const { subject, body, delay_days, days_overdue } = automation.action_payload;
+    const payload = automation.action_payload || {};
+    const subject = String(payload.subject || 'Automated Email');
+    const body = String(payload.body || '');
 
-    // Replace template variables
-    let finalSubject = subject || 'Automated Email';
-    let finalBody = body || '';
+    const finalSubject = replaceTemplateVariables(subject, context);
+    const finalBody = replaceTemplateVariables(body, context);
 
-    // Replace all template variables dynamically
-    const replaceVariables = (text: string) => {
-      let result = text;
-      for (const key in context) {
-        const value = context[key];
-        if (value !== null && value !== undefined) {
-          result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value));
-        }
-      }
-      return result;
-    };
-
-    finalSubject = replaceVariables(finalSubject);
-    finalBody = replaceVariables(finalBody);
-
-    // Get recipient email - prioritize client/lead email, fallback to verified email
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const userEmail = user?.email;
-    
-    // Determine recipient: client/lead email in production, verified email in development (for testing)
     const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL;
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
-    // Get client/lead email from context (could be client_email, lead_email, or email)
-    const clientEmail = context.client_email || context.lead_email || context.email;
-    
-    // Use client email if available and in production, otherwise use verified email for testing
-    const recipientEmail = clientEmail && !isDevelopment
-      ? clientEmail
-      : (clientEmail || verifiedEmail);
+
+    const clientEmail = (context.client_email || context.lead_email || context.email) as
+      | string
+      | undefined;
+
+    // Prefer client email in production; verified/dev fallback for testing.
+    // Do not require a cookie session — cron job processing has none.
+    const recipientEmail =
+      clientEmail && !isDevelopment
+        ? clientEmail
+        : clientEmail || verifiedEmail || (context.user_email as string | undefined);
 
     if (!recipientEmail) {
       return {
@@ -104,7 +210,6 @@ async function executeSendEmail(
       };
     }
 
-    // Create professional HTML email template
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -126,11 +231,9 @@ async function executeSendEmail(
             <h1>${finalSubject}</h1>
             <p>From DyluxePro</p>
           </div>
-          
           <div class="content">
-            ${finalBody.split('\n').map((line: string) => line.trim() ? `<p>${line}</p>` : '<br>').join('')}
+            ${finalBody.split('\n').map((line: string) => (line.trim() ? `<p>${line}</p>` : '<br>')).join('')}
           </div>
-          
           <div class="footer">
             <p>This email was sent automatically from DyluxePro CRM</p>
           </div>
@@ -139,24 +242,22 @@ async function executeSendEmail(
       </html>
     `;
 
-    // Send email via Resend
-    // For prototype: always use onboarding@resend.dev (test domain)
-    const fromEmail = 'DyluxePro <onboarding@resend.dev>';
-    
-    // Add prototype note if in development and we have a client email
-    const prototypeNote = isDevelopment && clientEmail ? `
+    const prototypeNote =
+      isDevelopment && clientEmail
+        ? `
       <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; border-radius: 4px; margin-bottom: 20px;">
         <strong>PROTOTYPE DEMO:</strong> This email was intended for ${clientEmail}. In production, emails will be sent directly to the client's email address.
       </div>
-    ` : '';
+    `
+        : '';
 
     const fullEmailHtml = emailHtml.replace(
       '<div class="content">',
-      `<div class="content">${prototypeNote}`
+      `<div class="content">${prototypeNote}`,
     );
-    
-    const { data, error } = await resend.emails.send({
-      from: fromEmail,
+
+    const { error } = await resend.emails.send({
+      from: getFromEmail(),
       to: [recipientEmail],
       subject: finalSubject,
       html: fullEmailHtml,
@@ -169,44 +270,141 @@ async function executeSendEmail(
 
     return {
       success: true,
-      message: `Email sent successfully to ${recipientEmail}`
+      message: `Email sent successfully to ${recipientEmail}`,
     };
   } catch (error) {
     console.error('Error executing send email automation:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send email'
+      error: error instanceof Error ? error.message : 'Failed to send email',
     };
   }
 }
 
-// Function to check and execute automations for a specific event
+async function executeSendSms(
+  automation: Automation,
+  context: AutomationContext,
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const organizationId = context.organization_id || automation.organization_id || undefined;
+    const supabase = getServiceRoleClient();
+
+    const smsEnabled = await isOrgSmsEnabled(supabase, organizationId);
+    if (!smsEnabled) {
+      return {
+        success: false,
+        error:
+          'SMS notifications are disabled for this organization. Enable sms_notifications in organization settings.',
+      };
+    }
+
+    if (!isTwilioConfigured()) {
+      return {
+        success: false,
+        error:
+          'SMS is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER.',
+      };
+    }
+
+    const payload = automation.action_payload || {};
+    const bodyTemplate = String(payload.body || payload.message || '');
+    if (!bodyTemplate.trim()) {
+      return { success: false, error: 'SMS automation is missing body/message text.' };
+    }
+
+    const phone = (context.client_phone ||
+      context.lead_phone ||
+      context.phone) as string | undefined;
+
+    if (!phone) {
+      return { success: false, error: 'No recipient phone number in automation context.' };
+    }
+
+    const finalBody = replaceTemplateVariables(bodyTemplate, context);
+    const result = await sendTwilioSms({ to: phone, body: finalBody });
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    return {
+      success: true,
+      message: `SMS sent successfully to ${phone}${result.sid ? ` (${result.sid})` : ''}`,
+    };
+  } catch (error) {
+    console.error('Error executing send SMS automation:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send SMS',
+    };
+  }
+}
+
+/** Process a single due automation_jobs row (called by cron). */
+export async function processAutomationJob(job: {
+  id: string;
+  automation_id: string;
+  organization_id: string;
+  payload: { context?: AutomationContext } | null;
+  attempts: number;
+}): Promise<{ success: boolean; error?: string }> {
+  const supabase = getServiceRoleClient();
+
+  const { data: automation, error: autoErr } = await supabase
+    .from('automations')
+    .select('*')
+    .eq('id', job.automation_id)
+    .maybeSingle();
+
+  if (autoErr || !automation) {
+    return { success: false, error: autoErr?.message || 'Automation not found' };
+  }
+
+  if (!automation.is_active) {
+    return { success: false, error: 'Automation is inactive' };
+  }
+
+  const context: AutomationContext = {
+    event: automation.trigger_event,
+    user_id: automation.user_id,
+    organization_id: job.organization_id,
+    ...(job.payload?.context || {}),
+  };
+
+  const result = await executeAutomation(automation as Automation, context, {
+    skipDelay: true,
+  });
+
+  try {
+    await supabase.from('automation_runs').insert([
+      {
+        user_id: context.user_id,
+        organization_id: job.organization_id,
+        automation_id: automation.id,
+        event: automation.trigger_event,
+        input: context,
+        result: result.success ? 'success' : 'error',
+        output: result,
+      },
+    ]);
+  } catch (logError) {
+    console.error('Error logging automation run from job:', logError);
+  }
+
+  return result.success
+    ? { success: true }
+    : { success: false, error: result.error || 'Execution failed' };
+}
+
 export async function checkAndExecuteAutomations(
   triggerEvent: string,
-  context: AutomationContext
+  context: AutomationContext,
 ): Promise<void> {
   try {
-    // Use service role client to bypass RLS when client isn't authenticated
-    // This is needed when clients approve estimates from email links
-    let supabase;
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for automations in production.');
-      }
-      supabase = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
-    } else {
-      supabase = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      );
-    }
-    
+    const supabase = getServiceRoleClient();
+
     console.log(`Checking automations for event: ${triggerEvent}, user_id: ${context.user_id}`);
-    
-    // Fetch all active automations for this trigger event
+
     let query = supabase
       .from('automations')
       .select('*')
@@ -223,72 +421,42 @@ export async function checkAndExecuteAutomations(
 
     if (error) {
       console.error('[AUTOMATION EXECUTOR] Error fetching automations:', error);
-      console.error('[AUTOMATION EXECUTOR] Error details:', JSON.stringify(error, null, 2));
-      console.error('[AUTOMATION EXECUTOR] Error code:', error.code);
-      console.error('[AUTOMATION EXECUTOR] Error message:', error.message);
-      console.error('[AUTOMATION EXECUTOR] Error hint:', error.hint);
-      console.error('[AUTOMATION EXECUTOR] This might be an RLS policy issue. Make sure SUPABASE_SERVICE_ROLE_KEY is set.');
       return;
     }
 
-    if (!automations) {
-      console.error('[AUTOMATION EXECUTOR] Automations query returned null/undefined');
+    if (!automations || automations.length === 0) {
+      console.log(
+        `[AUTOMATION EXECUTOR] No active automations found for event: ${triggerEvent}`,
+      );
       return;
     }
 
-    if (automations.length === 0) {
-      console.log(`[AUTOMATION EXECUTOR] No active automations found for event: ${triggerEvent}, user_id: ${context.user_id}`);
-      console.log('[AUTOMATION EXECUTOR] Query params:', { triggerEvent, user_id: context.user_id, is_active: true });
-      console.log('[AUTOMATION EXECUTOR] Make sure:');
-      console.log('  1. The automation exists in the automations table');
-      console.log('  2. The automation has trigger_event = "estimate_approved"');
-      console.log('  3. The automation has is_active = true');
-      console.log('  4. The automation has user_id matching the estimate owner');
-      return;
-    }
-
-    console.log(`Found ${automations.length} active automation(s) for event: ${triggerEvent}, user_id: ${context.user_id}`);
-    console.log('Automations:', automations.map(a => ({ id: a.id, name: a.name, is_active: a.is_active })));
-
-    // Execute each automation
     for (const automation of automations) {
       try {
         console.log(`Executing automation: ${automation.name} (ID: ${automation.id})`);
-        
-        // Check delay if specified
-        if (automation.action_payload?.delay_days) {
-          // For now, we'll execute immediately but note that in production
-          // you'd want to schedule this with a job queue (e.g., Bull, Agenda)
-          // For simplicity, we'll execute immediately but note the delay requirement
-          console.log(`Note: Automation has ${automation.action_payload.delay_days} day delay, but executing immediately for prototype`);
-        }
-
-        const result = await executeAutomation(automation, context);
-
+        const result = await executeAutomation(automation as Automation, context);
         console.log(`Automation result:`, result);
 
-        // Log the run
         try {
-          await supabase
-            .from('automation_runs')
-            .insert([{
+          await supabase.from('automation_runs').insert([
+            {
               user_id: context.user_id,
+              organization_id: context.organization_id || automation.organization_id,
               automation_id: automation.id,
               event: triggerEvent,
               input: context,
               result: result.success ? 'success' : 'error',
-              output: result
-            }]);
+              output: result,
+            },
+          ]);
         } catch (logError) {
           console.error('Error logging automation run:', logError);
-          // Don't fail if logging fails
         }
-      } catch (error) {
-        console.error(`Error executing automation ${automation.id}:`, error);
+      } catch (err) {
+        console.error(`Error executing automation ${automation.id}:`, err);
       }
     }
   } catch (error) {
     console.error('Error checking automations:', error);
   }
 }
-

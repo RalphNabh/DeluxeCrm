@@ -89,6 +89,26 @@ export function useJobsQuery() {
   });
 }
 
+export function useVisitsQuery(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+
+  return useQuery({
+    queryKey: queryKeys.visits.list(from, to),
+    queryFn: async () => {
+      const response = await fetch(qs ? `/api/visits?${qs}` : "/api/visits");
+      if (!response.ok) {
+        // Visits API may not be migrated yet — signal caller to fall back
+        throw new Error(`visits_unavailable:${response.status}`);
+      }
+      return (await response.json()) as unknown[];
+    },
+    retry: false,
+  });
+}
+
 export function useTasksQuery(options?: {
   tag?: string | null;
   status?: string | null;
@@ -155,6 +175,8 @@ export function useInvalidateQueries() {
     invoices: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }),
     jobs: () => queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all }),
+    visits: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all }),
     tasks: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all }),
     materials: () =>

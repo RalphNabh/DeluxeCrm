@@ -35,9 +35,19 @@ drop policy if exists "Enable read automations for executor" on public.automatio
 |----------|---------|
 | `ESTIMATE_ACTION_SECRET` | Signs client estimate approve links (or reuses `CRON_SECRET`) |
 | `CRON_SECRET` | Protects cron + Vercel auto-injects on scheduled jobs |
+| `RESEND_FROM_EMAIL` | Automation / transactional From address (falls back to Resend test domain) |
+| `TWILIO_ACCOUNT_SID` | Optional — required for `send_sms` automations |
+| `TWILIO_AUTH_TOKEN` | Optional — Twilio auth |
+| `TWILIO_FROM_NUMBER` | Optional — E.164 sender (e.g. `+15551234567`) |
 | `UPSTASH_REDIS_REST_URL` / `TOKEN` | Required in production (rate limits fail closed without them) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Contact form captcha |
 | `NEXT_PUBLIC_APP_URL` | `https://www.dyluxepro.com` |
+
+### Automations / SMS notes
+
+- Org SMS preference is stored in `organizations.settings.sms_notifications` (Settings UI → PATCH `/api/org/settings`). localStorage does **not** control SMS sends.
+- Crons: `/api/automations/cron/process` every 15 min; `/api/automations/cron/overdue` daily. Both accept `Authorization: Bearer $CRON_SECRET` or `?secret=`.
+- Apply migration `20250107000000_automation_jobs` before relying on delayed sends or overdue scans.
 
 ## Supabase Auth
 

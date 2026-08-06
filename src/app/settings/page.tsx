@@ -91,16 +91,52 @@ export default function SettingsPage() {
   const [seatInfo, setSeatInfo] = useState<{ billableSeats?: number; activeMembers?: number; seatQuantity?: number } | null>(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [connectStatus, setConnectStatus] = useState<{
+    accountId: string | null
+    readyForPayments: boolean
+    detailsSubmitted: boolean
+    chargesEnabled: boolean
+  } | null>(null)
+  const [connectLoading, setConnectLoading] = useState(false)
 
   useEffect(() => {
-    // Load user settings from localStorage
+    // Display prefs (timezone/date_format) still use localStorage;
+    // notification toggles load from org settings (SMS sends read server-side).
     const savedSettings = localStorage.getItem('user-settings')
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
+      try {
+        const parsed = JSON.parse(savedSettings)
+        setSettings((prev) => ({
+          ...prev,
+          timezone: parsed.timezone || prev.timezone,
+          date_format: parsed.date_format || prev.date_format,
+        }))
+      } catch {
+        /* ignore corrupt localStorage */
+      }
     }
+    fetchOrgSettings()
     fetchSubscriptionStatus()
     fetchSeatInfo()
+    fetchConnectStatus()
   }, [])
+
+  const fetchOrgSettings = async () => {
+    try {
+      const response = await fetch('/api/org/settings')
+      if (response.ok) {
+        const data = await response.json()
+        setSettings((prev) => ({
+          ...prev,
+          sms_notifications: data.sms_notifications === true,
+          email_notifications: data.email_notifications !== false,
+          weekly_reports: data.weekly_reports !== false,
+        }))
+      }
+    } catch {
+      // Fall back to defaults if org settings unavailable
+    }
+  }
 
   const fetchSeatInfo = async () => {
     try {
@@ -153,37 +189,107 @@ export default function SettingsPage() {
     }
   }
 
+  const fetchConnectStatus = async () => {
+    try {
+      const response = await fetch('/api/stripe/connect/status')
+      if (response.ok) {
+        setConnectStatus(await response.json())
+      }
+    } catch {
+      // Owners/admins only; ignore for other roles
+    }
+  }
+
+  const handleConnectOnboard = async () => {
+    setConnectLoading(true)
+    try {
+      const response = await fetch('/api/stripe/connect/onboard', { method: 'POST' })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start Connect onboarding')
+      }
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to start Connect onboarding')
+      setTimeout(() => setMessage(null), 3000)
+    } finally {
+      setConnectLoading(false)
+    }
+  }
+
+
+  const persistDisplayPrefs = (next: UserSettings) => {
+    localStorage.setItem(
+      'user-settings',
+      JSON.stringify({
+        timezone: next.timezone,
+        date_format: next.date_format,
+      }),
+    )
+  }
+
+  const persistOrgNotifications = async (next: UserSettings) => {
+    const response = await fetch('/api/org/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sms_notifications: next.sms_notifications,
+        email_notifications: next.email_notifications,
+        weekly_reports: next.weekly_reports,
+      }),
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.error || 'Failed to save organization settings')
+    }
+  }
 
   const handleSaveSettings = async () => {
     setLoading(true)
     setMessage(null)
-    
+
     try {
-      // Save to localStorage (in a real app, you'd save to your database)
-      localStorage.setItem('user-settings', JSON.stringify(settings))
+      persistDisplayPrefs(settings)
+      await persistOrgNotifications(settings)
       setMessage('Settings saved successfully!')
     } catch (error) {
-      setMessage('Failed to save settings. Please try again.')
+      setMessage(error instanceof Error ? error.message : 'Failed to save settings. Please try again.')
     } finally {
       setLoading(false)
       setTimeout(() => setMessage(null), 3000)
     }
   }
 
-  const handleToggle = (key: keyof UserSettings) => {
+  const handleToggle = async (key: keyof UserSettings) => {
     const newSettings = {
       ...settings,
-      [key]: !settings[key]
+      [key]: !settings[key],
     }
     setSettings(newSettings)
-    // Auto-save toggle changes
-    localStorage.setItem('user-settings', JSON.stringify(newSettings))
+
+    if (
+      key === 'sms_notifications' ||
+      key === 'email_notifications' ||
+      key === 'weekly_reports'
+    ) {
+      try {
+        await persistOrgNotifications(newSettings)
+      } catch (error) {
+        setSettings(settings)
+        setMessage(error instanceof Error ? error.message : 'Failed to update setting')
+        setTimeout(() => setMessage(null), 3000)
+      }
+    } else {
+      persistDisplayPrefs(newSettings)
+    }
   }
 
   const handleInputChange = (key: keyof UserSettings, value: string) => {
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }))
   }
 
@@ -470,7 +576,9 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200">
                   <div>
                     <h3 className="font-medium text-gray-900">SMS Notifications</h3>
-                    <p className="text-sm text-gray-600">Receive notifications via SMS</p>
+                    <p className="text-sm text-gray-600">
+                      Allow SMS automation sends for this organization (requires Twilio env vars)
+                    </p>
                   </div>
                   <Switch
                     checked={settings.sms_notifications}
@@ -574,6 +682,60 @@ export default function SettingsPage() {
                     </Link>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Online invoice payments (Stripe Connect) */}
+            <Card className="border-gray-200 bg-white transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center text-gray-900">
+                  <DollarSign className="h-5 w-5 mr-2 text-blue-600" />
+                  Accept online payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {connectStatus?.readyForPayments ? (
+                  <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+                    <div className="flex items-center mb-2">
+                      <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                      <h3 className="font-medium text-green-800">Ready to accept card payments</h3>
+                    </div>
+                    <p className="text-sm text-green-700">
+                      Clients can pay invoices online. Funds go to your connected Stripe account.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                    <h3 className="font-medium text-blue-800 mb-2">
+                      {connectStatus?.detailsSubmitted
+                        ? "Stripe is still reviewing your account"
+                        : "Connect Stripe to get paid"}
+                    </h3>
+                    <p className="text-sm text-blue-700">
+                      Finish a short Stripe Express setup so clients can pay invoices by card.
+                    </p>
+                  </div>
+                )}
+                <Button
+                  onClick={handleConnectOnboard}
+                  disabled={connectLoading}
+                  className="w-full"
+                  variant={connectStatus?.readyForPayments ? "outline" : "default"}
+                >
+                  {connectLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      {connectStatus?.readyForPayments
+                        ? "Update payout details"
+                        : "Set up online payments"}
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
 

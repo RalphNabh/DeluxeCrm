@@ -28,8 +28,6 @@ export type TeamMemberView = {
   jobs_completed: number;
   total_hours: number;
   avatar?: string | null;
-  /** Present for pending invitations so the UI can offer the link again. */
-  invite_token?: string;
 };
 
 export function roleLabel(role: string): string {
