@@ -64,11 +64,12 @@ import { CardGridSkeleton } from "@/components/ui/page-skeletons";
 
 interface TeamMember {
   id: string;
+  kind?: "member" | "invitation";
   name: string;
   email: string;
   phone?: string;
   role: 'Owner' | 'Manager' | 'Worker' | 'Admin';
-  status: 'Active' | 'Inactive' | 'Pending';
+  status: 'Active' | 'Inactive' | 'Pending' | 'Invited' | 'Disabled' | 'Expired';
   joined_at: string;
   last_active?: string | null;
   jobs_completed: number;
@@ -131,6 +132,8 @@ export default function TeamPage() {
         body: JSON.stringify({
           email: formData.email,
           role: roleMap[formData.role] || 'worker',
+          name: formData.name || undefined,
+          phone: formData.phone || undefined,
         }),
       });
 
@@ -177,7 +180,16 @@ export default function TeamPage() {
       const response = await fetch(`/api/team/${editingMember.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          kind: editingMember.kind ?? 'member',
+          role: formData.role,
+          status:
+            formData.status === 'Active'
+              ? 'Active'
+              : formData.status === 'Inactive' || formData.status === 'Disabled'
+                ? 'Disabled'
+                : undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -198,13 +210,13 @@ export default function TeamPage() {
     }
   };
 
-  const handleDeleteMember = async (id: string) => {
+  const handleDeleteMember = async (id: string, kind: "member" | "invitation" = "member") => {
     if (!confirm('Are you sure you want to remove this team member?')) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/team/${id}`, {
+      const response = await fetch(`/api/team/${id}?kind=${kind}`, {
         method: 'DELETE'
       });
 
@@ -264,8 +276,11 @@ export default function TeamPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800';
-      case 'Inactive': return 'bg-gray-100 text-gray-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'Inactive':
+      case 'Disabled': return 'bg-gray-100 text-gray-800';
+      case 'Pending':
+      case 'Invited': return 'bg-yellow-100 text-yellow-800';
+      case 'Expired': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -273,8 +288,11 @@ export default function TeamPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Active': return CheckCircle;
-      case 'Inactive': return UserX;
-      case 'Pending': return Clock;
+      case 'Inactive':
+      case 'Disabled': return UserX;
+      case 'Pending':
+      case 'Invited':
+      case 'Expired': return Clock;
       default: return Clock;
     }
   };
@@ -684,7 +702,7 @@ export default function TeamPage() {
                           variant="outline" 
                           size="sm" 
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDeleteMember(member.id)}
+                          onClick={() => handleDeleteMember(member.id, member.kind ?? "member")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

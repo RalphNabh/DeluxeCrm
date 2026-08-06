@@ -4,6 +4,35 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/query/fetch";
 import { queryKeys } from "@/lib/query/keys";
 
+import type { OrgRole } from "@/lib/org";
+import type { Permission } from "@/lib/rbac";
+
+export type CurrentMember = {
+  userId: string;
+  orgId: string;
+  role: OrgRole;
+  permissions: Permission[];
+  organizationName: string | null;
+  fullName: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+};
+
+/**
+ * The signed-in member's role and permissions.
+ *
+ * Cached for the session because a role changes rarely and several layout
+ * components need it on every page.
+ */
+export function useCurrentMemberQuery() {
+  return useQuery({
+    queryKey: queryKeys.me.all,
+    queryFn: () => fetchJson<CurrentMember>("/api/org/me"),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
 export function useClientsQuery(q?: string) {
   const query = q?.trim() ?? "";
   return useQuery({
@@ -57,6 +86,26 @@ export function useJobsQuery() {
   return useQuery({
     queryKey: queryKeys.jobs.list(),
     queryFn: () => fetchJson<unknown[]>("/api/jobs"),
+  });
+}
+
+export function useVisitsQuery(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+
+  return useQuery({
+    queryKey: queryKeys.visits.list(from, to),
+    queryFn: async () => {
+      const response = await fetch(qs ? `/api/visits?${qs}` : "/api/visits");
+      if (!response.ok) {
+        // Visits API may not be migrated yet — signal caller to fall back
+        throw new Error(`visits_unavailable:${response.status}`);
+      }
+      return (await response.json()) as unknown[];
+    },
+    retry: false,
   });
 }
 
@@ -126,6 +175,8 @@ export function useInvalidateQueries() {
     invoices: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }),
     jobs: () => queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all }),
+    visits: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all }),
     tasks: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all }),
     materials: () =>

@@ -6,14 +6,18 @@ import {
   getInvoiceSubscriptionId,
   getSubscriptionPeriod,
 } from '@/lib/stripe-subscription'
+import { recordStripeInvoicePayment } from '@/lib/stripe-invoice-payment'
+import {
+  claimWebhookEvent,
+  markWebhookFailed,
+  markWebhookProcessed,
+} from '@/lib/stripe-webhook-claim'
 import { captureApiError } from '@/lib/api-error'
 
-// Disable body parsing, we need the raw body for signature verification
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  // Initialize Stripe client (lazy initialization to avoid build-time errors)
   let stripe: ReturnType<typeof createStripeClient>;
   try {
     stripe = createStripeClient();
@@ -21,7 +25,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
   }
 
-  // Use service role for webhook to bypass RLS
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseServiceRoleKey) {
@@ -68,32 +71,33 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { data: existingEvent } = await supabaseAdmin
-    .from('stripe_webhook_events')
-    .select('event_id')
-    .eq('event_id', event.id)
-    .maybeSingle()
-
-  if (existingEvent) {
-    return NextResponse.json({ received: true, duplicate: true })
+  let claim;
+  try {
+    claim = await claimWebhookEvent(supabaseAdmin, event.id, event.type)
+  } catch (error) {
+    captureApiError(error, { route: 'stripe/webhook', step: 'claim' })
+    return NextResponse.json({ error: 'Webhook claim failed' }, { status: 500 })
   }
 
-  const { error: insertEventError } = await supabaseAdmin
-    .from('stripe_webhook_events')
-    .insert({ event_id: event.id, event_type: event.type })
-
-  if (insertEventError) {
-    if (insertEventError.code === '23505') {
-      return NextResponse.json({ received: true, duplicate: true })
-    }
-    console.error('Failed to record webhook event id:', insertEventError)
+  if (claim.action === 'already_processed') {
+    return NextResponse.json({ received: true, duplicate: true })
+  }
+  if (claim.action === 'in_progress') {
+    // Another worker is handling this; ask Stripe to retry shortly.
+    return NextResponse.json({ error: 'Event processing in progress' }, { status: 409 })
   }
 
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        
+
+        if (session.mode === 'payment' && session.metadata?.type === 'invoice_payment') {
+          const result = await recordStripeInvoicePayment(supabaseAdmin, session)
+          console.log('Invoice Checkout payment processed:', result)
+          break
+        }
+
         if (session.mode === 'subscription' && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
@@ -123,23 +127,10 @@ export async function POST(request: NextRequest) {
             })
 
           if (upsertError) {
-            console.error('Error upserting subscription:', upsertError)
-            console.error('Subscription data:', {
-              user_id: userId,
-              stripe_customer_id: subscription.customer,
-              stripe_subscription_id: subscription.id,
-            })
             throw upsertError
           }
 
-          console.log('Subscription successfully saved to database:', {
-            user_id: userId,
-            subscription_id: subscription.id,
-          })
-
-          // Process affiliate commission if user was referred
           try {
-            // Check if this user was referred
             const { data: referral, error: referralFetchError } = await supabaseAdmin
               .from('referrals')
               .select('*, referrer:referrer_id(commission_rate)')
@@ -148,19 +139,15 @@ export async function POST(request: NextRequest) {
               .single()
 
             if (referral && !referralFetchError) {
-              // Get subscription price amount (in cents, convert to dollars)
               const priceAmount = subscription.items.data[0]?.price.unit_amount || 0
-              const subscriptionValue = priceAmount / 100 // Convert cents to dollars
-
-              // Get commission rate from referrer's affiliate record
+              const subscriptionValue = priceAmount / 100
               interface ReferrerData {
                 commission_rate?: number;
               }
               const commissionRate = (referral.referrer as ReferrerData)?.commission_rate || 30.00
               const commissionEarned = (subscriptionValue * commissionRate) / 100
 
-              // Update referral record with subscription info and commission
-              const { error: referralUpdateError } = await supabaseAdmin
+              await supabaseAdmin
                 .from('referrals')
                 .update({
                   status: 'Active',
@@ -170,45 +157,21 @@ export async function POST(request: NextRequest) {
                 })
                 .eq('id', referral.id)
 
-              if (referralUpdateError) {
-                console.error('Error updating referral with commission:', referralUpdateError)
-              } else {
-                console.log('Referral commission processed:', {
-                  referral_id: referral.id,
-                  referrer_id: referral.referrer_id,
-                  subscription_value: subscriptionValue,
-                  commission_earned: commissionEarned,
-                })
+              const { data: referrerAffiliate } = await supabaseAdmin
+                .from('affiliates')
+                .select('total_earnings')
+                .eq('user_id', referral.referrer_id)
+                .single()
 
-                // Update referrer's total earnings in affiliates table
-                const { data: referrerAffiliate, error: affiliateFetchError } = await supabaseAdmin
+              if (referrerAffiliate) {
+                const currentEarnings = Number(referrerAffiliate.total_earnings) || 0
+                await supabaseAdmin
                   .from('affiliates')
-                  .select('total_earnings')
+                  .update({ total_earnings: currentEarnings + commissionEarned })
                   .eq('user_id', referral.referrer_id)
-                  .single()
-
-                if (referrerAffiliate && !affiliateFetchError) {
-                  const currentEarnings = Number(referrerAffiliate.total_earnings) || 0
-                  const newTotalEarnings = currentEarnings + commissionEarned
-
-                  const { error: affiliateUpdateError } = await supabaseAdmin
-                    .from('affiliates')
-                    .update({ total_earnings: newTotalEarnings })
-                    .eq('user_id', referral.referrer_id)
-
-                  if (affiliateUpdateError) {
-                    console.error('Error updating referrer total earnings:', affiliateUpdateError)
-                  } else {
-                    console.log('Referrer total earnings updated:', {
-                      referrer_id: referral.referrer_id,
-                      new_total_earnings: newTotalEarnings,
-                    })
-                  }
-                }
               }
             }
           } catch (affiliateError) {
-            // Log but don't fail the webhook if affiliate processing fails
             console.error('Error processing affiliate commission (non-fatal):', affiliateError)
           }
         }
@@ -230,10 +193,7 @@ export async function POST(request: NextRequest) {
           })
           .eq('stripe_subscription_id', subscription.id)
 
-        if (updateError) {
-          console.error('Error updating subscription:', updateError)
-          throw updateError
-        }
+        if (updateError) throw updateError
         break
       }
 
@@ -254,10 +214,7 @@ export async function POST(request: NextRequest) {
             })
             .eq('stripe_subscription_id', subscription.id)
 
-          if (updateError) {
-            console.error('Error updating subscription from invoice:', updateError)
-            throw updateError
-          }
+          if (updateError) throw updateError
         }
         break
       }
@@ -269,15 +226,10 @@ export async function POST(request: NextRequest) {
         if (subscriptionId) {
           const { error: updateError } = await supabaseAdmin
             .from('subscriptions')
-            .update({
-              status: 'past_due',
-            })
+            .update({ status: 'past_due' })
             .eq('stripe_subscription_id', subscriptionId)
 
-          if (updateError) {
-            console.error('Error updating subscription status to past_due:', updateError)
-            throw updateError
-          }
+          if (updateError) throw updateError
         }
         break
       }
@@ -286,8 +238,11 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`)
     }
 
+    await markWebhookProcessed(supabaseAdmin, event.id)
     return NextResponse.json({ received: true })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Webhook processing failed'
+    await markWebhookFailed(supabaseAdmin, event.id, message)
     captureApiError(error, { route: 'stripe/webhook' })
     return NextResponse.json(
       { error: 'Webhook processing failed' },
@@ -295,4 +250,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

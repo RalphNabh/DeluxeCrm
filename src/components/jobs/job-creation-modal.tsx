@@ -64,7 +64,10 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated, estima
     team_members: "",
     equipment: "",
     notes: "",
-    tags: ""
+    tags: "",
+    schedule_mode: "one_time" as "one_time" | "recurring",
+    recurrence_freq: "weekly" as "daily" | "weekly" | "monthly",
+    recurrence_until: "",
   });
 
   // Pre-fill form data when estimate is provided
@@ -149,7 +152,16 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated, estima
           team_members: formData.team_members ? formData.team_members.split(',').map(m => m.trim()) : [],
           equipment: formData.equipment ? formData.equipment.split(',').map(e => e.trim()) : [],
           notes: formData.notes,
-          tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t.length > 0) : []
+          tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t.length > 0) : [],
+          ...(formData.schedule_mode === 'recurring'
+            ? {
+                recurrence_freq: formData.recurrence_freq,
+                recurrence_interval: 1,
+                recurrence_until: formData.recurrence_until || null,
+              }
+            : {
+                recurrence_freq: null,
+              }),
         }),
       });
 
@@ -172,6 +184,9 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated, estima
           equipment: "",
           notes: "",
           tags: "",
+          schedule_mode: "one_time",
+          recurrence_freq: "weekly",
+          recurrence_until: "",
         });
       } else {
         console.error('Failed to create job');
@@ -320,6 +335,62 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated, estima
                 min={formData.start_date === formData.end_date ? formData.start_time : undefined}
               />
             </div>
+
+            {/* One-time vs Recurring */}
+            <div className="md:col-span-2">
+              <Label>Schedule</Label>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  type="button"
+                  variant={formData.schedule_mode === 'one_time' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleInputChange('schedule_mode', 'one_time')}
+                >
+                  One-time
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.schedule_mode === 'recurring' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleInputChange('schedule_mode', 'recurring')}
+                >
+                  Recurring
+                </Button>
+              </div>
+            </div>
+
+            {formData.schedule_mode === 'recurring' && (
+              <>
+                <div>
+                  <Label htmlFor="recurrence_freq">Repeats</Label>
+                  <Select
+                    value={formData.recurrence_freq}
+                    onValueChange={(value) => handleInputChange('recurrence_freq', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="recurrence_until">Until</Label>
+                  <Input
+                    id="recurrence_until"
+                    type="date"
+                    value={formData.recurrence_until}
+                    onChange={(e) => handleInputChange('recurrence_until', e.target.value)}
+                    min={formData.start_date || undefined}
+                    required
+                    className="w-full"
+                  />
+                </div>
+              </>
+            )}
 
             {/* Status */}
             <div>

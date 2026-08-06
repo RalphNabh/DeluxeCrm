@@ -4,12 +4,15 @@ import { createClient } from '@/lib/supabase/server'
 import { parseJsonBody } from '@/lib/validation'
 import { paymentCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
+import { buildPaymentInsert, sumPayments } from '@/lib/payments'
+import { invoiceStatusAfterPayment } from '@/lib/route-access'
 
 export async function POST(request: NextRequest) {
   try {
     const parsed = await parseJsonBody(request, paymentCreateSchema)
     if (!parsed.ok) return parsed.response
-    const { invoice_id, amount, method, reference, notes } = parsed.data
+    const { invoice_id, amount, payment_method, payment_date, reference, notes } =
+      parsed.data
 
     const supabase = await createClient()
     
@@ -35,8 +38,7 @@ export async function POST(request: NextRequest) {
       .select('amount')
       .eq('invoice_id', invoice_id)
 
-    const alreadyPaid =
-      existingPayments?.reduce((sum, p) => sum + p.amount, 0) ?? 0
+    const alreadyPaid = sumPayments(existingPayments)
     const remaining = invoice.total - alreadyPaid
     if (amount > remaining + 0.001) {
       return NextResponse.json(
@@ -45,17 +47,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create the payment record
+    // user_id is NOT NULL and is the RLS predicate on payments; organization_id
+    // is what the read path filters on. Omitting either made every insert fail.
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        invoice_id,
-        amount,
-        method,
-        reference,
-        notes,
-        paid_at: new Date().toISOString()
-      })
+      .insert(
+        buildPaymentInsert(
+          { invoice_id, amount, payment_method, payment_date, reference, notes },
+          { userId: user.id, orgId },
+        ),
+      )
       .select()
       .single()
 
@@ -75,15 +76,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 })
     }
 
-    const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0)
-    
-    // Update invoice status based on payment amount
-    let newStatus = invoice.status
-    if (totalPaid >= invoice.total) {
-      newStatus = 'Paid'
-    } else if (totalPaid > 0) {
-      newStatus = 'Partially Paid'
-    }
+    const totalPaid = sumPayments(allPayments)
+    const newStatus = invoiceStatusAfterPayment(
+      invoice.total,
+      totalPaid,
+      invoice.status,
+    )
 
     // Update invoice status if it changed
     if (newStatus !== invoice.status) {
@@ -131,8 +129,8 @@ export async function GET(request: NextRequest) {
           user_id
         )
       `)
-      .eq('invoices.organization_id', orgId)
-      .order('paid_at', { ascending: false })
+      .eq('organization_id', orgId)
+      .order('payment_date', { ascending: false })
 
     if (invoiceId) {
       query = query.eq('invoice_id', invoiceId)

@@ -3,7 +3,7 @@
 ## ✅ What's Been Implemented
 
 ### 1. Database Schema
-- **File**: `supabase-subscriptions-schema.sql`
+- **Location**: `supabase/migrations/` (baseline includes subscriptions)
 - Created `subscriptions` table to track user subscriptions
 - Includes RLS policies for security
 - Tracks Stripe customer ID, subscription ID, status, and billing periods
@@ -68,9 +68,10 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 ### Step 4: Run Database Migration
-1. Go to Supabase Dashboard → SQL Editor
-2. Copy contents of `supabase-subscriptions-schema.sql`
-3. Run the migration
+```bash
+npx supabase db push
+```
+See `supabase/README.md` for existing-project `migration repair` notes.
 
 ### Step 5: Set Up Webhooks (Local Development)
 1. Install Stripe CLI: `brew install stripe/stripe-cli/stripe`

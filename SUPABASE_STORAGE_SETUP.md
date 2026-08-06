@@ -11,18 +11,17 @@
    - Click "Create bucket"
 
 2. **Set Bucket Policies:**
-   - **Option A (Recommended)**: Run the SQL migration file `supabase-storage-materials-policies.sql` in Supabase SQL Editor
+   - **Option A (Recommended)**: Apply migrations with `npx supabase db push` (materials storage policies live in `supabase/migrations/`)
    - **Option B (Manual)**: Go to Storage > Policies and create policies manually:
      - **SELECT**: Allow authenticated users to read their own files
      - **INSERT**: Allow authenticated users to upload to their own folder
      - **UPDATE**: Allow users to update their own files
      - **DELETE**: Allow users to delete their own files
    
-   **Important**: The policies ensure users can only access files in their own folder (organized by user_id)
+   **Important**: Newer policies scope paths by organization; older docs referred to user_id folders.
 
 3. **Run Database Migration:**
-   - Run `supabase-materials-images-schema.sql` in your Supabase SQL Editor
-   - This adds the `image_url` column to the materials table
+   - `npx supabase db push` applies materials schema including `image_url`
 
 4. **Test:**
    - Go to Materials Catalog page

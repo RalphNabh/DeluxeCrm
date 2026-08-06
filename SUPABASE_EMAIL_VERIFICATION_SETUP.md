@@ -78,7 +78,7 @@ If users are being created in `auth.users` but not in your `user_profiles` table
 SELECT * FROM pg_trigger WHERE tgname = 'on_auth_user_created';
 ```
 
-3. If missing, run the trigger creation SQL from `supabase-user-profiles-schema.sql`
+3. If missing, re-apply migrations with `npx supabase db push` (user profile trigger is in the baseline migration)
 
 ### 6. Temporary: Disable Email Confirmation (Development Only)
 

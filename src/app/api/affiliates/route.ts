@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       // If table doesn't exist, return helpful error
       if (affiliateError?.message?.includes('does not exist') || affiliateError?.message?.includes('relation')) {
         return NextResponse.json({ 
-          error: 'Affiliate tables not found. Please run the supabase-affiliates-schema.sql migration in your Supabase SQL Editor.',
+          error: 'Affiliate tables not found. Apply pending Supabase migrations (supabase db push), then retry.',
           code: 'SCHEMA_MISSING'
         }, { status: 503 });
       }
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         console.error('Error creating affiliate:', createError);
         if (createError.message?.includes('does not exist') || createError.message?.includes('relation')) {
           return NextResponse.json({ 
-            error: 'Affiliate tables not found. Please run the supabase-affiliates-schema.sql migration in your Supabase SQL Editor.',
+            error: 'Affiliate tables not found. Apply pending Supabase migrations (supabase db push), then retry.',
             code: 'SCHEMA_MISSING'
           }, { status: 503 });
         }
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching affiliate:', affiliateError);
       if (affiliateError.message?.includes('does not exist') || affiliateError.message?.includes('relation')) {
         return NextResponse.json({ 
-          error: 'Affiliate tables not found. Please run the supabase-affiliates-schema.sql migration in your Supabase SQL Editor.',
+          error: 'Affiliate tables not found. Apply pending Supabase migrations (supabase db push), then retry.',
           code: 'SCHEMA_MISSING'
         }, { status: 503 });
       }

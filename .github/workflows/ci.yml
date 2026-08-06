@@ -12,9 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `npm test` uses --experimental-strip-types, which needs Node 22+.
+      # On Node 20 the test step aborted before the build ever ran.
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - run: npm ci
@@ -29,3 +31,34 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject .sql files in the repository root
+        run: |
+          stray=$(find . -maxdepth 1 -name '*.sql' -printf '%f\n')
+          if [ -n "$stray" ]; then
+            echo "Schema changes belong in supabase/migrations/, not the repo root:"
+            echo "$stray"
+            exit 1
+          fi
+
+      - name: Apply migrations and assert schema invariants
+        run: ./scripts/verify-migrations.sh
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres

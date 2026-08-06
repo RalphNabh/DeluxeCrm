@@ -27,6 +27,7 @@ import {
 import JobCreationModal from '@/components/jobs/job-creation-modal'
 import PageSidebar from '@/components/layout/page-sidebar'
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
+import { downloadElementAsPdf, pdfFilenameSegment } from '@/lib/pdf/document-pdf'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -35,7 +36,10 @@ interface Estimate {
   id: string;
   client_id: string;
   lead_id?: string;
-  status: 'Draft' | 'Sent' | 'Approved' | 'Rejected' | 'Scheduled' | 'Completed';
+  status: 'Draft' | 'Sent' | 'Approved' | 'Rejected' | 'Changes Requested' | 'Scheduled' | 'Completed';
+  estimate_number?: string;
+  valid_until?: string;
+  sent_at?: string;
   subtotal: number;
   tax: number;
   total: number;
@@ -94,6 +98,7 @@ function EstimateDetailContent() {
   const [saving, setSaving] = useState(false)
   const [generatingPDF, setGeneratingPDF] = useState(false)
   const estimateContentRef = useRef<HTMLDivElement>(null)
+  const autoDownloadStartedRef = useRef(false)
 
   useEffect(() => {
     if (params.id) {
@@ -103,25 +108,7 @@ function EstimateDetailContent() {
       if (editParam === 'true') {
         setIsEditing(true)
       }
-      
-      // Check if download is requested via URL param
-      const downloadParam = searchParams.get('download')
-      if (downloadParam === 'true' && estimate) {
-        // Wait for content to fully load and render before downloading
-        const checkAndDownload = () => {
-          if (estimateContentRef.current && 
-              estimateContentRef.current.offsetWidth > 0 && 
-              estimateContentRef.current.offsetHeight > 0) {
-            handleDownloadPDF()
-          } else {
-            // Retry after a short delay
-            setTimeout(checkAndDownload, 500)
-          }
-        }
-        // Start checking after initial delay
-        setTimeout(checkAndDownload, 1000)
-      }
-      
+
       // Check if print mode is requested
       const printParam = searchParams.get('print')
       if (printParam === 'true') {
@@ -137,7 +124,19 @@ function EstimateDetailContent() {
         }, 1000)
       }
     }
-  }, [params.id, searchParams, estimate])
+  }, [params.id, searchParams])
+
+  // `?download=true` arrives from the estimates list. The estimate has to be
+  // rendered before it can be captured, so wait for it rather than for the URL.
+  useEffect(() => {
+    if (!estimate || searchParams.get('download') !== 'true' || autoDownloadStartedRef.current) {
+      return
+    }
+    autoDownloadStartedRef.current = true
+    const timer = setTimeout(() => handleDownloadPDF(), 600)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimate, searchParams])
 
   const fetchEstimate = async () => {
     try {
@@ -271,286 +270,20 @@ function EstimateDetailContent() {
 
     setGeneratingPDF(true)
     setError(null)
-    
+
     try {
-      // Dynamically import libraries to avoid SSR issues
-      const [jsPDFModule, html2canvasModule] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ])
-      
-      const jsPDF = jsPDFModule.default || (jsPDFModule as any)
-      const html2canvas = html2canvasModule.default || html2canvasModule
-
-      // Ensure element is visible and rendered
-      const element = estimateContentRef.current
-      if (!element) {
-        throw new Error('Element reference is null')
-      }
-
-      // Scroll element into view
-      element.scrollIntoView({ behavior: 'auto', block: 'start' })
-      
-      // Wait for scroll to complete
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // Check element dimensions
-      const rect = element.getBoundingClientRect()
-      console.log('Element dimensions:', {
-        width: rect.width,
-        height: rect.height,
-        offsetWidth: element.offsetWidth,
-        offsetHeight: element.offsetHeight,
-        scrollWidth: element.scrollWidth,
-        scrollHeight: element.scrollHeight
-      })
-
-      // Retry if element is not visible yet
-      if (element.offsetWidth === 0 || element.offsetHeight === 0) {
-        // Wait and check again
-        await new Promise(resolve => setTimeout(resolve, 500))
-        if (element.offsetWidth === 0 || element.offsetHeight === 0) {
-          throw new Error(`Element is not visible - width: ${element.offsetWidth}, height: ${element.offsetHeight}. Please wait for the page to fully load.`)
-        }
-      }
-
-      // Wait a bit for any dynamic content to render
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Function to convert oklch to rgb (basic conversion)
-      const convertOklchToRgb = (oklchStr: string): string => {
-        // This is a simple fallback - html2canvas should handle most colors
-        // but we'll convert known problematic ones
-        if (oklchStr.includes('oklch')) {
-          // Extract values from oklch() if possible
-          // For now, return a safe fallback color
-          return '#ffffff'
-        }
-        return oklchStr
-      }
-
-      // Clone the element and convert oklch colors to rgb for html2canvas compatibility
-      const clone = element.cloneNode(true) as HTMLElement
-      clone.style.position = 'absolute'
-      clone.style.left = '-9999px'
-      clone.style.top = '0'
-      clone.style.width = `${element.scrollWidth}px`
-      clone.style.height = `${element.scrollHeight}px`
-      clone.style.backgroundColor = '#ffffff'
-      clone.style.color = '#000000'
-      
-      // Append clone to body temporarily
-      document.body.appendChild(clone)
-
-      // Remove buttons and action sections from clone for clean PDF
-      
-      // Remove the entire "Actions" and "Linked Jobs" card sections
-      const allCards = clone.querySelectorAll('[class*="Card"]')
-      allCards.forEach((card) => {
-        const cardElement = card as HTMLElement
-        // Check if this card contains "Actions" or "Linked Jobs" in the header
-        const header = cardElement.querySelector('[class*="CardHeader"]')
-        const headerText = header?.textContent?.toLowerCase() || ''
-        if (headerText.includes('action') || headerText.includes('linked job')) {
-          cardElement.remove()
-        }
-      })
-
-      // Remove all buttons (Download, Edit, Save, etc.)
-      const buttons = clone.querySelectorAll('button, [role="button"]')
-      buttons.forEach((btn) => {
-        btn.remove()
-      })
-
-      // Remove links that look like buttons (View, Edit links)
-      const buttonLinks = clone.querySelectorAll('a[href]')
-      buttonLinks.forEach((link) => {
-        const linkElement = link as HTMLElement
-        // Check if link contains button-like content (icons, text like "View", "Edit", etc.)
-        const linkText = linkElement.textContent?.toLowerCase().trim() || ''
-        const buttonKeywords = ['view', 'edit', 'download', 'save', 'send', 'cancel']
-        if (buttonKeywords.some(keyword => linkText.includes(keyword))) {
-          linkElement.remove()
-        }
-      })
-
-      // Convert edit mode inputs to plain text for display
-      const inputs = clone.querySelectorAll('input[type="text"], input[type="number"], textarea')
-      inputs.forEach((input) => {
-        const inputElement = input as HTMLElement
-        const value = (input as HTMLInputElement).value || (input as HTMLTextAreaElement).value
-        const parent = inputElement.parentElement
-        if (parent) {
-          const textDiv = document.createElement('div')
-          textDiv.textContent = value || ''
-          textDiv.className = 'text-gray-900'
-          textDiv.style.padding = '0.5rem 0'
-          parent.replaceChild(textDiv, inputElement)
-        }
-      })
-
-      // Remove action columns from tables (columns with buttons or "Actions" header)
-      const tables = clone.querySelectorAll('table')
-      tables.forEach((table) => {
-        const rows = table.querySelectorAll('tr')
-        rows.forEach((row) => {
-          const cells = Array.from(row.querySelectorAll('th, td'))
-          cells.forEach((cell) => {
-            const cellElement = cell as HTMLElement
-            const cellText = cellElement.textContent?.toLowerCase().trim() || ''
-            
-            // Remove if it's an action column or contains buttons
-            if (cellText === 'actions' || cellElement.querySelector('button')) {
-              cellElement.remove()
-            }
-          })
-        })
-      })
-
-      // Remove any remaining edit/add buttons (like "Add Item" in edit mode)
-      const addButtons = clone.querySelectorAll('[class*="Button"], button')
-      addButtons.forEach((btn) => {
-        const btnText = btn.textContent?.toLowerCase() || ''
-        if (btnText.includes('add') || btnText.includes('remove') || btnText.includes('delete')) {
-          btn.remove()
-        }
-      })
-
-      // Convert oklch colors in computed styles
-      const allElements = clone.querySelectorAll('*')
-      allElements.forEach((el) => {
-        const htmlEl = el as HTMLElement
-        const computedStyle = window.getComputedStyle(htmlEl)
-        
-        // Convert background colors
-        const bgColor = computedStyle.backgroundColor
-        if (bgColor.includes('oklch') || bgColor === 'rgba(0, 0, 0, 0)') {
-          htmlEl.style.backgroundColor = '#ffffff'
-        }
-        
-        // Convert text colors
-        const textColor = computedStyle.color
-        if (textColor.includes('oklch')) {
-          htmlEl.style.color = '#000000'
-        }
-        
-        // Convert border colors
-        const borderColor = computedStyle.borderColor
-        if (borderColor.includes('oklch')) {
-          htmlEl.style.borderColor = '#e5e7eb'
-        }
-      })
-
-      // Temporarily ensure element is in viewport and visible
-      const originalStyle = {
-        position: element.style.position,
-        visibility: element.style.visibility,
-        opacity: element.style.opacity,
-        display: element.style.display
-      }
-      
-      // Make sure original element is visible for fallback
-      element.style.position = 'relative'
-      element.style.visibility = 'visible'
-      element.style.opacity = '1'
-      element.style.display = 'block'
-
-      // Capture the cloned element as canvas (better compatibility)
-      let canvas
-      try {
-        // Wait for clone to render
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        canvas = await html2canvas(clone, {
-          // @ts-expect-error html2canvas types omit scale
-          scale: 1.5,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          allowTaint: false,
-          removeContainer: true,
-          imageTimeout: 15000,
-          foreignObjectRendering: false
-        }).catch(() => {
-          // If clone fails, try original element
-          return html2canvas(element, {
-            // @ts-expect-error html2canvas types omit scale
-          scale: 1.5,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            allowTaint: false,
-            removeContainer: false,
-            imageTimeout: 15000
-          })
-        })
-      } catch (canvasError: any) {
-        console.error('html2canvas detailed error:', canvasError)
-        const errorMsg = canvasError?.message || 'Unknown error'
-        throw new Error(`Failed to capture estimate content: ${errorMsg}`)
-      } finally {
-        // Remove clone
-        if (document.body.contains(clone)) {
-          document.body.removeChild(clone)
-        }
-        // Restore original styles
-        element.style.position = originalStyle.position
-        element.style.visibility = originalStyle.visibility
-        element.style.opacity = originalStyle.opacity
-        element.style.display = originalStyle.display
-      }
-
-      if (!canvas) {
-        throw new Error('Canvas is null after capture')
-      }
-
-      console.log('Canvas created successfully:', {
-        width: canvas.width,
-        height: canvas.height
-      })
-
-      // Calculate PDF dimensions
-      const imgWidth = 210 // A4 width in mm
-      const pageHeight = 297 // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      let heightLeft = imgHeight
-
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      let position = 0
-
-      // Convert canvas to data URL
-      const imgData = canvas.toDataURL('image/png', 1.0)
-      
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-
-      // Add additional pages if content is longer than one page
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-      }
-
-      // Generate filename
+      const reference = estimate.estimate_number || estimate.id.slice(0, 8)
       const clientName = estimate.clients?.name || 'Client'
-      const estimateId = estimate.id.slice(0, 8)
-      const filename = `Estimate-${estimateId}-${clientName.replace(/[^a-z0-9]/gi, '_')}.pdf`
+      await downloadElementAsPdf(
+        estimateContentRef.current,
+        `Estimate-${reference}-${pdfFilenameSegment(clientName)}.pdf`,
+      )
 
-      // Download the PDF
-      pdf.save(filename)
-      
-      // Remove download param from URL if present
       if (searchParams.get('download') === 'true') {
         window.history.replaceState({}, '', `/estimates/${params.id}`)
       }
     } catch (error) {
-      console.error('Error generating PDF:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF. Please try again.'
-      setError(errorMessage)
-      alert(`PDF Generation Error: ${errorMessage}`)
+      setError(error instanceof Error ? error.message : 'Failed to generate PDF. Please try again.')
     } finally {
       setGeneratingPDF(false)
     }

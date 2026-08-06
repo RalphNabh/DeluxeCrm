@@ -114,7 +114,7 @@ export default function AffiliatesPage() {
       if (!response.ok) {
         // Check if it's a schema missing error
         if (data.code === 'SCHEMA_MISSING') {
-          setError('Database schema not found. Please run the supabase-affiliates-schema.sql migration in your Supabase SQL Editor.');
+          setError('Database schema not found. Apply pending Supabase migrations (supabase db push), then retry.');
         } else {
           throw new Error(data.error || 'Failed to fetch affiliate data');
         }
@@ -268,7 +268,7 @@ export default function AffiliatesPage() {
                   <p className="text-red-800 text-sm">{error}</p>
                   {error.includes('schema') && (
                     <p className="text-red-700 text-xs mt-2">
-                      Go to your Supabase Dashboard → SQL Editor → Run the <code className="bg-red-100 px-1 rounded">supabase-affiliates-schema.sql</code> file
+                      Apply pending migrations with <code className="bg-red-100 px-1 rounded">supabase db push</code>, then reload this page.
                     </p>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ import {
   FileText as FileTextIcon,
 } from 'lucide-react'
 import PageSidebar from '@/components/layout/page-sidebar'
+import { downloadElementAsPdf, pdfFilenameSegment } from '@/lib/pdf/document-pdf'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import {
   DropdownMenu,
@@ -111,8 +112,12 @@ export default function InvoiceDetailPage() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [isEditingInvoiceNumber, setIsEditingInvoiceNumber] = useState(false)
   const [editedInvoiceNumber, setEditedInvoiceNumber] = useState('')
+  const [generatingPDF, setGeneratingPDF] = useState(false)
+  const invoiceContentRef = useRef<HTMLDivElement>(null)
+  const autoDownloadStartedRef = useRef(false)
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     payment_method: 'Cash',
@@ -126,6 +131,52 @@ export default function InvoiceDetailPage() {
       fetchInvoice()
     }
   }, [params.id])
+
+  // Return from Stripe Checkout: verify session_id with the server (never trust ?paid=1).
+  useEffect(() => {
+    if (!params.id || typeof window === "undefined") return
+    const sessionId = new URLSearchParams(window.location.search).get("session_id")
+    if (!sessionId) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `/api/invoices/${params.id}/confirm-checkout?session_id=${encodeURIComponent(sessionId)}`,
+        )
+        const data = await res.json()
+        if (cancelled) return
+        if (data.paid) {
+          await fetchInvoice()
+        }
+      } catch {
+        // Webhook may still land; invoice poll on next load.
+      } finally {
+        if (!cancelled) {
+          window.history.replaceState({}, "", `/invoices/${params.id}`)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id])
+
+  // `?download=true` arrives from the invoices list. The invoice has to be
+  // rendered before it can be captured, so wait for it rather than for the URL.
+  useEffect(() => {
+    if (!invoice || autoDownloadStartedRef.current) return
+    if (new URLSearchParams(window.location.search).get('download') !== 'true') return
+
+    autoDownloadStartedRef.current = true
+    const timer = setTimeout(() => {
+      handleDownloadPDF()
+      window.history.replaceState({}, '', `/invoices/${params.id}`)
+    }, 600)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice])
 
   const fetchInvoice = async () => {
     try {
@@ -227,6 +278,50 @@ export default function InvoiceDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to send email')
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    if (!invoiceContentRef.current || !invoice) {
+      setError('Invoice content not ready. Please try again.')
+      return
+    }
+
+    setGeneratingPDF(true)
+    setError(null)
+
+    try {
+      const clientName = invoice.clients?.name || 'Client'
+      await downloadElementAsPdf(
+        invoiceContentRef.current,
+        `Invoice-${invoice.invoice_number}-${pdfFilenameSegment(clientName)}.pdf`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate PDF. Please try again.')
+    } finally {
+      setGeneratingPDF(false)
+    }
+  }
+
+  const startOnlineCheckout = async () => {
+    if (!invoice) return
+    setCheckoutLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/checkout`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create payment link')
+      }
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create payment link')
+    } finally {
+      setCheckoutLoading(false)
     }
   }
 
@@ -436,7 +531,7 @@ export default function InvoiceDetailPage() {
 
         {/* Invoice Content */}
         <main className="flex-1 p-6">
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div ref={invoiceContentRef} className="max-w-4xl mx-auto space-y-6">
             {/* Client Info */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
@@ -638,10 +733,20 @@ export default function InvoiceDetailPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle>Payments</CardTitle>
                   {!showPaymentForm && remaining > 0 && (
-                    <Button onClick={() => setShowPaymentForm(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Payment
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={startOnlineCheckout}
+                        disabled={checkoutLoading}
+                      >
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        {checkoutLoading ? 'Opening…' : 'Pay online'}
+                      </Button>
+                      <Button onClick={() => setShowPaymentForm(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Payment
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -805,9 +910,9 @@ export default function InvoiceDetailPage() {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={handleDownloadPDF} disabled={generatingPDF}>
                     <Download className="h-4 w-4 mr-2" />
-                    Download PDF
+                    {generatingPDF ? 'Generating...' : 'Download PDF'}
                   </Button>
                   
                   <Button 

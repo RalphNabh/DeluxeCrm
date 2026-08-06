@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireManager } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError)
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        details: authError?.message || 'User not authenticated'
-      }, { status: 401 })
-    }
+    const auth = await requireManager(supabase)
+    if (!auth.ok) return auth.response
+    const { orgId } = auth.ctx
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -38,7 +33,9 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const fileExt = file.name.split('.').pop() || 'jpg'
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-    const filePath = `${user.id}/${fileName}`  // Store in user's folder within materials bucket
+    // Filed under the organization, not the uploader, so the whole team can see
+    // images attached to the shared catalog.
+    const filePath = `${orgId}/${fileName}`
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage

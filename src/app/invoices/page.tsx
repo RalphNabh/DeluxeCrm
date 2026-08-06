@@ -333,7 +333,16 @@ export default function InvoicesPage() {
                             </Button>
                           </Link>
                           <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                window.location.href = `/invoices/${invoice.id}?download=true`
+                              }}
+                              title="Download PDF"
+                            >
                               <Download className="h-4 w-4" />
                             </Button>
                             <Button 

@@ -6,6 +6,7 @@ import { parseJsonBody } from '@/lib/validation'
 import { leadUpdateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 import { leadAutomationEventForStatus } from '@/lib/route-access'
+import { isOrgPipelineStage } from '@/lib/leads'
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -21,6 +22,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const updates: Record<string, unknown> = { ...parsed.data }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+  }
+
+  if (typeof updates.status === 'string') {
+    const allowed = await isOrgPipelineStage(supabase, orgId, updates.status)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Status must match a pipeline stage for this organization' },
+        { status: 400 },
+      )
+    }
   }
   
   // Get the old lead data to check if status changed

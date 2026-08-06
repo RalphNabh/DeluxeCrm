@@ -1,9 +1,33 @@
 # Manual steps after production hardening deploy
 
-Run these in Supabase SQL Editor (once):
+Schema changes live in `supabase/migrations/` and are applied with the Supabase CLI
+(see `supabase/README.md`). Do **not** paste root-level `.sql` files — those were
+removed when the baseline migration was adopted.
 
-1. `supabase-stripe-webhook-events.sql` — Stripe webhook idempotency
-2. `supabase-affiliates-rls-fix.sql` — tighten referrals INSERT policy
+## Existing production database
+
+If the project already contains the hand-applied schema that became the baseline:
+
+```bash
+npx supabase link --project-ref <ref>
+npx supabase migration repair --status applied 00000000000000
+npx supabase db push
+```
+
+`db push` then applies drift repair and later migrations. If the old world-readable
+automations policy is still present, drop it:
+
+```sql
+drop policy if exists "Enable read automations for executor" on public.automations;
+```
+
+## Smoke checklist (after push)
+
+1. Record a payment on an invoice — balance updates
+2. Open an invoice with `?download=true` — PDF downloads
+3. Convert a service request to an estimate — real client, line item, `converted_estimate_id`
+4. Drag a lead onto a custom pipeline stage — status saves
+5. Create a client that already matches a lead — no second pipeline card; `leads.client_id` set
 
 ## Vercel environment variables (add if missing)
 
@@ -11,9 +35,19 @@ Run these in Supabase SQL Editor (once):
 |----------|---------|
 | `ESTIMATE_ACTION_SECRET` | Signs client estimate approve links (or reuses `CRON_SECRET`) |
 | `CRON_SECRET` | Protects cron + Vercel auto-injects on scheduled jobs |
+| `RESEND_FROM_EMAIL` | Automation / transactional From address (falls back to Resend test domain) |
+| `TWILIO_ACCOUNT_SID` | Optional — required for `send_sms` automations |
+| `TWILIO_AUTH_TOKEN` | Optional — Twilio auth |
+| `TWILIO_FROM_NUMBER` | Optional — E.164 sender (e.g. `+15551234567`) |
 | `UPSTASH_REDIS_REST_URL` / `TOKEN` | Required in production (rate limits fail closed without them) |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Contact form captcha |
 | `NEXT_PUBLIC_APP_URL` | `https://www.dyluxepro.com` |
+
+### Automations / SMS notes
+
+- Org SMS preference is stored in `organizations.settings.sms_notifications` (Settings UI → PATCH `/api/org/settings`). localStorage does **not** control SMS sends.
+- Crons: `/api/automations/cron/process` every 15 min; `/api/automations/cron/overdue` daily. Both accept `Authorization: Bearer $CRON_SECRET` or `?secret=`.
+- Apply migration `20250107000000_automation_jobs` before relying on delayed sends or overdue scans.
 
 ## Supabase Auth
 
@@ -23,6 +57,6 @@ Add redirect URL: `https://www.dyluxepro.com/reset-password` for password reset 
 
 Old approve links without `token` will not work. Re-send estimates after deploy so clients get signed links.
 
-## Stripe (after PR#1.5 code deploy)
+## Stripe (after billing code deploy)
 
-Webhook handler now uses Stripe API `2025-11-17.clover` and reads billing periods from subscription line items. Test checkout → webhook → subscription row in Supabase after deploy.
+Webhook handler uses Stripe API `2025-11-17.clover` and reads billing periods from subscription line items. Test checkout → webhook → subscription row in Supabase after deploy.

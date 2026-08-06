@@ -1,13 +1,15 @@
 import { Resend } from 'resend';
 import { createClient } from '@/lib/supabase/server';
 import { checkAndExecuteAutomations } from '@/lib/automations/executor';
+import type { EmailActor } from '@/lib/email/send-estimate-email';
 
 export async function sendInvoiceEmail(
   invoiceId: string,
   clientEmail: string,
   clientName: string,
-  userId: string
+  actor: EmailActor
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { userId, orgId } = actor;
   try {
     const supabase = await createClient();
 
@@ -37,7 +39,7 @@ export async function sendInvoiceEmail(
         )
       `)
       .eq('id', invoiceId)
-      .eq('user_id', userId)
+      .eq('organization_id', orgId)
       .single();
 
     if (invoiceError || !invoice) {
@@ -301,13 +303,14 @@ export async function sendInvoiceEmail(
           updated_at: new Date().toISOString()
         })
         .eq('id', invoiceId)
-        .eq('user_id', userId);
+        .eq('organization_id', orgId);
     }
 
     // Trigger automations for invoice_sent event
     await checkAndExecuteAutomations('invoice_sent', {
       event: 'invoice_sent',
       user_id: userId,
+      organization_id: orgId,
       invoice_id: invoiceId,
       client_name: clientName,
       client_email: clientEmail,

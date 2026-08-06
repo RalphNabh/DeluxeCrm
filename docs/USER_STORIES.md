@@ -124,19 +124,34 @@ Stories are grouped by persona. Priority: **P0** (revenue/security), **P1** (cor
 
 **Known gaps**
 
-- `invoice_overdue` template exists in UI but no cron/trigger wired
-- `delay_days` in templates logged only — not scheduled
+- ~~`invoice_overdue` template exists in UI but no cron/trigger wired~~ → Fixed (Phase 5): daily cron `/api/automations/cron/overdue` scans Sent/Partially Paid invoices past `due_date`, emits `invoice_overdue` once, sets `overdue_notified_at`
+- ~~`delay_days` in templates logged only — not scheduled~~ → Fixed (Phase 5): `delay_days > 0` enqueues `automation_jobs`; `/api/automations/cron/process` runs every 15 minutes
+- SMS action type `send_sms` supported via Twilio REST when org `settings.sms_notifications` is true and Twilio env vars are set
 
 ---
 
-## Client (portal — stub)
+## Client (portal)
 
-### US-08 — Client portal login (P2)
+### US-08 — Client Hub (P2)
 
 **As a** homeowner  
-**I want to** log in to see my estimates  
+**I want to** log in to the Client Hub to review estimates, pay invoices, and request work  
 
-**Current behavior:** `/client-login` redirects to contractor `/login` after 3s (prototype stub).
+**Acceptance**
+
+- Client registers via portal invitation (`/portal/register?token=…`) and signs in at `/portal/login`
+- Hub at `/portal` lists estimates, invoices, and scheduled jobs for their client record
+- Open an estimate at `/portal/estimates/[id]` → Approve or Request changes (same status/lead/automation path as email HMAC links)
+- Unpaid invoices show **Pay** → Stripe Checkout via `POST /api/invoices/[id]/checkout`; paid invoices link to receipt/PDF at `/portal/invoices/[id]`
+- Authenticated clients can submit service requests with optional photos
+- Public request form at `/request/[orgSlug]` creates a `service_requests` row for that org (rate-limited)
+
+**Manual test**
+
+1. Invite a client → accept invite → open Hub
+2. Contractor sends estimate → client approves in Hub → estimate `Approved`, lead updated, automations fire
+3. Contractor sends invoice with Connect ready → client pays from Hub → returns to `/portal?paid=1`
+4. Open `/request/{org.slug}` unauthenticated → submit with a photo → appears in contractor Requests inbox
 
 ---
 
