@@ -245,9 +245,15 @@ export default function InvoiceDetailPage() {
           notes: paymentForm.notes
         })
       })
-      
+
       if (!response.ok) {
-        throw new Error('Failed to add payment')
+        const body = await response.json().catch(() => null) as
+          | { error?: string; details?: Record<string, string> }
+          | null
+        const detail = body?.details
+          ? Object.values(body.details).join('; ')
+          : null
+        throw new Error(detail || body?.error || 'Failed to add payment')
       }
       
       await fetchInvoice()

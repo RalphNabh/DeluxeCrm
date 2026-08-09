@@ -52,7 +52,7 @@ describe("API schema validation", () => {
     const r = paymentCreateSchema.safeParse({
       invoice_id: "550e8400-e29b-41d4-a716-446655440000",
       amount: -10,
-      method: "cash",
+      payment_method: "cash",
     });
     assert.equal(r.success, false);
   });
