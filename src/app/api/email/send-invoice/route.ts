@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendInvoiceEmail } from "@/lib/email/send-invoice-email";
-import { requireUser } from "@/lib/api-auth";
+import { requirePermission } from "@/lib/api-auth";
 import { parseJsonBody } from "@/lib/validation";
 import { sendInvoiceEmailSchema } from "@/lib/api-schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
@@ -18,19 +18,17 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const auth = await requireUser(supabase);
+    const auth = await requirePermission(supabase, "create_invoices");
     if (!auth.ok) return auth.response;
 
     const parsed = await parseJsonBody(request, sendInvoiceEmailSchema);
     if (!parsed.ok) return parsed.response;
 
     const { invoiceId, clientEmail, clientName } = parsed.data;
-    const result = await sendInvoiceEmail(
-      invoiceId,
-      clientEmail,
-      clientName,
-      auth.user.id,
-    );
+    const result = await sendInvoiceEmail(invoiceId, clientEmail, clientName, {
+      userId: auth.ctx.user.id,
+      orgId: auth.ctx.orgId,
+    });
 
     if (!result.success) {
       return NextResponse.json(

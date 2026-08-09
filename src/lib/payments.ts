@@ -26,7 +26,10 @@ export function today(now: Date = new Date()): string {
 
 /**
  * Build the row to insert for a recorded payment.
- * Field names match the DB columns exactly (not method/paid_at).
+ *
+ * Kept separate from the route so the exact set of column names is covered by
+ * schema-contract.test.ts. Every key here previously disagreed with the table
+ * in some way, which made recording a payment fail every time.
  */
 export function buildPaymentInsert(
   input: PaymentInput,

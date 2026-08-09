@@ -1,10 +1,14 @@
 import { requireOrgMember } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireUser } from '@/lib/api-auth'
 import { jobCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 import { parseJsonBody } from '@/lib/validation'
+import {
+  generateVisitsForJob,
+  weekdayCodeFromDate,
+  type JobRecurrence,
+} from '@/lib/visits/generate'
 
 export async function GET(request: NextRequest) {
   try {
@@ -92,7 +96,20 @@ export async function POST(request: NextRequest) {
       equipment,
       notes,
       tags,
+      recurrence_freq,
+      recurrence_interval,
+      recurrence_byweekday,
+      recurrence_until,
+      recurrence_count,
+      timezone,
     } = parsed.data
+
+    const byweekday =
+      recurrence_freq === 'weekly'
+        ? (recurrence_byweekday && recurrence_byweekday.length > 0
+            ? recurrence_byweekday
+            : [weekdayCodeFromDate(new Date(start_time))])
+        : recurrence_byweekday ?? null
 
     // Create the job
     // Build insert object - only include estimate_id if it exists (column may not exist yet)
@@ -109,7 +126,13 @@ export async function POST(request: NextRequest) {
       team_members,
       equipment,
       notes,
-      tags: tags && Array.isArray(tags) ? tags : null
+      tags: tags && Array.isArray(tags) ? tags : null,
+      recurrence_freq: recurrence_freq ?? null,
+      recurrence_interval: recurrence_interval ?? 1,
+      recurrence_byweekday: byweekday,
+      recurrence_until: recurrence_until ?? null,
+      recurrence_count: recurrence_count ?? null,
+      timezone: timezone ?? null,
     };
     
     // Try to insert with estimate_id first, fall back to without if column doesn't exist
@@ -184,6 +207,26 @@ export async function POST(request: NextRequest) {
         .update({ status: 'Scheduled', updated_at: new Date().toISOString() })
         .eq('id', estimate_id)
         .eq('organization_id', orgId)
+    }
+
+    // Materialize visits (one-off or rolling 90-day recurrence window)
+    if (job) {
+      try {
+        await generateVisitsForJob(supabase, {
+          id: job.id,
+          organization_id: orgId,
+          start_time: job.start_time,
+          end_time: job.end_time,
+          recurrence_freq: (job.recurrence_freq as JobRecurrence['recurrence_freq']) ?? null,
+          recurrence_interval: job.recurrence_interval ?? 1,
+          recurrence_byweekday: job.recurrence_byweekday ?? null,
+          recurrence_until: job.recurrence_until ?? null,
+          recurrence_count: job.recurrence_count ?? null,
+          timezone: job.timezone ?? null,
+        })
+      } catch (genError) {
+        console.error('Visit generation after job create failed:', genError)
+      }
     }
 
     // Transform the data to include client_name

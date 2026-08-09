@@ -1,4 +1,4 @@
-import { requireOrgMember } from '@/lib/api-auth'
+import { requirePermission } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAppUrl } from '@/lib/env'
@@ -10,10 +10,12 @@ export async function POST(request: NextRequest) {
     const stripe = createStripeClient();
 
     const supabase = await createClient()
-    
-    const auth = await requireOrgMember(supabase)
+
+    // The Stripe billing portal exposes payment methods, invoices and
+    // cancellation. It was reachable by any org member, including workers.
+    const auth = await requirePermission(supabase, 'billing')
     if (!auth.ok) return auth.response
-    const { user, orgId } = auth.ctx
+    const { orgId } = auth.ctx
 
     // Get user's subscription
     const { data: subscription } = await supabase

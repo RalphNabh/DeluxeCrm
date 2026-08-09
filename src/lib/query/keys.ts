@@ -1,4 +1,7 @@
 export const queryKeys = {
+  me: {
+    all: ["me"] as const,
+  },
   clients: {
     all: ["clients"] as const,
     list: (q?: string) => ["clients", "list", q ?? ""] as const,
@@ -22,6 +25,11 @@ export const queryKeys = {
     all: ["jobs"] as const,
     list: () => ["jobs", "list"] as const,
     detail: (id: string) => ["jobs", "detail", id] as const,
+  },
+  visits: {
+    all: ["visits"] as const,
+    list: (from?: string, to?: string) =>
+      ["visits", "list", from ?? "", to ?? ""] as const,
   },
   tasks: {
     all: ["tasks"] as const,

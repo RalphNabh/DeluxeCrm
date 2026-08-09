@@ -149,7 +149,6 @@ export async function deleteOrganizationData(
   await admin.from("tasks").delete().eq("organization_id", orgId);
   await admin.from("materials").delete().eq("organization_id", orgId);
   await admin.from("pipeline_stages").delete().eq("organization_id", orgId);
-  await admin.from("team_members").delete().eq("organization_id", orgId);
   await admin.from("client_folders").delete().eq("organization_id", orgId);
   await admin.from("clients").delete().eq("organization_id", orgId);
 
@@ -205,7 +204,6 @@ export async function deleteUserScopedData(
   await admin.from("tasks").delete().eq("user_id", userId);
   await admin.from("materials").delete().eq("user_id", userId);
   await admin.from("pipeline_stages").delete().eq("user_id", userId);
-  await admin.from("team_members").delete().eq("user_id", userId);
   await admin.from("client_folders").delete().eq("user_id", userId);
   await admin.from("clients").delete().eq("user_id", userId);
   await admin.from("affiliates").delete().eq("user_id", userId);

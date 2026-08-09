@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/validation";
 import { leadCreateSchema } from "@/lib/api-schemas";
 import { captureApiError } from "@/lib/api-error";
+import { isOrgPipelineStage } from "@/lib/leads";
 
 export async function GET() {
   try {
@@ -79,6 +80,15 @@ export async function POST(request: Request) {
     const { name, address, phone, email, value, status, tags, folder_id } =
       parsed.data;
 
+    const resolvedStatus = status ?? "New Leads";
+    const allowed = await isOrgPipelineStage(supabase, orgId, resolvedStatus);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Status must match a pipeline stage for this organization" },
+        { status: 400 },
+      );
+    }
+
     const leadData: Record<string, unknown> = {
       user_id: user.id,
       organization_id: orgId,
@@ -87,7 +97,7 @@ export async function POST(request: Request) {
       phone,
       email,
       value: value ?? 0,
-      status: status ?? "New Leads",
+      status: resolvedStatus,
     };
 
     if (tags !== undefined) {

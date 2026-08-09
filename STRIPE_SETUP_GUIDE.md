@@ -105,12 +105,12 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 ## Step 7: Run Database Migration
 
-Run the subscription schema migration in your Supabase dashboard:
+Subscriptions live in `supabase/migrations/`. Apply with the CLI (see `supabase/README.md`):
 
-1. Go to your Supabase project
-2. Navigate to **SQL Editor**
-3. Copy and paste the contents of `supabase-subscriptions-schema.sql`
-4. Click **Run**
+```bash
+npx supabase link --project-ref <ref>
+npx supabase db push
+```
 
 ## Step 8: Configure Stripe Customer Portal (Optional but Recommended)
 
@@ -152,6 +152,16 @@ When you're ready for production:
 5. Set up the webhook endpoint with your production URL
 6. Test with a real card (you can refund it)
 
+## Stripe Connect (client invoice payments)
+
+Separate from SaaS subscriptions. Contractors onboard Express accounts via **Settings → Accept online payments**.
+
+1. Enable Connect in the Stripe Dashboard (Express).
+2. Same `STRIPE_SECRET_KEY` / webhook endpoint; ensure the webhook listens for `checkout.session.completed` (already used for subscriptions).
+3. Optional platform fee: set `STRIPE_CONNECT_APPLICATION_FEE_BPS` (basis points, e.g. `250` = 2.5%). Default is `0`.
+4. Invoice **Pay online** / portal **Pay** creates a Checkout Session with destination charges to the connected account.
+5. Webhook records a `payments` row with `source = 'stripe'` and updates invoice status.
+
 ## Important Notes
 
 - **Never commit your `.env.local` file** - it contains sensitive keys
@@ -159,6 +169,7 @@ When you're ready for production:
 - The webhook endpoint must be publicly accessible (use Stripe CLI for local dev)
 - Webhook signature verification is critical for security
 - Always test subscription flows before going live
+- Stripe **Billing Portal** (`/api/stripe/customer-portal`) is for contractor subscriptions only — not Client Hub
 
 ## Troubleshooting
 

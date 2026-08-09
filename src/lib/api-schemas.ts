@@ -70,8 +70,9 @@ export const sendInvoiceEmailSchema = z.object({
   clientName: z.string().trim().min(1).max(200),
 });
 
-// Field names match the payments table. The form has always sent
-// `payment_method`; the API used to require `method` and insert wrong columns.
+// Field names match the payments table exactly. They previously did not: the
+// schema wanted `method`, the UI sent `payment_method`, and the insert wrote
+// `method`/`paid_at` to columns named `payment_method`/`payment_date`.
 export const paymentCreateSchema = z.object({
   invoice_id: z.string().uuid(),
   amount: z.number().positive().max(10_000_000),
@@ -89,6 +90,21 @@ export const checkoutBodySchema = z.object({
   priceId: z.string().startsWith("price_"),
 });
 
+// The Team page lists accepted members alongside pending invitations, so an
+// update has to say which it is addressing.
+export const teamMemberUpdateSchema = z.object({
+  kind: z.enum(["member", "invitation"]).default("member"),
+  role: z.enum(["Owner", "Admin", "Manager", "Worker"]).optional(),
+  status: z.enum(["Active", "Disabled"]).optional(),
+});
+
+export const teamInviteSchema = z.object({
+  email: z.string().trim().email().max(254),
+  role: z.enum(["admin", "manager", "worker"]).default("worker"),
+  name: z.string().trim().max(200).optional(),
+  phone: z.string().trim().max(50).optional(),
+});
+
 export const jobCreateSchema = z.object({
   title: z.string().trim().min(1).max(300),
   client_id: z.string().uuid(),
@@ -98,11 +114,23 @@ export const jobCreateSchema = z.object({
   status: z.string().trim().max(50).optional(),
   location: optionalString,
   description: z.string().max(10000).optional(),
-  estimated_duration: z.string().max(100).optional(),
+  estimated_duration: z.union([z.string().max(100), z.number()]).optional(),
   team_members: z.union([z.array(z.string()), z.string()]).optional(),
   equipment: z.union([z.array(z.string()), z.string()]).optional(),
   notes: z.string().max(5000).optional(),
   tags: z.union([z.array(z.string()), z.string()]).optional(),
+  // Recurrence (null / omitted = one-time job)
+  recurrence_freq: z.enum(['daily', 'weekly', 'monthly']).optional().nullable(),
+  recurrence_interval: z.number().int().min(1).max(365).optional(),
+  recurrence_byweekday: z.array(z.enum(['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'])).optional().nullable(),
+  recurrence_until: z.string().trim().max(20).optional().nullable(),
+  recurrence_count: z.number().int().min(1).max(1000).optional().nullable(),
+  timezone: z.string().trim().max(100).optional().nullable(),
+});
+
+/** Partial update — same fields as create, all optional except we ignore unknown keys. */
+export const jobUpdateSchema = jobCreateSchema.partial().extend({
+  status: z.string().trim().max(50).optional(),
 });
 
 export const taskCreateSchema = z.object({

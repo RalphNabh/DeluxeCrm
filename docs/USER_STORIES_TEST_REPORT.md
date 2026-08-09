@@ -35,9 +35,9 @@ Additional: `npx tsc --noEmit` PASS, `npm run build` PASS
 
 | ID | Severity | Story | Issue | Recommendation |
 |----|----------|-------|-------|----------------|
-| O-01 | High | US-08 | Client portal is a redirect stub | Build real client auth + RLS or remove links |
-| O-02 | Medium | US-07 | `invoice_overdue` automation never triggers | Add cron job scanning overdue invoices |
-| O-03 | Medium | US-07 | `delay_days` ignored (immediate send) | Job queue (Inngest/QStash) or document as preview-only |
+| O-01 | High | US-08 | ~~Client portal is a redirect stub~~ | **Closed (pass)** — Client Hub at `/portal` with auth, estimate approve/request-changes, invoice Pay, public `/request/[orgSlug]`, request photos |
+| O-02 | Medium | US-07 | ~~`invoice_overdue` automation never triggers~~ | **Fixed (Phase 5):** daily overdue cron + `overdue_notified_at` dedupe |
+| O-03 | Medium | US-07 | ~~`delay_days` ignored (immediate send)~~ | **Fixed (Phase 5):** `automation_jobs` queue + 15-min process cron |
 | O-04 | Medium | US-03 | `estimates/[id]` PUT accepts any JSON status (no Zod) | Add `estimateUpdateSchema` + whitelist |
 | O-05 | Low | US-06 | AI quota increment is read-then-write (race) | DB function `increment_ai_usage()` |
 | O-06 | Low | US-04 | `request_changes` emails client, not contractor | Confirm intended UX |
@@ -55,8 +55,8 @@ Additional: `npx tsc --noEmit` PASS, `npm run build` PASS
 | US-04 Email approve | **Pass** | Token tests; action route reviewed |
 | US-05 Payments | **Pass** after F-03 | Overpayment blocked |
 | US-06 AI estimate | **Pass** (lib) | Vision/scoring tests; analyze route not integration-tested |
-| US-07 Automations | **Partial** | Core triggers wired; overdue + delays missing (O-02, O-03) |
-| US-08 Client portal | **Fail** | Stub only (O-01) |
+| US-07 Automations | **Pass** (Phase 5) | Delayed jobs + overdue cron + SMS action; Twilio/Resend need staging env |
+| US-08 Client portal | **Pass** | Client Hub live; O-01 closed |
 | US-09 Webhooks | **Not automated** | Manual checklist in PRODUCTION_MANUAL_STEPS |
 
 ---

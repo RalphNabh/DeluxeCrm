@@ -1,10 +1,8 @@
 import { requireOrgMember } from '@/lib/api-auth'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireUser } from '@/lib/api-auth'
 import { parseJsonBody } from '@/lib/validation'
 import { clientUpdateSchema } from '@/lib/api-schemas'
-import { escapePostgrestValue } from '@/lib/postgrest-escape'
 import { captureApiError } from '@/lib/api-error'
 
 export async function PUT(
@@ -180,30 +178,14 @@ export async function DELETE(
         .in('id', jobIds)
     }
 
-    // Delete leads associated with this client (by matching name/email)
-    const { data: client } = await supabase
-      .from('clients')
-      .select('name, email')
-      .eq('id', clientId)
+    // Delete pipeline cards linked to this client. client_id is the explicit
+    // relationship; name/email matching was the pre-migration guess and could
+    // delete unrelated leads that shared a name.
+    await supabase
+      .from('leads')
+      .delete()
       .eq('organization_id', orgId)
-      .single()
-
-    if (client) {
-      // Delete leads that match the client's name or email
-      // Use a more reliable query approach
-      const leadQuery = supabase
-        .from('leads')
-        .delete()
-        .eq('organization_id', orgId)
-      
-      const safeName = escapePostgrestValue(client.name)
-      if (client.email) {
-        const safeEmail = escapePostgrestValue(client.email)
-        await leadQuery.or(`name.eq.${safeName},email.eq.${safeEmail}`)
-      } else {
-        await leadQuery.eq('name', client.name)
-      }
-    }
+      .eq('client_id', clientId)
 
     // Finally, delete the client
     const { error } = await supabase

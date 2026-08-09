@@ -9,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getAppUrl } from "@/lib/env";
 import { captureApiError } from "@/lib/api-error";
 import { parseJsonBody } from "@/lib/validation";
+import { sendPortalInviteEmail } from "@/lib/email/send-portal-invite-email";
 import { z } from "zod";
 
 const inviteSchema = z.object({
@@ -58,7 +59,31 @@ export async function POST(request: NextRequest) {
     }
 
     const inviteUrl = `${getAppUrl()}/portal/register?token=${invitation.token}`;
-    return NextResponse.json({ invitation, inviteUrl }, { status: 201 });
+
+    const { data: organization } = await supabase
+      .from("organizations")
+      .select("name")
+      .eq("id", auth.ctx.orgId)
+      .maybeSingle();
+
+    const delivery = await sendPortalInviteEmail({
+      to: client.email,
+      inviteUrl,
+      clientName: client.name,
+      organizationName: organization?.name ?? "Your contractor",
+    });
+
+    return NextResponse.json(
+      {
+        invitation,
+        inviteUrl,
+        emailed: delivery.success,
+        message: delivery.success
+          ? `Invitation sent to ${client.email}.`
+          : `Invitation created, but the email could not be sent. Share this link: ${inviteUrl}`,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     captureApiError(error, { route: "portal/invitations/POST" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

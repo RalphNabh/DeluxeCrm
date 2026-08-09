@@ -16,7 +16,7 @@
 ### 2. Client Folders and Tags System
 - **Status**: ✅ Completed (Backend + Partial UI)
 - **Changes**:
-  - Created `supabase-client-folders-tags-schema.sql` with:
+  - Client folders/tags schema (now in `supabase/migrations/` baseline) with:
     - `tags` array column in `clients` table
     - `client_folders` table for organizing clients
     - `folder_id` foreign key in `clients` table
@@ -58,20 +58,21 @@
   - Store signature images in Supabase Storage
 
 ### 6. Full Client Portal
-- **Status**: ⏳ Pending
-- **Required**:
-  - Create client authentication system (separate from contractor login)
-  - Build client dashboard showing their estimates/invoices
-  - Add in-app estimate approval interface for clients
-  - Email notifications for clients with portal access links
+- **Status**: ✅ Completed (Phase 3 Client Hub)
+- **Changes**:
+  - Client Hub auth at `/portal` (invitation register + login)
+  - Dashboard for estimates, invoices, jobs; in-portal estimate approve / request-changes
+  - Invoice Pay via Stripe Connect Checkout; receipt/PDF view for paid invoices
+  - Public request form at `/request/[orgSlug]` (service role, rate-limited)
+  - Service request photo uploads stored in `photos` JSONB (org-scoped materials storage)
+  - Shared `applyEstimateClientAction` used by email HMAC links and portal actions
 
 ## 📋 Database Schema Updates Needed
 
-Run the following SQL migration in Supabase:
+Apply migrations with the Supabase CLI (see `supabase/README.md`):
 
-```sql
--- Run: supabase-client-folders-tags-schema.sql
--- This adds tags, folders, and folder_id support to clients
+```bash
+npx supabase db push
 ```
 
 ## 🎯 Next Steps
@@ -80,7 +81,6 @@ Run the following SQL migration in Supabase:
 2. **Implement image uploads** for estimates
 3. **Create material catalog** system
 4. **Build contract/signature** functionality
-5. **Develop client portal** with authentication
 
 ## 📝 Notes
 
@@ -88,5 +88,6 @@ Run the following SQL migration in Supabase:
 - Folder manager UI is functional and ready for use
 - Pipeline automations work automatically when dragging leads between stages
 - Tags and folders are displayed on client cards but need to be editable in client forms
+- Client Hub (Phase 3) is live at `/portal`; public requests at `/request/[orgSlug]`
 
 

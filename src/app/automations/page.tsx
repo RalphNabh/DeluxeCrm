@@ -366,7 +366,8 @@ export default function AutomationsPage() {
       'estimate_approved': 'When estimate is approved',
       'invoice_overdue': 'When invoice is overdue',
       'client_created': 'When new client is added',
-      'job_completed': 'When job is completed'
+      'job_completed': 'When job is completed',
+      'visit_completed': 'When visit is completed',
     };
     return labels[trigger] || trigger;
   };

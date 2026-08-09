@@ -67,6 +67,18 @@ function NewEstimateContent() {
     }
   }, [clients]);
 
+  // Arriving from the service request inbox: seed the first line item with what
+  // the client asked for so the quote starts from their own words.
+  useEffect(() => {
+    const requestTitle = params.get('title');
+    if (!requestTitle) return;
+    setItems((prev) =>
+      prev.length === 1 && !prev[0].description
+        ? [{ ...prev[0], description: requestTitle }]
+        : prev,
+    );
+  }, [params]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -119,6 +131,19 @@ function NewEstimateContent() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed to create estimate");
+
+      // Close the loop when this quote came from a service request, so the
+      // inbox shows it as quoted and links to the estimate.
+      const fromRequest = params.get('fromRequest');
+      if (fromRequest) {
+        const estimate = await res.json();
+        await fetch(`/api/portal/requests/${fromRequest}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "quoted", converted_estimate_id: estimate.id }),
+        });
+      }
+
       router.push("/estimates");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create estimate");

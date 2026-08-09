@@ -54,7 +54,7 @@ import PageSidebar from "@/components/layout/page-sidebar";
 import JobCreationModal from "@/components/jobs/job-creation-modal";
 import JobEditModal from "@/components/jobs/job-edit-modal";
 import { calculateEventPositions, type PositionedEvent } from "@/lib/utils/calendar-overlap";
-import { useJobsQuery, useInvalidateQueries } from "@/lib/query/hooks";
+import { useJobsQuery, useVisitsQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import { CalendarSkeleton } from "@/components/ui/page-skeletons";
 
 interface Job {
@@ -64,7 +64,7 @@ interface Job {
   client_name: string;
   start_time: string;
   end_time: string;
-  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | string;
   location: string;
   description?: string;
   estimated_duration: number; // in hours
@@ -74,12 +74,51 @@ interface Job {
   notes?: string;
   tags?: string[];
   estimate_id?: string;
+  job_id?: string;
+  visit_id?: string;
   estimates?: {
     id: string;
     status: string;
     total: number;
     created_at: string;
   } | null;
+}
+
+function mapVisitStatus(status: string): string {
+  switch (status) {
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'skipped':
+      return 'Cancelled';
+    default:
+      return 'Scheduled';
+  }
+}
+
+function visitsToCalendarJobs(visits: unknown[]): Job[] {
+  return (visits as Array<Record<string, unknown>>).map((visit) => {
+    const job = visit.jobs as Record<string, unknown> | null | undefined;
+    return {
+      id: String(visit.id),
+      visit_id: String(visit.id),
+      job_id: String(visit.job_id ?? job?.id ?? ''),
+      title: String(visit.title ?? job?.title ?? 'Visit'),
+      client_id: String(job?.client_id ?? ''),
+      client_name: String(visit.client_name ?? 'Unknown Client'),
+      start_time: String(visit.scheduled_start),
+      end_time: String(visit.scheduled_end),
+      status: mapVisitStatus(String(visit.status ?? 'scheduled')),
+      location: String(visit.location ?? job?.location ?? ''),
+      description: (job?.description as string) || undefined,
+      estimated_duration: Number(job?.estimated_duration ?? 0),
+      team_members: (job?.team_members as string[]) || undefined,
+      equipment: (job?.equipment as string[]) || undefined,
+      notes: (visit.notes as string) || undefined,
+      tags: (visit.tags as string[]) || (job?.tags as string[]) || [],
+    };
+  });
 }
 
 export default function CalendarPage() {
@@ -92,14 +131,44 @@ export default function CalendarPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const invalidate = useInvalidateQueries();
 
-  const {
-    data,
-    isLoading,
-    error: queryError,
-    refetch,
-  } = useJobsQuery();
+  const rangeFrom = useMemo(() => {
+    const d = new Date(selectedDate);
+    d.setMonth(d.getMonth() - 1);
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }, [selectedDate]);
 
-  const jobs = (data ?? []) as Job[];
+  const rangeTo = useMemo(() => {
+    const d = new Date(selectedDate);
+    d.setMonth(d.getMonth() + 2);
+    d.setDate(0);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  }, [selectedDate]);
+
+  const visitsQuery = useVisitsQuery(rangeFrom, rangeTo);
+  const jobsQuery = useJobsQuery();
+
+  // Prefer visits when the API is available; fall back to jobs if migration/API missing
+  const usingVisits = visitsQuery.isSuccess;
+  const jobs: Job[] = useMemo(() => {
+    if (usingVisits) {
+      return visitsToCalendarJobs(visitsQuery.data ?? []);
+    }
+    return (jobsQuery.data ?? []) as Job[];
+  }, [usingVisits, visitsQuery.data, jobsQuery.data]);
+
+  const isLoading = usingVisits || !visitsQuery.isError
+    ? visitsQuery.isLoading
+    : jobsQuery.isLoading;
+  const data = usingVisits ? visitsQuery.data : jobsQuery.data;
+  const queryError = usingVisits || !visitsQuery.isError
+    ? (visitsQuery.isError ? visitsQuery.error : null)
+    : jobsQuery.error;
+  const refetch = usingVisits || !visitsQuery.isError
+    ? visitsQuery.refetch
+    : jobsQuery.refetch;
 
   const availableTags = useMemo(() => {
     const allTags = new Set<string>();
@@ -115,16 +184,21 @@ export default function CalendarPage() {
     queryError instanceof Error ? queryError.message : queryError ? "Failed to fetch jobs" : null;
 
   const handleJobCreated = async (_newJob: Job) => {
-    await invalidate.jobs();
+    await Promise.all([invalidate.jobs(), invalidate.visits()]);
   };
 
   const handleJobUpdated = async (_updatedJob: Job) => {
-    await invalidate.jobs();
+    await Promise.all([invalidate.jobs(), invalidate.visits()]);
     setSelectedJob(null);
   };
 
   const handleEditJob = (job: Job) => {
-    setSelectedJob(job);
+    // Visit-mapped calendar events keep visit id for rendering; edit the parent job
+    setSelectedJob(
+      job.job_id
+        ? { ...job, id: job.job_id }
+        : job
+    );
     setShowEditJob(true);
   };
 
@@ -1045,7 +1119,7 @@ export default function CalendarPage() {
 
                         <div className="mt-6 pt-4 border-t border-gray-200">
                           <div className="flex items-center justify-between">
-                            <Link href={`/jobs/${job.id}`}>
+                            <Link href={`/jobs/${job.job_id || job.id}`}>
                               <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-200 transition-colors">
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details

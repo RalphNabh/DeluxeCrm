@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/api-auth";
 import { syncStripeSeatQuantity } from "@/lib/stripe-seats";
 import { createStripeClient } from "@/lib/stripe-server";
@@ -14,13 +13,15 @@ export async function GET(
 ) {
   try {
     const { token } = await params;
-    const supabase = await createClient();
+    // Service role only — invitation RLS no longer allows public SELECT.
+    const admin = createServiceRoleClient();
 
-    const { data: invitation, error } = await supabase
+    const { data: invitation, error } = await admin
       .from("organization_invitations")
-      .select("*, organizations(id, name)")
+      .select("email, role, expires_at, organizations(id, name)")
       .eq("token", token)
       .is("accepted_at", null)
+      .is("revoked_at", null)
       .maybeSingle();
 
     if (error || !invitation) {
@@ -34,7 +35,7 @@ export async function GET(
     return NextResponse.json({
       email: invitation.email,
       role: invitation.role,
-      orgName: (invitation.organizations as { name?: string })?.name,
+      orgName: (invitation.organizations as { name?: string } | null)?.name,
     });
   } catch (error) {
     captureApiError(error, { route: "org/invitations/accept/GET" });
@@ -51,7 +52,6 @@ export async function POST(
     const supabase = await createClient();
     const auth = await requireUser(supabase);
     if (!auth.ok) return auth.response;
-    const { user } = auth;
 
     const admin = createServiceRoleClient();
 
@@ -60,6 +60,7 @@ export async function POST(
       .select("*")
       .eq("token", token)
       .is("accepted_at", null)
+      .is("revoked_at", null)
       .maybeSingle();
 
     if (invError || !invitation) {

@@ -11,6 +11,7 @@ interface ServiceRequest {
   description?: string;
   status: string;
   created_at: string;
+  photos?: string[];
 }
 
 export default function PortalRequestsPage() {
@@ -37,9 +38,25 @@ export default function PortalRequestsPage() {
               <CardTitle className="text-base">{req.title}</CardTitle>
               <p className="text-xs text-gray-500 capitalize">{req.status}</p>
             </CardHeader>
-            {req.description && (
-              <CardContent className="text-sm text-gray-600">{req.description}</CardContent>
-            )}
+            <CardContent className="space-y-2">
+              {req.description && (
+                <p className="text-sm text-gray-600">{req.description}</p>
+              )}
+              {Array.isArray(req.photos) && req.photos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {req.photos.map((url) => (
+                    <a key={url} href={url} target="_blank" rel="noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt=""
+                        className="h-16 w-16 object-cover rounded border"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </CardContent>
           </Card>
         ))}
         {!requests.length && (

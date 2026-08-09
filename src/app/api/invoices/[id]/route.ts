@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireOrgMember } from '@/lib/api-auth'
+import { sumPayments } from '@/lib/payments'
 
 export async function GET(
   request: NextRequest,
@@ -46,8 +47,7 @@ export async function GET(
   if (error) return NextResponse.json({ error: 'Failed to fetch invoice' }, { status: 500 })
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
 
-  // Calculate total paid from payments
-  const totalPaid = (invoice.payments || []).reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
+  const totalPaid = sumPayments(invoice.payments)
   
   // Calculate overdue status
     const invoiceWithStatus = { ...invoice }
@@ -156,8 +156,9 @@ export async function PUT(
     `)
     .single()
   
-  // Calculate total paid from payments
-  const totalPaid = ((updatedInvoice?.payments as Array<{ amount: number }>) || []).reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
+  const totalPaid = sumPayments(
+    updatedInvoice?.payments as Array<{ amount: number | string | null }> | undefined,
+  )
   
   // Check overdue status
     const invoiceWithStatus = { ...updatedInvoice }

@@ -56,6 +56,32 @@ export async function syncStripeSeatQuantity(
   }
 }
 
+/**
+ * Bring Stripe in line with the current member count, tolerating an absent
+ * Stripe configuration.
+ *
+ * Seat count changes whenever someone joins, is removed or is disabled. Callers
+ * on those paths care about the membership change succeeding, not about billing,
+ * so a Stripe failure is reported rather than thrown.
+ */
+export async function syncSeatQuantity(
+  supabase: SupabaseClient,
+  orgId: string,
+): Promise<{ success: boolean; quantity?: number; error?: string }> {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return { success: false, error: "Stripe is not configured" };
+  }
+  try {
+    const { createStripeClient } = await import("@/lib/stripe-server");
+    return await syncStripeSeatQuantity(createStripeClient(), supabase, orgId);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Seat sync failed",
+    };
+  }
+}
+
 export async function canAddSeat(
   supabase: SupabaseClient,
   orgId: string,

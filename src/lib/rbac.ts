@@ -55,6 +55,11 @@ export function hasPermission(role: OrgRole, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
 }
 
+/** Every permission a role holds, for sending to the client. */
+export function permissionsFor(role: OrgRole): Permission[] {
+  return [...(ROLE_PERMISSIONS[role] ?? [])];
+}
+
 export function isManagerOrAbove(role: OrgRole): boolean {
   return role === "owner" || role === "admin" || role === "manager";
 }

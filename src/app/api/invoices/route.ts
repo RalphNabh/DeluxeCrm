@@ -4,6 +4,7 @@ import { requireOrgMember } from '@/lib/api-auth'
 import { invoiceCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 import { parseJsonBody } from '@/lib/validation'
+import { sumPayments } from '@/lib/payments'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -31,6 +32,12 @@ export async function GET(request: NextRequest) {
         unit,
         unit_price,
         total
+      ),
+      payments (
+        id,
+        amount,
+        payment_method,
+        payment_date
       )
     `)
     .eq('organization_id', orgId)
@@ -44,9 +51,9 @@ export async function GET(request: NextRequest) {
         
         // Calculate total_paid for each invoice and check overdue status
         const invoicesWithCalculations = await Promise.all((data || []).map(async (invoice: Record<string, unknown>) => {
-          // Calculate total paid from payments
-          const payments = invoice.payments as Array<{ amount: number }> || []
-          const totalPaid = payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
+          const totalPaid = sumPayments(
+            invoice.payments as Array<{ amount: number | string | null }> | undefined,
+          )
           
           // Check if overdue
           let status = invoice.status as string

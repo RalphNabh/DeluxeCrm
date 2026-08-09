@@ -96,13 +96,8 @@ export async function getQuotaStatus(userId: string): Promise<QuotaStatus> {
 }
 
 /**
- * Atomically check + increment the user's quota.
+ * Atomically check + increment the user's quota via `increment_ai_usage`.
  * Returns { allowed: false, status } when the cap has been reached.
- *
- * Implementation note: we upsert with `count = count + 1` via a Postgres
- * function would be ideal, but to avoid a migration we do a read-then-write
- * here. The window for double-spend is small and the cron rate-limit
- * provides a backstop against burst abuse.
  */
 export async function checkAndIncrementQuota(
   userId: string,
@@ -114,28 +109,25 @@ export async function checkAndIncrementQuota(
 
   const admin = createServiceRoleClient();
   const yearMonth = status.yearMonth;
-  const newCount = status.used + 1;
+  // Null cap means unlimited (Enterprise).
+  const capArg = Number.isFinite(status.cap) ? status.cap : null;
 
-  // Upsert: insert new row if missing, otherwise bump count.
-  const { error } = await admin
-    .from("ai_estimate_usage")
-    .upsert(
-      {
-        user_id: userId,
-        year_month: yearMonth,
-        count: newCount,
-        last_used_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,year_month" },
-    );
+  const { data, error } = await admin.rpc("increment_ai_usage", {
+    p_user_id: userId,
+    p_year_month: yearMonth,
+    p_cap: capArg,
+  });
 
   if (error) {
-    // Don't burn the user's quota if the DB write failed.
     throw new Error(`Failed to increment AI estimate usage: ${error.message}`);
   }
 
+  const row = Array.isArray(data) ? data[0] : data;
+  const allowed = Boolean(row?.allowed);
+  const newCount = Number(row?.new_count ?? status.used);
+
   return {
-    allowed: true,
+    allowed,
     status: {
       ...status,
       used: newCount,
