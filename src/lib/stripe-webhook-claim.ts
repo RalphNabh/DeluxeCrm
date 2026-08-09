@@ -87,7 +87,6 @@ export async function claimWebhookEvent(
     return { action: "in_progress" };
   }
 
-  void row;
   return { action: "claimed" };
 }
 

@@ -152,6 +152,7 @@ export default function CalendarPage() {
 
   // Prefer visits when the API is available; fall back to jobs if migration/API missing
   const usingVisits = visitsQuery.isSuccess;
+  const visitsFailed = visitsQuery.isError;
   const jobs: Job[] = useMemo(() => {
     if (usingVisits) {
       return visitsToCalendarJobs(visitsQuery.data ?? []);
@@ -159,16 +160,13 @@ export default function CalendarPage() {
     return (jobsQuery.data ?? []) as Job[];
   }, [usingVisits, visitsQuery.data, jobsQuery.data]);
 
-  const isLoading = usingVisits || !visitsQuery.isError
-    ? visitsQuery.isLoading
-    : jobsQuery.isLoading;
-  const data = usingVisits ? visitsQuery.data : jobsQuery.data;
-  const queryError = usingVisits || !visitsQuery.isError
-    ? (visitsQuery.isError ? visitsQuery.error : null)
-    : jobsQuery.error;
-  const refetch = usingVisits || !visitsQuery.isError
-    ? visitsQuery.refetch
-    : jobsQuery.refetch;
+  // While visits are loading (or succeeded), poll that query. On hard failure, jobs take over.
+  const isLoading = visitsFailed ? jobsQuery.isLoading : visitsQuery.isLoading;
+  const queryError = visitsFailed ? jobsQuery.error : null;
+  const refetch = visitsFailed ? jobsQuery.refetch : visitsQuery.refetch;
+  const hasQueryData = visitsFailed
+    ? jobsQuery.data !== undefined
+    : visitsQuery.data !== undefined;
 
   const availableTags = useMemo(() => {
     const allTags = new Set<string>();
@@ -329,7 +327,7 @@ export default function CalendarPage() {
     setSelectedDate(new Date());
   };
 
-  if (error && !data) {
+  if (error && !hasQueryData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -478,7 +476,7 @@ export default function CalendarPage() {
 
         {/* Calendar Content */}
         <main className="flex-1 p-6">
-          {isLoading && !data ? (
+          {isLoading && !hasQueryData ? (
             <CalendarSkeleton />
           ) : (
           <>

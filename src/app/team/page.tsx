@@ -93,7 +93,7 @@ export default function TeamPage() {
     email: '',
     phone: '',
     role: 'Worker' as 'Owner' | 'Manager' | 'Worker' | 'Admin',
-    status: 'Pending' as 'Active' | 'Inactive' | 'Pending',
+    status: 'Pending' as TeamMember['status'],
     notes: ''
   });
   const [saving, setSaving] = useState(false);
