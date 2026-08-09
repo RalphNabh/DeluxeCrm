@@ -16,6 +16,11 @@ type Row = {
   processed_at?: string;
 };
 
+/**
+ * Minimal Supabase client stand-in.
+ * Real supabase-js builders are thenable; insert/update without .maybeSingle()
+ * still execute when awaited.
+ */
 function createFakeAdmin(initial: Row[] = []) {
   const rows = new Map<string, Row>(initial.map((r) => [r.event_id, { ...r }]));
 
@@ -26,9 +31,49 @@ function createFakeAdmin(initial: Row[] = []) {
       let mode: "select" | "insert" | "update" = "select";
       let patch: Partial<Row> = {};
       let insertRow: Row | null = null;
+      let wantSingle = false;
 
-      const builder = {
+      const execute = async () => {
+        if (mode === "insert" && insertRow) {
+          if (rows.has(insertRow.event_id)) {
+            return { data: null, error: { code: "23505", message: "duplicate" } };
+          }
+          rows.set(insertRow.event_id, { ...insertRow });
+          return { data: insertRow, error: null };
+        }
+
+        const id = filters.event_id as string;
+        const existing = id ? rows.get(id) : undefined;
+
+        if (mode === "update") {
+          if (!existing) return { data: null, error: null };
+          if (inStatus && !inStatus.includes(existing.status)) {
+            return { data: null, error: null };
+          }
+          const next = { ...existing, ...patch };
+          rows.set(id, next);
+          const out = wantSingle ? { event_id: id } : next;
+          return { data: out, error: null };
+        }
+
+        if (!existing) return { data: null, error: null };
+        return { data: { ...existing }, error: null };
+      };
+
+      const builder: {
+        select: (cols?: string) => typeof builder;
+        insert: (row: Row) => typeof builder;
+        update: (values: Partial<Row>) => typeof builder;
+        eq: (col: string, val: unknown) => typeof builder;
+        in: (col: string, vals: string[]) => typeof builder;
+        maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
+        then: (
+          onFulfilled?: (v: unknown) => unknown,
+          onRejected?: (e: unknown) => unknown,
+        ) => Promise<unknown>;
+      } = {
         select() {
+          wantSingle = true;
           return builder;
         },
         insert(row: Row) {
@@ -49,29 +94,9 @@ function createFakeAdmin(initial: Row[] = []) {
           if (col === "status") inStatus = vals;
           return builder;
         },
-        maybeSingle: async () => {
-          if (mode === "insert" && insertRow) {
-            if (rows.has(insertRow.event_id)) {
-              return { data: null, error: { code: "23505", message: "duplicate" } };
-            }
-            rows.set(insertRow.event_id, { ...insertRow });
-            return { data: insertRow, error: null };
-          }
-
-          const id = filters.event_id as string;
-          const existing = rows.get(id);
-          if (!existing) return { data: null, error: null };
-
-          if (mode === "update") {
-            if (inStatus && !inStatus.includes(existing.status)) {
-              return { data: null, error: null };
-            }
-            const next = { ...existing, ...patch };
-            rows.set(id, next);
-            return { data: { event_id: id }, error: null };
-          }
-
-          return { data: { ...existing }, error: null };
+        maybeSingle: () => execute(),
+        then(onFulfilled, onRejected) {
+          return execute().then(onFulfilled, onRejected);
         },
       };
       return builder;

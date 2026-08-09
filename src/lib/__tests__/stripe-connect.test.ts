@@ -4,7 +4,7 @@ import {
   applicationFeeCents,
   connectStatusFromOrg,
   dollarsToCents,
-} from "../stripe-connect.ts";
+} from "../stripe-connect-core.ts";
 
 describe("connectStatusFromOrg", () => {
   it("requires an account with charges enabled", () => {
