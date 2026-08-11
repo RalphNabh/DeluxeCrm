@@ -58,60 +58,50 @@ function emailTakenResponse() {
 }
 
 /**
- * Look up an auth user by email via Admin API (service role).
+ * Look up an auth user by exact email via Admin API (service role).
  * Used to block signup when the address is already verified.
+ *
+ * Important: never fall back to an arbitrary user from the list. GoTrue's
+ * list endpoint may ignore `?email=` and return a page of users; taking
+ * `users[0]` false-positived every new signup as "email taken".
  */
 async function findAuthUserByEmail(email: string): Promise<{
   id: string;
   email?: string;
   email_confirmed_at?: string | null;
 } | null> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return null;
 
   try {
-    const res = await fetch(
-      `${url}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${key}`,
-          apikey: key,
-        },
-        cache: "no-store",
-      },
-    );
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      users?: Array<{
-        id: string;
-        email?: string;
-        email_confirmed_at?: string | null;
-      }>;
-      id?: string;
-      email?: string;
-      email_confirmed_at?: string | null;
-    };
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+    const admin = createServiceRoleClient();
 
-    const users = Array.isArray(json.users)
-      ? json.users
-      : json.id
-        ? [
-            json as {
-              id: string;
-              email?: string;
-              email_confirmed_at?: string | null;
-            },
-          ]
-        : [];
-
-    const normalized = email.trim().toLowerCase();
-    return (
-      users.find((u) => u.email?.toLowerCase() === normalized) ??
-      users[0] ??
-      null
-    );
-  } catch {
+    // Exact email match only. listUsers may return a full page; never use users[0].
+    const perPage = 200;
+    for (let page = 1; page <= 20; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      if (error) {
+        captureApiError(error, { route: "auth/signup", step: "listUsers" });
+        return null;
+      }
+      const users = data?.users ?? [];
+      const match = users.find((u) => u.email?.toLowerCase() === normalized);
+      if (match) {
+        return {
+          id: match.id,
+          email: match.email,
+          email_confirmed_at: match.email_confirmed_at,
+        };
+      }
+      if (users.length < perPage) break;
+    }
+    return null;
+  } catch (error) {
+    captureApiError(error, { route: "auth/signup", step: "findAuthUserByEmail" });
     return null;
   }
 }
