@@ -19,30 +19,145 @@ const ACTION_LINK_LABELS = [
   "cancel",
 ];
 
+/**
+ * Color forms that the html2canvas CSS parser cannot handle (Tailwind v4 /
+ * modern browsers). Matches lab()/oklch()/etc including inside color-mix().
+ */
+const UNSUPPORTED_COLOR_RE =
+  /oklch|oklab|\blab\(|\blch\(|color-mix|\bcolor\(/i;
+
+const COLOR_STYLE_PROPS = [
+  "color",
+  "backgroundColor",
+  "borderTopColor",
+  "borderRightColor",
+  "borderBottomColor",
+  "borderLeftColor",
+  "outlineColor",
+  "textDecorationColor",
+  "caretColor",
+  "columnRuleColor",
+  "fill",
+  "stroke",
+] as const;
+
+const COMPOSITE_STYLE_PROPS = [
+  "boxShadow",
+  "textShadow",
+  "backgroundImage",
+  "borderImageSource",
+  "filter",
+] as const;
+
 function waitFor(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function hasUnsupportedColor(value: string): boolean {
+  return Boolean(value) && UNSUPPORTED_COLOR_RE.test(value);
+}
+
+/** Convert a CSS color to a form html2canvas understands via Canvas 2D. */
+function toCanvasSafeColor(value: string, fallback: string): string {
+  if (!value || value === "transparent" || value === "none") return fallback;
+  if (!hasUnsupportedColor(value)) {
+    // Still normalise transparent-ish backgrounds when requested as fallback white.
+    if (value === "rgba(0, 0, 0, 0)" || value === "rgba(0,0,0,0)") {
+      return fallback;
+    }
+    return value;
+  }
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fallback;
+    ctx.fillStyle = "#000000";
+    ctx.fillStyle = value;
+    const out = ctx.fillStyle;
+    if (
+      typeof out === "string" &&
+      !hasUnsupportedColor(out) &&
+      (out.startsWith("#") || out.startsWith("rgb") || out.startsWith("hsl"))
+    ) {
+      return out;
+    }
+  } catch {
+    // fall through
+  }
+  return fallback;
+}
+
 /**
- * html2canvas cannot parse oklch(), which is what Tailwind v4 emits for every
- * themed colour. Anything still expressed in oklch after cloning is replaced
- * with a print-safe literal.
+ * html2canvas cannot parse lab()/oklch()/color-mix() which modern browsers and
+ * Tailwind v4 emit. Force every node (including the clone root) onto sRGB-safe
+ * literals before capture.
  */
 function replaceUnsupportedColors(root: HTMLElement): void {
-  for (const node of root.querySelectorAll<HTMLElement>("*")) {
+  const nodes: HTMLElement[] = [
+    root,
+    ...Array.from(root.querySelectorAll<HTMLElement>("*")),
+  ];
+
+  for (const node of nodes) {
     const computed = window.getComputedStyle(node);
 
-    if (
-      computed.backgroundColor.includes("oklch") ||
-      computed.backgroundColor === "rgba(0, 0, 0, 0)"
-    ) {
-      node.style.backgroundColor = "#ffffff";
+    for (const prop of COLOR_STYLE_PROPS) {
+      const value = computed[prop];
+      if (!value) continue;
+
+      if (prop === "backgroundColor") {
+        if (
+          hasUnsupportedColor(value) ||
+          value === "rgba(0, 0, 0, 0)" ||
+          value === "rgba(0,0,0,0)"
+        ) {
+          node.style.backgroundColor = toCanvasSafeColor(value, "#ffffff");
+        }
+        continue;
+      }
+
+      if (prop === "color") {
+        if (hasUnsupportedColor(value)) {
+          node.style.color = toCanvasSafeColor(value, "#000000");
+        }
+        continue;
+      }
+
+      if (prop.startsWith("border") && prop.endsWith("Color")) {
+        if (hasUnsupportedColor(value)) {
+          const safe = toCanvasSafeColor(value, "#e5e7eb");
+          node.style[prop] = safe;
+        }
+        continue;
+      }
+
+      if (hasUnsupportedColor(value)) {
+        const safe = toCanvasSafeColor(
+          value,
+          prop === "fill" || prop === "stroke" ? "#000000" : "transparent",
+        );
+        // CSSStyleDeclaration indexing for remaining props
+        (node.style as CSSStyleDeclaration & Record<string, string>)[prop] =
+          safe;
+      }
     }
-    if (computed.color.includes("oklch")) {
-      node.style.color = "#000000";
-    }
-    if (computed.borderColor.includes("oklch")) {
-      node.style.borderColor = "#e5e7eb";
+
+    // Drop composites that often embed unsupported color functions in gradients/shadows.
+    for (const prop of COMPOSITE_STYLE_PROPS) {
+      const value = computed[prop];
+      if (value && hasUnsupportedColor(value)) {
+        if (prop === "boxShadow" || prop === "textShadow") {
+          node.style[prop] = "none";
+        } else if (prop === "backgroundImage") {
+          node.style.backgroundImage = "none";
+        } else if (prop === "filter") {
+          node.style.filter = "none";
+        } else if (prop === "borderImageSource") {
+          node.style.borderImageSource = "none";
+        }
+      }
     }
   }
 }
