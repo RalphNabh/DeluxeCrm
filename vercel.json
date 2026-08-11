@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/automations/cron/process",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/automations/cron/overdue",

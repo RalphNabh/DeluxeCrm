@@ -125,7 +125,7 @@ Stories are grouped by persona. Priority: **P0** (revenue/security), **P1** (cor
 **Known gaps**
 
 - ~~`invoice_overdue` template exists in UI but no cron/trigger wired~~ → Fixed (Phase 5): daily cron `/api/automations/cron/overdue` scans Sent/Partially Paid invoices past `due_date`, emits `invoice_overdue` once, sets `overdue_notified_at`
-- ~~`delay_days` in templates logged only — not scheduled~~ → Fixed (Phase 5): `delay_days > 0` enqueues `automation_jobs`; `/api/automations/cron/process` runs every 15 minutes
+- ~~`delay_days` in templates logged only — not scheduled~~ → Fixed (Phase 5): `delay_days > 0` enqueues `automation_jobs`; `/api/automations/cron/process` drains the queue (on Vercel Hobby: once daily — see `PRODUCTION_MANUAL_STEPS.md`; product intent is every 15 minutes)
 - SMS action type `send_sms` supported via Twilio REST when org `settings.sms_notifications` is true and Twilio env vars are set
 
 ---

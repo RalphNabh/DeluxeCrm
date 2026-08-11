@@ -21,6 +21,8 @@ automations policy is still present, drop it:
 drop policy if exists "Enable read automations for executor" on public.automations;
 ```
 
+
+
 ## Smoke checklist (after push)
 
 1. Record a payment on an invoice — balance updates
@@ -29,25 +31,48 @@ drop policy if exists "Enable read automations for executor" on public.automatio
 4. Drag a lead onto a custom pipeline stage — status saves
 5. Create a client that already matches a lead — no second pipeline card; `leads.client_id` set
 
+
+
 ## Vercel environment variables (add if missing)
 
-| Variable | Purpose |
-|----------|---------|
-| `ESTIMATE_ACTION_SECRET` | Signs client estimate approve links (or reuses `CRON_SECRET`) |
-| `CRON_SECRET` | Protects cron + Vercel auto-injects on scheduled jobs |
-| `RESEND_FROM_EMAIL` | Automation / transactional From address (falls back to Resend test domain) |
-| `TWILIO_ACCOUNT_SID` | Optional — required for `send_sms` automations |
-| `TWILIO_AUTH_TOKEN` | Optional — Twilio auth |
-| `TWILIO_FROM_NUMBER` | Optional — E.164 sender (e.g. `+15551234567`) |
-| `UPSTASH_REDIS_REST_URL` / `TOKEN` | Required in production (rate limits fail closed without them) |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Contact form captcha |
-| `NEXT_PUBLIC_APP_URL` | `https://www.dyluxepro.com` |
+
+| Variable                                                  | Purpose                                                                    |
+| --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `ESTIMATE_ACTION_SECRET`                                  | Signs client estimate approve links (or reuses `CRON_SECRET`)              |
+| `CRON_SECRET`                                             | Protects cron + Vercel auto-injects on scheduled jobs                      |
+| `RESEND_FROM_EMAIL`                                       | Automation / transactional From address (falls back to Resend test domain) |
+| `TWILIO_ACCOUNT_SID`                                      | Optional — required for `send_sms` automations                             |
+| `TWILIO_AUTH_TOKEN`                                       | Optional — Twilio auth                                                     |
+| `TWILIO_FROM_NUMBER`                                      | Optional — E.164 sender (e.g. `+15551234567`)                              |
+| `UPSTASH_REDIS_REST_URL` / `TOKEN`                        | Required in production (rate limits fail closed without them)              |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Contact form captcha                                                       |
+| `NEXT_PUBLIC_APP_URL`                                     | `https://www.dyluxepro.com`                                                |
+
+
+
 
 ### Automations / SMS notes
 
 - Org SMS preference is stored in `organizations.settings.sms_notifications` (Settings UI → PATCH `/api/org/settings`). localStorage does **not** control SMS sends.
-- Crons: `/api/automations/cron/process` every 15 min; `/api/automations/cron/overdue` daily. Both accept `Authorization: Bearer $CRON_SECRET` or `?secret=`.
+- Crons accept `Authorization: Bearer $CRON_SECRET` or `?secret=`.
+- Schedules in `vercel.json` today:
+  - `/api/automations/cron/process` — **once daily** `0 8 * * *` (08:00 UTC)
+  - `/api/automations/cron/overdue` — daily `0 7 * * *`
+  - `/api/visits/cron/extend` — daily `0 5 * * *`
+  - `/api/ai-estimates/cron/cleanup` — daily `0 6 * * *`
 - Apply migration `20250107000000_automation_jobs` before relying on delayed sends or overdue scans.
+
+#### TODO: restore frequent process cron (Hobby limitation)
+
+Vercel **Hobby** only allows cron jobs that run at most **once per day**. The product intent for delayed automations is **every 15 minutes** (`*/15 * * * *`). That expression **blocks deploys** on Hobby.
+
+**Current workaround:** process runs daily so production can deploy.
+
+**When delayed email/SMS latency matters, do one of:**
+1. Upgrade to **Vercel Pro** and set process back to `*/15 * * * *` in `vercel.json`, or
+2. Keep Hobby; call `/api/automations/cron/process` every 15m from an external scheduler (e.g. cron-job.org) with `CRON_SECRET`; leave Vercel’s process entry daily or remove it.
+
+
 
 ## Supabase Auth
 
