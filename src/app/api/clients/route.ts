@@ -7,6 +7,7 @@ import { parseJsonBody } from '@/lib/validation'
 import { clientCreateSchema } from '@/lib/api-schemas'
 import { captureApiError } from '@/lib/api-error'
 import { findMatchingLead } from '@/lib/leads'
+import { findMatchingClients } from '@/lib/clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,7 +48,26 @@ export async function POST(request: Request) {
     const parsed = await parseJsonBody(request, clientCreateSchema)
     if (!parsed.ok) return parsed.response
 
-    const { name, email, phone, address, notes, tags, folder_id } = parsed.data
+    const { name, email, phone, address, notes, tags, folder_id, allowDuplicate } =
+      parsed.data
+
+    if (!allowDuplicate) {
+      const duplicates = await findMatchingClients(supabase, orgId, { email, name })
+      if (duplicates.length > 0) {
+        const byEmail = duplicates.some((d) => d.matchedOn === "email")
+        return NextResponse.json(
+          {
+            error: byEmail
+              ? "A client with this email already exists."
+              : "A client with this name already exists.",
+            code: "possible_duplicate",
+            matches: duplicates,
+          },
+          { status: 409 },
+        )
+      }
+    }
+
     const clientData: Record<string, unknown> = {
       user_id: user.id,
       organization_id: orgId,

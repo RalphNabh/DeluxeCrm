@@ -23,6 +23,8 @@ export const clientCreateSchema = z.object({
   notes: z.string().trim().max(5000).optional().nullable(),
   tags: z.union([z.array(z.string()), z.string()]).optional(),
   folder_id: z.string().uuid().optional().nullable(),
+  /** Skip duplicate warning after the user confirms Create anyway. */
+  allowDuplicate: z.boolean().optional(),
 });
 
 export const clientUpdateSchema = clientCreateSchema.partial();

@@ -14,6 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ArrowLeft, Save, Menu } from 'lucide-react'
 import PageSidebar from '@/components/layout/page-sidebar'
 import { useClientFoldersQuery, useInvalidateQueries } from '@/lib/query/hooks'
@@ -24,6 +32,14 @@ interface ClientFolder {
   color: string
 }
 
+type DuplicateMatch = {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  matchedOn: 'email' | 'name'
+}
+
 export default function NewClientPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -31,6 +47,7 @@ export default function NewClientPage() {
   const [folderId, setFolderId] = useState<string | null>(null)
   const [tagsInput, setTagsInput] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([])
   const invalidate = useInvalidateQueries()
   const { data: foldersData } = useClientFoldersQuery()
   const folders = (foldersData ?? []) as ClientFolder[]
@@ -42,39 +59,63 @@ export default function NewClientPage() {
     notes: ''
   })
 
+  const createClient = async (allowDuplicate: boolean) => {
+    const tagsArray = tagsInput
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t.length > 0)
+
+    const response = await fetch('/api/clients', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...formData,
+        folder_id: folderId,
+        tags: tagsArray,
+        allowDuplicate,
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (response.status === 409 && payload.code === 'possible_duplicate') {
+      setDuplicates(Array.isArray(payload.matches) ? payload.matches : [])
+      return
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.error || 'Failed to create client')
+    }
+
+    setDuplicates([])
+    await invalidate.clients()
+    router.push('/clients')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
     try {
-      // Parse tags from comma-separated string
-      const tagsArray = tagsInput
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t.length > 0)
-
-      const response = await fetch('/api/clients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          folder_id: folderId,
-          tags: tagsArray
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create client')
-      }
-
-      await invalidate.clients()
-      router.push('/clients')
+      await createClient(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateAnyway = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      await createClient(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      setDuplicates([])
     } finally {
       setLoading(false)
     }
@@ -86,6 +127,8 @@ export default function NewClientPage() {
       [e.target.name]: e.target.value
     })
   }
+
+  const duplicateByEmail = duplicates.some((d) => d.matchedOn === 'email')
 
   return (
     <div className="min-h-screen bg-gray-50 flex h-screen">
@@ -282,7 +325,62 @@ export default function NewClientPage() {
           </div>
         </main>
       </div>
+
+      <Dialog open={duplicates.length > 0} onOpenChange={(open) => { if (!open) setDuplicates([]) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {duplicateByEmail
+                ? 'A client with this email already exists'
+                : 'A client with this name already exists'}
+            </DialogTitle>
+            <DialogDescription>
+              {duplicateByEmail
+                ? 'Opening the existing record avoids splitting jobs and invoices across two clients. Create anyway only if these are truly different people sharing an email.'
+                : 'This may be the same person, or two people with the same name. Open the existing record unless you are sure you need a new one.'}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-2 max-h-48 overflow-y-auto">
+            {duplicates.map((match) => (
+              <li key={match.id} className="rounded-md border p-3 text-sm">
+                <div className="font-medium text-gray-900">{match.name}</div>
+                <div className="text-gray-600">
+                  {match.email || 'No email'}
+                  {match.phone ? ` · ${match.phone}` : ''}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Matched on {match.matchedOn}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDuplicates([])}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCreateAnyway}
+              disabled={loading}
+            >
+              Create anyway
+            </Button>
+            <Button
+              type="button"
+              onClick={() => router.push(`/clients/${duplicates[0].id}`)}
+              disabled={loading || !duplicates[0]}
+            >
+              Open existing
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
