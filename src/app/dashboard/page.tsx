@@ -49,7 +49,6 @@ import {
   Tag,
   CheckSquare,
   Gift,
-  Menu,
   Folder,
   AlertCircle,
   Clock,
@@ -79,15 +78,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import FolderManager from "@/components/clients/folder-manager";
-import SignOutButton from "@/components/auth/sign-out";
-import UserProfile from "@/components/layout/user-profile";
-import PageSidebar from "@/components/layout/page-sidebar";
 import PageHeader from "@/components/layout/page-header";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { DashboardTour } from "@/components/tutorial/dashboard-tour";
 import { HelpCircle } from "lucide-react";
-import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useNotifications } from "@/components/notifications/notification-provider";
 import {
   useLeadsQuery,
@@ -203,7 +198,7 @@ function DraggableLeadCard({
   const handleCardClick = async (e: React.MouseEvent) => {
     // Don't navigate if clicking on buttons
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a')) {
+    if (target.closest('button') || target.closest('a') || target.closest('[data-status-select]')) {
       return;
     }
 
@@ -245,7 +240,7 @@ function DraggableLeadCard({
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-200 group bg-white min-w-[280px] w-full card-hover"
+      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-200 group bg-white w-full min-w-0 card-hover"
       {...attributes}
       {...listeners}
       onClick={handleCardClick}
@@ -375,6 +370,31 @@ function DraggableLeadCard({
           </div>
         )}
         
+        {stages.length > 0 && (
+          <div
+            data-status-select
+            className="pt-1"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Select
+              value={lead.status}
+              onValueChange={(value) => onStatusChange(lead.id, value)}
+            >
+              <SelectTrigger className="h-11 w-full text-xs md:h-8">
+                <SelectValue placeholder="Move to stage" />
+              </SelectTrigger>
+              <SelectContent>
+                {stages.map((s) => (
+                  <SelectItem key={s.id} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="pt-2 border-t border-gray-100">
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-500">Progress</span>
@@ -421,7 +441,7 @@ function DroppableStage({
   return (
     <div 
       ref={setNodeRef}
-      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-teal-50/50 rounded-lg p-2 transition-colors' : ''}`}
+      className={`w-full min-w-0 space-y-4 snap-start md:min-w-[280px] ${isOver ? 'bg-teal-50/50 rounded-lg p-2 transition-colors' : ''}`}
     >
       <div className="text-center relative">
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -614,8 +634,6 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
   const { startTutorial, isTutorialCompleted } = useTutorial();
   const { addNotification } = useNotifications();
-  // Sidebar open state - closed on mobile, open on desktop
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1006,34 +1024,6 @@ export default function Dashboard() {
   return (
     <>
       <DashboardTour />
-      <div className="min-h-screen bg-gray-50 flex h-screen">
-        {/* Sidebar */}
-        <div data-tutorial="navigation" className="flex-shrink-0">
-          <PageSidebar 
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-          />
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Mobile Menu Button */}
-          <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(true)}
-              className="mr-3"
-              aria-label="Open sidebar"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <Link href="/" className="text-lg font-bold text-teal-600">
-              DyluxePro
-            </Link>
-          </div>
-
-          {/* Top Bar */}
           <PageHeader
           title="Sales Pipeline"
           description="Track and manage your projects from lead to completion."
@@ -1094,7 +1084,7 @@ export default function Dashboard() {
         />
 
         {/* Dashboard Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 md:p-6">
           {/* AI Estimate hero banner */}
           <Link
             href="/estimates/new/ai"
@@ -1102,12 +1092,12 @@ export default function Dashboard() {
             data-tutorial="ai-estimate"
           >
             <div className="relative overflow-hidden rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 min-w-0">
                 <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white flex items-center justify-center shadow-md">
                   <Sparkles className="h-6 w-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-lg font-semibold text-gray-900">
                       New: AI Estimate from a photo
                     </h3>
@@ -1143,7 +1133,7 @@ export default function Dashboard() {
 
             {/* Tag Filter */}
             {availableTags.length > 0 && (
-              <div className="flex items-center space-x-2 flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium text-gray-700">Filter by Tag:</span>
                 <Button
                   variant={selectedTag === null ? "default" : "outline"}
@@ -1372,10 +1362,10 @@ export default function Dashboard() {
             </Dialog>
           </div>
           {/* Pipeline stats cards - horizontal scroll when many stages */}
-          <div className="overflow-x-auto pb-4 mb-8 -mx-6 px-6">
-            <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 250px))` }}>
+          <div className="mb-8 -mx-4 snap-x snap-mandatory overflow-x-auto overflow-y-hidden pb-4 px-4 md:-mx-6 md:px-6">
+            <div className="flex gap-4 md:grid md:gap-6" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 250px))` }}>
               {stages.map((stage) => (
-                <Card key={stage.id} className="border-0 shadow-sm min-w-[200px]">
+                <Card key={stage.id} className="min-w-[85vw] shrink-0 snap-start border-0 shadow-sm md:min-w-[200px]">
                   <CardContent className="p-4">
                     <div className="text-center">
                       <h3 className="font-semibold text-gray-900 mb-1 whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: stage.color }} title={stage.name}>{stage.name}</h3>
@@ -1398,8 +1388,25 @@ export default function Dashboard() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="overflow-x-auto pb-4 -mx-6 px-6">
-              <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(280px, 320px))` }} data-tutorial="pipeline">
+            <div className="md:hidden -mx-4 snap-x snap-mandatory overflow-x-auto overflow-y-hidden pb-4 px-4" data-tutorial="pipeline">
+              <div className="flex gap-4">
+              {stages.map((stage) => (
+                <div key={stage.id} className="w-[85vw] shrink-0 snap-start">
+                <DroppableStage
+                  stage={stage}
+                  stages={stages}
+                  leads={grouped[stage.name] || []}
+                  onStatusChange={changeLeadStatus}
+                  onValueChange={handleValueChange}
+                  onEditStage={handleEditStage}
+                  onDeleteStage={handleDeleteStage}
+                />
+                </div>
+              ))}
+              </div>
+            </div>
+            <div className="hidden overflow-x-auto pb-4 -mx-6 px-6 md:block">
+              <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(280px, 320px))` }} data-tutorial="pipeline">
               {stages.map((stage) => (
                 <DroppableStage
                   key={stage.id}
@@ -1430,8 +1437,6 @@ export default function Dashboard() {
             <div className="text-center text-sm text-red-600 mt-6">{error}</div>
           )}
         </main>
-      </div>
-    </div>
     </>
   );
 }

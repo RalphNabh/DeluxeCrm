@@ -24,10 +24,8 @@ import {
   X,
   Trash2,
   Eye,
-  Menu,
   FileText as FileTextIcon,
 } from 'lucide-react'
-import PageSidebar from '@/components/layout/page-sidebar'
 import { downloadElementAsPdf, pdfFilenameSegment } from '@/lib/pdf/document-pdf'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import {
@@ -110,7 +108,6 @@ export default function InvoiceDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [isEditingInvoiceNumber, setIsEditingInvoiceNumber] = useState(false)
@@ -413,27 +410,7 @@ export default function InvoiceDetailPage() {
   const remaining = invoice.remaining || (invoice.total - totalPaid)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex h-screen">
-      {/* Sidebar */}
-      <div className="flex-shrink-0">
-        <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
-        {/* Header */}
+    <>        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -679,7 +656,7 @@ export default function InvoiceDetailPage() {
                   <CardTitle>Line Items</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  <div className="hidden overflow-x-auto md:block">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
@@ -708,6 +685,19 @@ export default function InvoiceDetailPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  <div className="space-y-3 md:hidden">
+                    {invoice.invoice_line_items.map((item) => (
+                      <div key={item.id} className="rounded-lg border border-gray-200 p-3 space-y-1">
+                        <div className="font-medium text-gray-900">{item.description}</div>
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>{item.quantity.toLocaleString()} {item.unit}</span>
+                          <span>${item.unit_price.toFixed(2)}</span>
+                        </div>
+                        <div className="text-right font-medium">${item.total.toLocaleString()}</div>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Totals */}
@@ -955,7 +945,6 @@ export default function InvoiceDetailPage() {
             </Card>
           </div>
         </main>
-      </div>
-    </div>
+    </>
   )
 }

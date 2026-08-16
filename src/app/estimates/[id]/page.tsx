@@ -22,10 +22,8 @@ import {
   X as XIcon,
   Edit,
   Tag,
-  Menu,
 } from 'lucide-react'
 import JobCreationModal from '@/components/jobs/job-creation-modal'
-import PageSidebar from '@/components/layout/page-sidebar'
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
 import { downloadElementAsPdf, pdfFilenameSegment } from '@/lib/pdf/document-pdf'
 import { Input } from '@/components/ui/input'
@@ -81,7 +79,6 @@ function EstimateDetailContent() {
   const [updating, setUpdating] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [showCreateJobModal, setShowCreateJobModal] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [linkedJobs, setLinkedJobs] = useState<LinkedJob[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [editedItems, setEditedItems] = useState<Array<{
@@ -406,30 +403,7 @@ function EstimateDetailContent() {
   const isPrintMode = searchParams.get('print') === 'true'
 
   return (
-    <div className={`min-h-screen bg-gray-50 flex h-screen ${isPrintMode ? 'print-mode' : ''}`}>
-      {/* Sidebar */}
-      {!isPrintMode && (
-        <div className="flex-shrink-0">
-          <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        {!isPrintMode && (
-          <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(true)}
-              className="mr-3"
-              aria-label="Open sidebar"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </div>
-        )}
+    <div className={isPrintMode ? "print-mode" : ""}>
         {/* Header */}
         {!isPrintMode && (
         <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -566,7 +540,7 @@ function EstimateDetailContent() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  <div className="hidden overflow-x-auto md:block">
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
@@ -650,6 +624,63 @@ function EstimateDetailContent() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  <div className="space-y-3 md:hidden">
+                    {(isEditing ? editedItems ?? [] : estimate.estimate_line_items ?? []).map((item, index) => (
+                      <div key={isEditing ? index : item.id} className="rounded-lg border border-gray-200 p-3 space-y-2">
+                        {isEditing ? (
+                          <>
+                            <Input
+                              value={item.description}
+                              onChange={(e) => updateItem(index, 'description', e.target.value)}
+                              placeholder="Item description"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                min="0"
+                                step="0.01"
+                              />
+                              <Input
+                                value={item.unit}
+                                onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                                placeholder="unit"
+                              />
+                            </div>
+                            <Input
+                              type="number"
+                              value={item.unit_price}
+                              onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              step="0.01"
+                            />
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-medium">{formatCurrencyWithSymbol(item.total)}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeItem(index)}
+                                className="text-red-600"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-medium text-gray-900">{item.description}</div>
+                            <div className="flex justify-between text-sm text-gray-600">
+                              <span>{item.quantity.toLocaleString()} {item.unit}</span>
+                              <span>{formatCurrencyWithSymbol(item.unit_price)}</span>
+                            </div>
+                            <div className="text-right font-medium">{formatCurrencyWithSymbol(item.total)}</div>
+                          </>
+                        )}
+                      </div>
+                    ))}
                   </div>
 
                   {/* Totals */}
@@ -939,7 +970,6 @@ function EstimateDetailContent() {
             </Card>
           </div>
         </main>
-      </div>
 
       {/* Create Job Modal */}
       {!isPrintMode && (

@@ -30,8 +30,7 @@ import {
   Trash2,
   Send,
   CheckSquare,
-  Gift,
-  Menu
+  Gift
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -48,7 +47,6 @@ import {
 } from "@/components/ui/select";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
-import PageSidebar from "@/components/layout/page-sidebar";
 import {
   Dialog,
   DialogContent,
@@ -190,7 +188,6 @@ export default function AutomationsPage() {
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
   const [updating, setUpdating] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const invalidate = useInvalidateQueries();
 
@@ -380,31 +377,7 @@ export default function AutomationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <PageSidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600">
-            DyluxePro
-          </Link>
-        </div>
-
+    <>
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -748,7 +721,6 @@ export default function AutomationsPage() {
           </>
           )}
         </main>
-      </div>
 
       {/* Edit Automation Dialog */}
       <Dialog open={!!editingAutomation} onOpenChange={(open) => !open && closeEditDialog()}>
@@ -810,6 +782,6 @@ export default function AutomationsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

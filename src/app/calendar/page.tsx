@@ -32,8 +32,7 @@ import {
   Eye,
   Tag,
   CheckSquare,
-  Gift,
-  Menu
+  Gift
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,7 +49,6 @@ import {
 } from "@/components/ui/select";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
-import PageSidebar from "@/components/layout/page-sidebar";
 import JobCreationModal from "@/components/jobs/job-creation-modal";
 import JobEditModal from "@/components/jobs/job-edit-modal";
 import { calculateEventPositions, type PositionedEvent } from "@/lib/utils/calendar-overlap";
@@ -127,8 +125,7 @@ export default function CalendarPage() {
   const [showAddJob, setShowAddJob] = useState(false);
   const [showEditJob, setShowEditJob] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);;
   const invalidate = useInvalidateQueries();
 
   const rangeFrom = useMemo(() => {
@@ -340,31 +337,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <PageSidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600">
-            DyluxePro
-          </Link>
-        </div>
-
+    <>
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -1175,7 +1148,6 @@ export default function CalendarPage() {
           </>
           )}
         </main>
-      </div>
 
       {/* Job Creation Modal */}
       <JobCreationModal
@@ -1194,6 +1166,6 @@ export default function CalendarPage() {
         onJobUpdated={handleJobUpdated}
         job={selectedJob}
       />
-    </div>
+    </>
   );
 }

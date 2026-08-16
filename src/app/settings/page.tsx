@@ -38,8 +38,7 @@ import {
   CheckSquare,
   Gift,
   CreditCard,
-  Loader2,
-  Menu
+  Loader2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -50,7 +49,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
-import PageSidebar from "@/components/layout/page-sidebar";
 import AiUsageWidget from "@/components/ai/ai-usage-widget";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from 'lucide-react'
@@ -86,7 +84,6 @@ export default function SettingsPage() {
   const [changingPassword, setChangingPassword] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null)
   const [seatInfo, setSeatInfo] = useState<{ billableSeats?: number; activeMembers?: number; seatQuantity?: number } | null>(null)
   const [loadingSubscription, setLoadingSubscription] = useState(true)
@@ -421,31 +418,7 @@ export default function SettingsPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <PageSidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600">
-            DyluxePro
-          </Link>
-        </div>
-
+    <>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4 transition-colors">
           <div className="flex items-center justify-between">
@@ -953,7 +926,6 @@ export default function SettingsPage() {
             </div>
           </div>
         </main>
-      </div>
-    </div>
+    </>
   )
 }

@@ -19,7 +19,6 @@ import {
   Trash2,
   Camera,
   Navigation,
-  Menu,
   FileText,
   DollarSign,
   User as UserIcon,
@@ -32,7 +31,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SignOutButton from "@/components/auth/sign-out";
-import PageSidebar from "@/components/layout/page-sidebar";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import JobEditModal from "@/components/jobs/job-edit-modal";
 
@@ -74,7 +72,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -198,27 +195,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const StatusIcon = getStatusIcon(job.status);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex h-screen">
-      {/* Sidebar */}
-      <div className="flex-shrink-0">
-        <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
-
+    <>
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -455,7 +432,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
               )}
             </div>
 
-            {/* Sidebar */}
             <div className="space-y-6">
               {/* Status Actions */}
               <Card className="border-0 shadow-lg">
@@ -566,7 +542,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             </div>
           </div>
         </main>
-      </div>
 
       {/* Job Edit Modal */}
       <JobEditModal
@@ -575,7 +550,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         onJobUpdated={handleJobUpdated}
         job={job}
       />
-    </div>
+    </>
   );
 }
 

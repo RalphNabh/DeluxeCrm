@@ -201,7 +201,7 @@ function CreateInvoiceContent() {
   const { subtotal, tax, total } = calculateTotals()
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
@@ -380,8 +380,8 @@ function CreateInvoiceContent() {
               ) : (
                 <div className="space-y-4">
                   {lineItems.map((item, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-4 items-end">
-                      <div className="col-span-5">
+                    <div key={index} className="grid grid-cols-1 gap-4 sm:grid-cols-12 sm:items-end">
+                      <div className="sm:col-span-5">
                         <label className="block text-sm font-medium mb-1">Description</label>
                         <Input
                           value={item.description}
@@ -390,7 +390,7 @@ function CreateInvoiceContent() {
                           required
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <label className="block text-sm font-medium mb-1">Quantity</label>
                         <Input
                           type="text"
@@ -400,7 +400,7 @@ function CreateInvoiceContent() {
                           required
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <label className="block text-sm font-medium mb-1">Unit</label>
                         <Input
                           type="text"
@@ -409,7 +409,7 @@ function CreateInvoiceContent() {
                           placeholder="unit"
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <label className="block text-sm font-medium mb-1">Unit Price</label>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -460,7 +460,7 @@ function CreateInvoiceContent() {
                           />
                         </div>
                       </div>
-                      <div className="col-span-1 flex items-end">
+                      <div className="flex items-end sm:col-span-1">
                         <Button
                           type="button"
                           variant="outline"
@@ -525,7 +525,7 @@ function CreateInvoiceContent() {
 export default function CreateInvoicePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-12">
             <p className="text-gray-600">Loading...</p>

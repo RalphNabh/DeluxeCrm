@@ -30,8 +30,7 @@ import {
   User,
   Calendar as CalendarIcon,
   X,
-  Gift,
-  Menu
+  Gift
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,7 +57,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
-import PageSidebar from "@/components/layout/page-sidebar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import {
   useTasksQuery,
@@ -112,7 +110,6 @@ export default function TasksPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const invalidate = useInvalidateQueries();
   const [formData, setFormData] = useState({
@@ -340,31 +337,7 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <PageSidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600">
-            DyluxePro
-          </Link>
-        </div>
-
+    <>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -544,7 +517,6 @@ export default function TasksPage() {
           </>
           )}
         </main>
-      </div>
 
       {/* Task Dialog */}
       <Dialog open={showTaskDialog} onOpenChange={(open) => {
@@ -701,7 +673,7 @@ export default function TasksPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

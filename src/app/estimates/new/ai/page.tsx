@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { resizeImage } from "@/lib/utils/image-resize";
+import { formatApiErrorMessage } from "@/lib/api-error-message";
 import type { EnrichedLineItem, Trade } from "@/lib/ai/types";
 
 /**
@@ -370,7 +371,13 @@ export default function AiEstimateWizardPage() {
           send,
         }),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to create estimate");
+      if (!res.ok) {
+        const errBody = (await res.json().catch(() => null)) as {
+          error?: string;
+          details?: Record<string, string>;
+        } | null;
+        throw new Error(formatApiErrorMessage(errBody));
+      }
       const created = await res.json();
 
       // Analytics hook. No analytics layer is wired up yet in this app —
@@ -410,7 +417,7 @@ export default function AiEstimateWizardPage() {
 
   // --- Render ---
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-32">
+    <div className="pb-32">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

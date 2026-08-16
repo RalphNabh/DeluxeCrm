@@ -27,11 +27,9 @@ import {
   Save,
   User,
   Calendar as CalendarIcon,
-  Globe,
-  Menu
+  Globe
 } from 'lucide-react'
 import UserProfile from '@/components/layout/user-profile'
-import PageSidebar from '@/components/layout/page-sidebar'
 
 interface UserProfileData {
   id: string
@@ -62,7 +60,6 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -190,31 +187,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <PageSidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600">
-            DyluxePro
-          </Link>
-        </div>
-
+    <>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -586,7 +559,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </main>
-      </div>
-    </div>
+    </>
   )
 }

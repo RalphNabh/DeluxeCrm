@@ -55,39 +55,41 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
       {/* Mobile backdrop overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/50 transition-opacity md:hidden print:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
       <aside
+        data-tutorial="navigation"
         className={`
-          fixed md:static inset-y-0 left-0 z-50
-          w-64 bg-slate-900 border-r border-slate-800
-          flex flex-col h-screen transition-transform duration-300 ease-in-out
+          fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,85vw)] flex-col
+          border-r border-slate-800 bg-slate-900
+          pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]
+          transition-transform duration-300 ease-in-out print:hidden
+          md:sticky md:top-0 md:z-auto md:h-dvh md:w-64 md:translate-x-0 md:flex-shrink-0 md:self-start
           ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
       >
-        <div className="p-6 flex-shrink-0 flex items-center justify-between">
+        <div className="flex flex-shrink-0 items-center justify-between p-6">
           <Link
             href="/dashboard"
-            className="text-xl font-bold bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-transparent tracking-tight"
+            className="bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-xl font-bold tracking-tight text-transparent"
           >
             DyluxePro
           </Link>
           <Button
             variant="ghost"
-            size="sm"
-            className="md:hidden h-8 w-8 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
+            className="h-11 w-11 p-0 text-slate-300 hover:bg-slate-800 hover:text-white md:hidden"
             onClick={onClose}
-            aria-label="Close sidebar"
+            aria-label="Close menu"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <nav className="flex-1 px-4 overflow-y-auto min-h-0" aria-label="Primary">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-4" aria-label="Primary">
           <ul className="space-y-1">
             {resolvedItems.map((item) => {
               const Icon = item.icon;
@@ -98,7 +100,7 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
                     href={item.href}
                     onClick={handleLinkClick}
                     aria-current={active ? "page" : undefined}
-                    className={`group flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                    className={`group flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-150 ${
                       active
                         ? "bg-teal-500/15 text-teal-200 ring-1 ring-inset ring-teal-400/30"
                         : "text-slate-300 hover:bg-slate-800/70 hover:text-white"

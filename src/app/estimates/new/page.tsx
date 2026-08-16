@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Search, User, ChevronDown, Check } from "lucide-react";
 import MaterialSelector from "@/components/estimates/material-selector";
+import { formatApiErrorMessage } from "@/lib/api-error-message";
 
 type Client = { id: string; name: string; email?: string; phone?: string };
 
@@ -120,7 +121,7 @@ function NewEstimateContent() {
       }));
       const body = {
         client_id: clientId,
-        lead_id: leadId,
+        lead_id: leadId?.trim() ? leadId.trim() : null,
         lineItems,
         contract_message: contractMessage || null,
         send,
@@ -130,7 +131,13 @@ function NewEstimateContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to create estimate");
+      if (!res.ok) {
+        const errBody = (await res.json().catch(() => null)) as {
+          error?: string;
+          details?: Record<string, string>;
+        } | null;
+        throw new Error(formatApiErrorMessage(errBody));
+      }
 
       // Close the loop when this quote came from a service request, so the
       // inbox shows it as quoted and links to the estimate.
@@ -163,7 +170,7 @@ function NewEstimateContent() {
   const total = subtotal + tax;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">New Estimate</h1>
@@ -270,8 +277,8 @@ function NewEstimateContent() {
           </CardHeader>
           <CardContent className="space-y-3">
             {items.map((it, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2">
-                <div className="col-span-6 space-y-2">
+              <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                <div className="space-y-2 sm:col-span-6">
                   <MaterialSelector
                     value={materialIds[i]}
                     onSelect={(material) => {
@@ -312,7 +319,7 @@ function NewEstimateContent() {
                     }}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <Input
                     type="text"
                     placeholder="1"
@@ -320,7 +327,7 @@ function NewEstimateContent() {
                     onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <Input
                     type="text"
                     placeholder="unit"
@@ -328,7 +335,7 @@ function NewEstimateContent() {
                     onChange={(e) => updateItem(i, "unit", e.target.value)}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium pointer-events-none z-10">$</span>
                     <Input
@@ -446,7 +453,7 @@ function NewEstimateContent() {
 export default function NewEstimatePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-12">
             <p className="text-gray-600">Loading...</p>

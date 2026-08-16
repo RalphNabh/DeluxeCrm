@@ -19,11 +19,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [sidebarOpen]);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-gray-50">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-gray-50">
       <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] md:hidden print:hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] md:hidden print:hidden">
           <Button
             type="button"
             variant="ghost"
@@ -41,7 +41,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {/* min-h-0 is required so this pane scrolls instead of the document */}
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
           {children}
         </div>
       </div>

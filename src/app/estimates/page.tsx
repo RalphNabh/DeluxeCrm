@@ -3,51 +3,25 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
-  LayoutDashboard, 
-  Users, 
   FileText, 
   DollarSign,
-  Calendar,
-  BarChart3,
-  Zap, 
-  Settings, 
-  Search,
-  Bell,
-  ChevronDown,
   Download,
-  Check,
-  X,
   Edit,
-  Phone,
-  Mail,
-  MapPin,
   Plus,
   Eye,
   Clock,
-  CheckSquare,
-  Gift,
-  Menu,
   Tag,
-  Filter
+  Filter,
+  Package,
+  Sparkles,
+  Check,
+  Calendar,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import SignOutButton from "@/components/auth/sign-out";
-import UserProfile from "@/components/layout/user-profile";
-import PageSidebar from "@/components/layout/page-sidebar";
 import PageHeader from "@/components/layout/page-header";
 import StatsCards from "@/components/ui/stats-cards";
-import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
-import { Package, Sparkles } from "lucide-react";
 import { useEstimatesQuery, useJobsQuery } from "@/lib/query/hooks";
 import { ListPageSkeleton } from "@/components/ui/page-skeletons";
 
@@ -77,8 +51,7 @@ interface Estimate {
   }>;
 }
 
-export default function EstimatePage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export default function EstimatePage() {;
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -150,31 +123,7 @@ export default function EstimatePage() {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-50 flex transition-colors">
-      {/* Sidebar */}
-      <PageSidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600">
-            DyluxePro
-          </Link>
-        </div>
-
+    <>
         {/* Top Bar */}
         <PageHeader
           title="Estimates"
@@ -401,7 +350,6 @@ export default function EstimatePage() {
           </>
           )}
         </main>
-      </div>
-    </div>
+    </>
   );
 }

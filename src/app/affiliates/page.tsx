@@ -32,8 +32,7 @@ import {
   X,
   Mail,
   Link2,
-  AlertCircle,
-  Menu
+  AlertCircle
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,7 +49,6 @@ import {
 } from "@/components/ui/dialog";
 import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
-import PageSidebar from "@/components/layout/page-sidebar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { Label } from "@/components/ui/label";
@@ -99,7 +97,6 @@ export default function AffiliatesPage() {
   const [error, setError] = useState<string | null>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchAffiliateData();
@@ -192,31 +189,7 @@ export default function AffiliatesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <PageSidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Link href="/" className="text-lg font-bold text-blue-600">
-            DyluxePro
-          </Link>
-        </div>
-
+    <>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -470,7 +443,6 @@ export default function AffiliatesPage() {
             </CardContent>
           </Card>
         </main>
-      </div>
       {/* Share Dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <DialogContent>
@@ -558,7 +530,7 @@ export default function AffiliatesPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 
