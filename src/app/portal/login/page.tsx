@@ -39,7 +39,7 @@ export default function PortalLoginPage() {
       setError(
         persona.hasCrmAccess
           ? "This is a contractor account. Use CRM login instead."
-          : "This account is not invited to the Client Hub.",
+          : "This email isn’t linked to Client Hub yet. Open the invite link from your contractor to finish setup.",
       );
       setLoading(false);
       return;

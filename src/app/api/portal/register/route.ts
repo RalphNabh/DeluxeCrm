@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { captureApiError } from "@/lib/api-error";
 import { parseJsonBody } from "@/lib/validation";
+import {
+  attachPortalInvite,
+  findAuthUserIdByEmail,
+  hasActivePortalMembership,
+  normalizeInviteEmail,
+  type PortalInvitationRow,
+} from "@/lib/portal-invite";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -11,8 +18,7 @@ const registerSchema = z.object({
 
 /**
  * Complete a Client Hub invite without Supabase's "Confirm your signup" email.
- * The contractor invite already proves the address; we create the auth user with
- * email_confirm: true, attach portal access, then the client signs in.
+ * Creates a new auth user, or heals an orphan auth user (exists but no portal row).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +42,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const inviteEmail = String(invitation.email).trim().toLowerCase();
+    const inviteRow = invitation as PortalInvitationRow;
+    const inviteEmail = normalizeInviteEmail(String(inviteRow.email || ""));
     if (!inviteEmail) {
       return NextResponse.json(
         { error: "Invitation is missing an email address" },
@@ -45,8 +52,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (
-      invitation.expires_at &&
-      new Date(invitation.expires_at).getTime() < Date.now()
+      inviteRow.expires_at &&
+      new Date(inviteRow.expires_at).getTime() < Date.now()
     ) {
       return NextResponse.json(
         {
@@ -81,16 +88,36 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Do not reset passwords for existing accounts (invite link ≠ takeover).
-      return NextResponse.json(
-        {
-          error:
-            "An account with this email already exists. Sign in to the Client Hub, then open your invite link again to finish setup.",
-          code: "account_exists",
-          email: inviteEmail,
-        },
-        { status: 409 },
+      // Orphan / existing auth user: invite token proves mailbox ownership.
+      userId = await findAuthUserIdByEmail(admin, inviteEmail);
+      if (!userId) {
+        return NextResponse.json(
+          {
+            error:
+              "An account with this email already exists, but it could not be found. Contact support.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const alreadyLinked = await hasActivePortalMembership(
+        admin,
+        userId,
+        inviteRow.organization_id,
       );
+
+      if (!alreadyLinked) {
+        const { error: updateError } = await admin.auth.admin.updateUserById(
+          userId,
+          { password, email_confirm: true },
+        );
+        if (updateError) {
+          return NextResponse.json(
+            { error: updateError.message || "Failed to update account" },
+            { status: 400 },
+          );
+        }
+      }
     }
 
     if (!userId) {
@@ -100,33 +127,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error: portalError } = await admin.from("client_portal_users").upsert(
-      {
-        auth_user_id: userId,
-        client_id: invitation.client_id,
-        organization_id: invitation.organization_id,
-        status: "active",
-        accepted_at: new Date().toISOString(),
-      },
-      { onConflict: "auth_user_id,organization_id" },
-    );
-
-    if (portalError) {
-      return NextResponse.json({ error: portalError.message }, { status: 400 });
+    try {
+      await attachPortalInvite(admin, inviteRow, userId);
+    } catch (attachErr) {
+      return NextResponse.json(
+        {
+          error:
+            attachErr instanceof Error
+              ? attachErr.message
+              : "Failed to link Client Hub access",
+        },
+        { status: 400 },
+      );
     }
-
-    await admin
-      .from("client_portal_invitations")
-      .update({ accepted_at: new Date().toISOString() })
-      .eq("id", invitation.id);
-
-    await admin
-      .from("user_profiles")
-      .update({
-        persona: "client",
-        active_org_id: invitation.organization_id,
-      })
-      .eq("user_id", userId);
 
     return NextResponse.json({
       success: true,

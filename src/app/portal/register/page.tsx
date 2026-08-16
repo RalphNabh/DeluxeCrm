@@ -111,11 +111,6 @@ function RegisterForm() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        if (data.code === "account_exists") {
-          setError(data.error);
-          setLoading(false);
-          return;
-        }
         setError(data.error || "Failed to create account");
         setLoading(false);
         return;
@@ -128,7 +123,7 @@ function RegisterForm() {
       });
       if (signInError) {
         setError(
-          "Account created, but sign-in failed. Try Client Hub login with this email and password.",
+          "Your account is ready. Sign in to the Client Hub with this email and password.",
         );
         setLoading(false);
         return;

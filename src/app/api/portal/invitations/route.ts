@@ -10,6 +10,10 @@ import { getAppUrl } from "@/lib/env";
 import { captureApiError } from "@/lib/api-error";
 import { parseJsonBody } from "@/lib/validation";
 import { sendPortalInviteEmail } from "@/lib/email/send-portal-invite-email";
+import {
+  attachPortalInvite,
+  type PortalInvitationRow,
+} from "@/lib/portal-invite";
 import { z } from "zod";
 
 const inviteSchema = z.object({
@@ -144,45 +148,38 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
     }
 
-    if (auth.user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
+    const inviteRow = invitation as PortalInvitationRow;
+
+    if (auth.user.email?.toLowerCase() !== inviteRow.email.toLowerCase()) {
       return NextResponse.json(
         {
-          error: `Email mismatch: you're signed in as ${auth.user.email ?? "unknown"}, but this invite is for ${invitation.email}. Sign out and use the invited email.`,
+          error: `Email mismatch: you're signed in as ${auth.user.email ?? "unknown"}, but this invite is for ${inviteRow.email}. Sign out and use the invited email.`,
         },
         { status: 403 },
       );
     }
 
-    const { data: portalUser, error } = await admin
-      .from("client_portal_users")
-      .upsert(
+    try {
+      const { portalUserId } = await attachPortalInvite(
+        admin,
+        inviteRow,
+        auth.user.id,
+      );
+      return NextResponse.json({
+        success: true,
+        portalUser: { id: portalUserId },
+      });
+    } catch (attachErr) {
+      return NextResponse.json(
         {
-          auth_user_id: auth.user.id,
-          client_id: invitation.client_id,
-          organization_id: invitation.organization_id,
-          status: "active",
-          accepted_at: new Date().toISOString(),
+          error:
+            attachErr instanceof Error
+              ? attachErr.message
+              : "Failed to accept invitation",
         },
-        { onConflict: "auth_user_id,organization_id" },
-      )
-      .select("*")
-      .single();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+        { status: 400 },
+      );
     }
-
-    await admin
-      .from("client_portal_invitations")
-      .update({ accepted_at: new Date().toISOString() })
-      .eq("id", invitation.id);
-
-    await admin
-      .from("user_profiles")
-      .update({ persona: "client", active_org_id: invitation.organization_id })
-      .eq("user_id", auth.user.id);
-
-    return NextResponse.json({ success: true, portalUser });
   } catch (error) {
     captureApiError(error, { route: "portal/invitations/PUT" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
