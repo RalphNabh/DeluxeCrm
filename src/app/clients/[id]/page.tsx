@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,9 +25,7 @@ import {
   XCircle,
   AlertCircle,
   ExternalLink,
-  Menu,
 } from 'lucide-react'
-import PageSidebar from '@/components/layout/page-sidebar'
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
 
 interface ClientFolder {
@@ -95,6 +93,7 @@ interface ActivityItem {
 export default function ClientDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [client, setClient] = useState<Client | null>(null)
   const [estimates, setEstimates] = useState<Estimate[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -104,7 +103,17 @@ export default function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [portalInviteMessage, setPortalInviteMessage] = useState<string | null>(null)
   const [invitingPortal, setInvitingPortal] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    const hubInvite = searchParams.get('hubInvite')
+    if (hubInvite === 'sent') {
+      setPortalInviteMessage('Client Hub invitation email sent.')
+    } else if (hubInvite === 'failed') {
+      setPortalInviteMessage(
+        'Client was created, but the Client Hub invite email failed. Use Invite to Client Hub to try again.',
+      )
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (params.id) {
@@ -163,7 +172,12 @@ export default function ClientDetailPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to send invite')
-      setPortalInviteMessage(`Client Hub invite created: ${data.inviteUrl}`)
+      setPortalInviteMessage(
+        data.message ||
+          (data.emailed
+            ? 'Invitation email sent.'
+            : `Invite created. Share this link: ${data.inviteUrl}`),
+      )
     } catch (e) {
       setPortalInviteMessage(e instanceof Error ? e.message : 'Invite failed')
     } finally {
@@ -290,27 +304,7 @@ export default function ClientDetailPage() {
   const totalOutstanding = invoices.reduce((sum, i) => sum + (i.total - (i.total_paid || 0)), 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex h-screen">
-      {/* Sidebar */}
-      <div className="flex-shrink-0">
-        <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
-        {/* Header */}
+    <>        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -718,7 +712,6 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </main>
-      </div>
-    </div>
+    </>
   )
 }

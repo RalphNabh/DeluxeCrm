@@ -22,8 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ArrowLeft, Save, Menu } from 'lucide-react'
-import PageSidebar from '@/components/layout/page-sidebar'
+import { ArrowLeft, Save } from 'lucide-react'
 import { useClientFoldersQuery, useInvalidateQueries } from '@/lib/query/hooks'
 
 interface ClientFolder {
@@ -46,8 +45,8 @@ export default function NewClientPage() {
   const [error, setError] = useState<string | null>(null)
   const [folderId, setFolderId] = useState<string | null>(null)
   const [tagsInput, setTagsInput] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([])
+  const [inviteToHub, setInviteToHub] = useState(false)
   const invalidate = useInvalidateQueries()
   const { data: foldersData } = useClientFoldersQuery()
   const folders = (foldersData ?? []) as ClientFolder[]
@@ -59,7 +58,24 @@ export default function NewClientPage() {
     notes: ''
   })
 
+  const inviteClientToHub = async (clientId: string) => {
+    const res = await fetch('/api/portal/invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      throw new Error(data.error || 'Client created, but Client Hub invite failed')
+    }
+    return data as { emailed?: boolean; message?: string; inviteUrl?: string }
+  }
+
   const createClient = async (allowDuplicate: boolean) => {
+    if (inviteToHub && !formData.email.trim()) {
+      throw new Error('Email is required to invite this client to the Client Hub')
+    }
+
     const tagsArray = tagsInput
       .split(',')
       .map(t => t.trim())
@@ -91,7 +107,19 @@ export default function NewClientPage() {
 
     setDuplicates([])
     await invalidate.clients()
-    router.push('/clients')
+
+    const clientId = payload?.id as string | undefined
+    if (inviteToHub && clientId) {
+      try {
+        await inviteClientToHub(clientId)
+        router.push(`/clients/${clientId}?hubInvite=sent`)
+      } catch {
+        router.push(`/clients/${clientId}?hubInvite=failed`)
+      }
+      return
+    }
+
+    router.push(clientId ? `/clients/${clientId}` : '/clients')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -131,27 +159,7 @@ export default function NewClientPage() {
   const duplicateByEmail = duplicates.some((d) => d.matchedOn === 'email')
 
   return (
-    <div className="min-h-screen bg-gray-50 flex h-screen">
-      {/* Sidebar */}
-      <div className="flex-shrink-0">
-        <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Menu Button */}
-        <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mr-3"
-            aria-label="Open sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
-
+    <>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -199,16 +207,37 @@ export default function NewClientPage() {
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      Email
+                      Email{inviteToHub ? ' *' : ''}
                     </label>
                     <Input
                       id="email"
                       name="email"
                       type="email"
+                      required={inviteToHub}
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="Enter email address"
                     />
+                  </div>
+
+                  <div className="rounded-lg border border-teal-100 bg-teal-50/60 p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                        checked={inviteToHub}
+                        onChange={(e) => setInviteToHub(e.target.checked)}
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-gray-900">
+                          Invite to Client Hub
+                        </span>
+                        <span className="block text-sm text-gray-600 mt-0.5">
+                          Email them a link to create a Client Hub login so they can view
+                          estimates, pay invoices, and request work.
+                        </span>
+                      </span>
+                    </label>
                   </div>
 
                   <div>
@@ -304,12 +333,12 @@ export default function NewClientPage() {
                       {loading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Creating...
+                          {inviteToHub ? 'Creating & inviting...' : 'Creating...'}
                         </>
                       ) : (
                         <>
                           <Save className="h-4 w-4 mr-2" />
-                          Create Client
+                          {inviteToHub ? 'Create & invite' : 'Create Client'}
                         </>
                       )}
                     </Button>
@@ -324,7 +353,6 @@ export default function NewClientPage() {
             </Card>
           </div>
         </main>
-      </div>
 
       <Dialog open={duplicates.length > 0} onOpenChange={(open) => { if (!open) setDuplicates([]) }}>
         <DialogContent>
@@ -381,6 +409,6 @@ export default function NewClientPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
