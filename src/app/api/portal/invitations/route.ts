@@ -145,7 +145,12 @@ export async function PUT(request: NextRequest) {
     }
 
     if (auth.user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
-      return NextResponse.json({ error: "Email mismatch" }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: `Email mismatch: you're signed in as ${auth.user.email ?? "unknown"}, but this invite is for ${invitation.email}. Sign out and use the invited email.`,
+        },
+        { status: 403 },
+      );
     }
 
     const { data: portalUser, error } = await admin
