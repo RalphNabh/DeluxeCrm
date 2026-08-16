@@ -1,0 +1,1437 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { 
+  LayoutDashboard, 
+  Users, 
+  FileText, 
+  DollarSign,
+  Calendar,
+  BarChart3,
+  Zap, 
+  Settings, 
+  Search,
+  Bell,
+  User,
+  ChevronDown,
+  Plus,
+  Filter,
+  Edit,
+  Trash2,
+  Settings2,
+  Undo2,
+  X,
+  Tag,
+  CheckSquare,
+  Gift,
+  Menu,
+  Folder,
+  AlertCircle,
+  Clock,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import FolderManager from "@/components/clients/folder-manager";
+import SignOutButton from "@/components/auth/sign-out";
+import UserProfile from "@/components/layout/user-profile";
+import PageSidebar from "@/components/layout/page-sidebar";
+import PageHeader from "@/components/layout/page-header";
+import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+import { useTutorial } from "@/components/tutorial/tutorial-provider";
+import { DashboardTour } from "@/components/tutorial/dashboard-tour";
+import { HelpCircle } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useNotifications } from "@/components/notifications/notification-provider";
+import {
+  useLeadsQuery,
+  useEstimatesQuery,
+  useClientsQuery,
+  useClientFoldersQuery,
+  useTasksQuery,
+  usePipelineStagesQuery,
+  useInvalidateQueries,
+} from "@/lib/query/hooks";
+import { DashboardSkeleton } from "@/components/ui/page-skeletons";
+
+type LeadFolder = {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+};
+
+type Lead = {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  value: number;
+  status: string;
+  tags?: string[];
+  folder_id?: string;
+  created_at: string;
+  updated_at: string;
+  client_id?: string; // Link to client if exists
+  client_folders?: LeadFolder; // Folder information if linked
+};
+
+type PipelineStage = {
+  id: string;
+  name: string;
+  position: number;
+  color: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// Draggable Lead Card Component
+function DraggableLeadCard({
+  lead,
+  stages,
+  onStatusChange,
+  onValueChange,
+}: {
+  lead: Lead;
+  stages: PipelineStage[];
+  onStatusChange: (leadId: string, newStatus: string) => void;
+  onValueChange?: (leadId: string, newValue: number) => void;
+}) {
+  const router = useRouter();
+  const [clientId, setClientId] = useState<string | null>(lead.client_id || null);
+  const [findingClient, setFindingClient] = useState(false);
+  const [isEditingValue, setIsEditingValue] = useState(false);
+  const [valueInput, setValueInput] = useState(lead.value.toString());
+  const [isSaving, setIsSaving] = useState(false);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lead.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const currentStageIndex = stages.findIndex(s => s.name === lead.status);
+  const prev = currentStageIndex > 0 && currentStageIndex !== -1 ? stages[currentStageIndex - 1].name : null;
+  const next = currentStageIndex < stages.length - 1 && currentStageIndex !== -1 ? stages[currentStageIndex + 1].name : null;
+  
+  // Calculate progress percentage
+  const progress = stages.length > 0 && currentStageIndex !== -1 ? Math.round(((currentStageIndex + 1) / stages.length) * 100) : 0;
+
+  // Handle value update
+  const handleValueSave = async () => {
+    const numValue = parseFloat(valueInput) || 0;
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: numValue })
+      });
+      if (response.ok) {
+        if (onValueChange) {
+          onValueChange(lead.id, numValue);
+        }
+        setIsEditingValue(false);
+      } else {
+        alert('Failed to update value');
+      }
+    } catch (error) {
+      console.error('Error updating value:', error);
+      alert('Error updating value');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Find client by email/name when card is clicked (if not already linked)
+  const handleCardClick = async (e: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) {
+      return;
+    }
+
+    if (clientId) {
+      router.push(`/clients/${clientId}`);
+      return;
+    }
+
+    // Try to find client by email or name
+    if (!lead.email && !lead.name) return;
+
+    setFindingClient(true);
+    try {
+      const searchParam = lead.email || lead.name;
+      const response = await fetch(`/api/clients?q=${encodeURIComponent(searchParam)}`);
+      if (response.ok) {
+        const clients = await response.json();
+        // Try to match by email first, then by name
+        const matched = clients.find((c: { email?: string; name?: string }) => 
+          (lead.email && c.email && c.email.toLowerCase() === lead.email.toLowerCase()) ||
+          (!lead.email && c.name && c.name.toLowerCase() === lead.name.toLowerCase())
+        );
+        
+        if (matched) {
+          router.push(`/clients/${matched.id}`);
+        } else {
+          // No match found, maybe create a client or show error?
+          console.log('No matching client found for lead');
+        }
+      }
+    } catch (error) {
+      console.error('Error finding client:', error);
+    } finally {
+      setFindingClient(false);
+    }
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className="p-4 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border border-gray-200 hover:border-teal-200 group bg-white min-w-[280px] w-full card-hover"
+      {...attributes}
+      {...listeners}
+      onClick={handleCardClick}
+    >
+      <div className="space-y-2">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-medium text-gray-900 text-sm group-hover:text-teal-700 break-words cursor-pointer">
+              {lead.name}
+            </h4>
+            <p className="text-xs text-gray-500 mt-1 break-words">{lead.address}</p>
+            {lead.client_folders && (
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1"
+                style={{
+                  backgroundColor: `${lead.client_folders.color}20`,
+                  color: lead.client_folders.color,
+                }}
+              >
+                <Folder className="h-3 w-3 mr-1" />
+                {lead.client_folders.name}
+              </span>
+            )}
+            {clientId && (
+              <Link 
+                href={`/clients/${clientId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-teal-600 hover:underline mt-1 inline-block"
+              >
+                View Client Details →
+              </Link>
+            )}
+          </div>
+          <div className="text-right flex-shrink-0 ml-2">
+            <Dialog open={isEditingValue} onOpenChange={setIsEditingValue}>
+              <div className="flex items-center gap-1 justify-end">
+                <div className="text-sm font-semibold text-teal-600 whitespace-nowrap">
+                  {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '—'}
+                </div>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setValueInput(lead.value.toString());
+                      setIsEditingValue(true);
+                    }}
+                    title="Edit value"
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                </DialogTrigger>
+              </div>
+              <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>Edit Lead Value</DialogTitle>
+                  <DialogDescription>
+                    Update the dollar value for {lead.name}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="value-input">Value ($)</Label>
+                    <Input
+                      id="value-input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={valueInput}
+                      onChange={(e) => setValueInput(e.target.value)}
+                      placeholder="0.00"
+                      className="mt-1"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleValueSave();
+                        } else if (e.key === 'Escape') {
+                          setIsEditingValue(false);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingValue(false)}
+                      disabled={isSaving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleValueSave}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>{lead.phone}</span>
+          <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
+        </div>
+        
+        {/* Tags */}
+        {lead.tags && lead.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {lead.tags.slice(0, 3).map((tag, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800"
+              >
+                <Tag className="h-2.5 w-2.5 mr-1" />
+                {tag}
+              </span>
+            ))}
+            {lead.tags.length > 3 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                +{lead.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+        
+        <div className="pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">Progress</span>
+            <span className="font-medium text-gray-700">
+              {progress}%
+            </span>
+            </div>
+          <div className="w-full h-1 bg-gray-200 rounded-full mt-1">
+            <div 
+              className="h-1 bg-teal-500 rounded-full progress-bar"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// Droppable Stage Container Component
+function DroppableStage({
+  stage,
+  leads,
+  stages,
+  onStatusChange,
+  onValueChange,
+  onEditStage,
+  onDeleteStage,
+}: {
+  stage: PipelineStage;
+  leads: Lead[];
+  stages: PipelineStage[];
+  onStatusChange: (leadId: string, newStatus: string) => void;
+  onValueChange?: (leadId: string, newValue: number) => void;
+  onEditStage?: (stage: PipelineStage) => void;
+  onDeleteStage?: (stageId: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ 
+    id: stage.name,
+  });
+
+  const leadIds = leads.map(l => l.id);
+
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`space-y-4 min-w-[280px] w-full ${isOver ? 'bg-teal-50/50 rounded-lg p-2 transition-colors' : ''}`}
+    >
+      <div className="text-center relative">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <h3 
+            className="font-semibold text-gray-900"
+            style={{ color: stage.color }}
+          >
+            {stage.name}
+          </h3>
+          {(onEditStage || onDeleteStage) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                  <Settings2 className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onEditStage && (
+                  <DropdownMenuItem onClick={() => onEditStage(stage)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Rename
+                  </DropdownMenuItem>
+                )}
+                {onDeleteStage && (
+                  <DropdownMenuItem 
+                    onClick={() => onDeleteStage(stage.id)}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+        <div className="w-full h-1 bg-gray-200 rounded-full">
+          <div 
+            className="h-1 rounded-full progress-bar"
+            style={{ 
+              width: `${Math.min((leads.length / Math.max(1, leads.length)) * 100, 100)}%`,
+              backgroundColor: stage.color
+            }}
+          ></div>
+        </div>
+      </div>
+      
+      <div className="space-y-3 min-h-[200px]">
+        {leadIds.length > 0 ? (
+          <SortableContext 
+            items={leadIds.filter(id => id != null)} 
+            strategy={verticalListSortingStrategy}
+          >
+            {leads.map((lead) => (
+              <DraggableLeadCard
+                key={lead.id}
+                lead={lead}
+                stages={stages}
+                onStatusChange={onStatusChange}
+                onValueChange={onValueChange}
+              />
+            ))}
+          </SortableContext>
+        ) : (
+          <div className="text-center text-sm text-gray-400 py-8">
+            No leads in this stage
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function enrichLeads(
+  leadsData: Lead[],
+  estimatesData: any[] | undefined,
+  clientsData: any[] | undefined,
+): Lead[] {
+  const enriched = leadsData.map((lead) => ({ ...lead }));
+
+  if (estimatesData) {
+    enriched.forEach((lead) => {
+      const matchingEstimates = estimatesData.filter((est: any) => {
+        const clientEmail = est.clients?.email?.toLowerCase();
+        const clientName = est.clients?.name?.toLowerCase();
+        const leadEmail = lead.email?.toLowerCase();
+        const leadName = lead.name?.toLowerCase();
+
+        return (
+          (leadEmail && clientEmail && clientEmail === leadEmail) ||
+          (leadName && clientName && clientName === leadName)
+        );
+      });
+
+      if (matchingEstimates.length > 0) {
+        const latestEstimate = matchingEstimates.sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )[0] as any;
+        lead.value = latestEstimate.total || lead.value || 0;
+        if (latestEstimate.client_id) {
+          lead.client_id = latestEstimate.client_id;
+        }
+      }
+    });
+  }
+
+  if (clientsData) {
+    enriched.forEach((lead) => {
+      if (lead.folder_id) return;
+
+      let matchedClient: any = null;
+      if (lead.client_id) {
+        matchedClient = clientsData.find((c: any) => c.id === lead.client_id);
+      }
+
+      if (!matchedClient) {
+        matchedClient = clientsData.find((c: any) => {
+          const emailMatch =
+            lead.email &&
+            c.email &&
+            lead.email.toLowerCase() === c.email.toLowerCase();
+          const nameMatch =
+            lead.name &&
+            c.name &&
+            lead.name.toLowerCase() === c.name.toLowerCase();
+          return emailMatch || nameMatch;
+        });
+      }
+
+      if (matchedClient && matchedClient.folder_id) {
+        lead.folder_id = matchedClient.folder_id;
+        if (matchedClient.client_folders) {
+          lead.client_folders = matchedClient.client_folders;
+        }
+      }
+    });
+  }
+
+  return enriched;
+}
+
+function extractTagsFromLeads(leadsData: Lead[]): string[] {
+  const allTags = new Set<string>();
+  leadsData.forEach((lead) => {
+    if (lead.tags && Array.isArray(lead.tags)) {
+      lead.tags.forEach((tag) => {
+        if (tag && tag.trim() !== "") {
+          allTags.add(tag);
+        }
+      });
+    }
+  });
+  return Array.from(allTags).sort();
+}
+
+export default function Dashboard() {
+  const leadsQuery = useLeadsQuery();
+  const stagesQuery = usePipelineStagesQuery();
+  const estimatesQuery = useEstimatesQuery();
+  const clientsQuery = useClientsQuery();
+  const foldersQuery = useClientFoldersQuery();
+  const tasksQuery = useTasksQuery();
+  const invalidate = useInvalidateQueries();
+
+  const lastSyncedLeadsAt = useRef(0);
+  const lastSyncedStagesAt = useRef(0);
+  const lastSyncedEstimatesAt = useRef(0);
+  const lastSyncedClientsAt = useRef(0);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const loading =
+    (leadsQuery.isLoading && !leadsQuery.data) ||
+    (stagesQuery.isLoading && !stagesQuery.data);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [showStageDialog, setShowStageDialog] = useState(false);
+  const [editingStage, setEditingStage] = useState<PipelineStage | null>(null);
+  const [newStageName, setNewStageName] = useState("");
+  const [deletedStage, setDeletedStage] = useState<PipelineStage | null>(null);
+  const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [folders, setFolders] = useState<LeadFolder[]>([]);
+  const [showFilters, setShowFilters] = useState(true);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const { startTutorial, isTutorialCompleted } = useTutorial();
+  const { addNotification } = useNotifications();
+  // Sidebar open state - closed on mobile, open on desktop
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before drag starts - allows clicking buttons
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+    if (leadsQuery.error) {
+      const msg =
+        leadsQuery.error instanceof Error
+          ? leadsQuery.error.message
+          : "Failed to load leads";
+      console.error("Failed to load leads:", leadsQuery.error);
+      setError(msg);
+    } else if (stagesQuery.error) {
+      const msg =
+        stagesQuery.error instanceof Error
+          ? stagesQuery.error.message
+          : "Failed to load pipeline stages";
+      console.error("Failed to load pipeline stages:", stagesQuery.error);
+      setError(msg);
+    } else {
+      setError(null);
+    }
+  }, [leadsQuery.error, stagesQuery.error]);
+
+  useEffect(() => {
+    if (!stagesQuery.data) return;
+
+    const shouldSync =
+      stages.length === 0 ||
+      stagesQuery.dataUpdatedAt !== lastSyncedStagesAt.current;
+    if (!shouldSync) return;
+
+    const sorted = [...(stagesQuery.data as PipelineStage[])].sort(
+      (a, b) => a.position - b.position,
+    );
+    setStages(sorted);
+    lastSyncedStagesAt.current = stagesQuery.dataUpdatedAt;
+  }, [stagesQuery.data, stagesQuery.dataUpdatedAt, stages.length]);
+
+  useEffect(() => {
+    if (foldersQuery.data) {
+      setFolders(foldersQuery.data as LeadFolder[]);
+    }
+  }, [foldersQuery.data, foldersQuery.dataUpdatedAt]);
+
+  useEffect(() => {
+    if (tasksQuery.data) {
+      setTasks(tasksQuery.data);
+    }
+  }, [tasksQuery.data, tasksQuery.dataUpdatedAt]);
+
+  useEffect(() => {
+    if (!leadsQuery.data) return;
+
+    const leadsChanged =
+      leadsQuery.dataUpdatedAt !== lastSyncedLeadsAt.current;
+    const estimatesChanged =
+      estimatesQuery.dataUpdatedAt !== lastSyncedEstimatesAt.current;
+    const clientsChanged =
+      clientsQuery.dataUpdatedAt !== lastSyncedClientsAt.current;
+
+    const shouldSync =
+      leads.length === 0 ||
+      leadsChanged ||
+      (lastSyncedLeadsAt.current > 0 && (estimatesChanged || clientsChanged));
+    if (!shouldSync) return;
+
+    const enriched = enrichLeads(
+      leadsQuery.data as Lead[],
+      estimatesQuery.data,
+      clientsQuery.data,
+    );
+    setLeads(enriched);
+    setAvailableTags(extractTagsFromLeads(enriched));
+
+    lastSyncedLeadsAt.current = leadsQuery.dataUpdatedAt;
+    lastSyncedEstimatesAt.current = estimatesQuery.dataUpdatedAt;
+    lastSyncedClientsAt.current = clientsQuery.dataUpdatedAt;
+  }, [
+    leadsQuery.data,
+    leadsQuery.dataUpdatedAt,
+    leads.length,
+    estimatesQuery.data,
+    estimatesQuery.dataUpdatedAt,
+    clientsQuery.data,
+    clientsQuery.dataUpdatedAt,
+  ]);
+
+  // Show welcome notification after login/signup
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Use a delay to ensure notification provider is ready after navigation
+      const timer = setTimeout(() => {
+        // Check for sessionStorage flag (from login/signup)
+        const showWelcome = sessionStorage.getItem('showWelcomeNotification');
+        // Check for URL query parameter (from email verification callback)
+        const urlParams = new URLSearchParams(window.location.search);
+        const welcomeParam = urlParams.get('welcome');
+        
+        if (showWelcome === 'true' || welcomeParam === 'true') {
+          // Clear the flag first (before adding notification in case of errors)
+          sessionStorage.removeItem('showWelcomeNotification');
+          
+          // Remove query parameter from URL without reload
+          if (welcomeParam === 'true') {
+            urlParams.delete('welcome');
+            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+          }
+          
+          // Add welcome notification
+          // Check if addNotification is a valid function (not the fallback)
+          if (addNotification && typeof addNotification === 'function') {
+            try {
+              addNotification({
+                type: 'success',
+                title: 'Welcome to DyluxePro!',
+                message: 'Your CRM is ready to use. Start by adding your first client.',
+                actionUrl: '/clients/new',
+                actionLabel: 'Add Client'
+              });
+            } catch (error) {
+              console.error('Failed to add welcome notification:', error);
+            }
+          } else {
+            console.warn('addNotification is not available');
+          }
+        }
+      }, 300); // Delay to ensure provider and DOM are ready after navigation
+
+      return () => clearTimeout(timer);
+    }
+  }, [addNotification]);
+
+  const grouped = useMemo(() => {
+    const map: Record<string, Lead[]> = {};
+    // Initialize map with all stages
+    stages.forEach(stage => {
+      map[stage.name] = [];
+    });
+    
+    let filtered = leads.filter((l) =>
+      [l.name, l.address, l.email, l.phone]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+    );
+    
+    // Filter by tag if selected
+    if (selectedTag) {
+      filtered = filtered.filter(lead => 
+        lead.tags && Array.isArray(lead.tags) && lead.tags.includes(selectedTag)
+      );
+    }
+    
+    // Filter by folder if selected (same logic as clients page)
+    if (selectedFolderId) {
+      filtered = filtered.filter(lead => lead.folder_id === selectedFolderId);
+    }
+    
+    for (const lead of filtered) {
+      if (map[lead.status]) {
+        map[lead.status].push(lead);
+      } else {
+        // If lead has a status that doesn't exist in stages, add it to a default group
+        if (!map['Other']) map['Other'] = [];
+        map['Other'].push(lead);
+      }
+    }
+    return map;
+  }, [leads, searchQuery, stages, selectedTag, selectedFolderId, folders.length]);
+
+  const maxColumnLen = useMemo(
+    () => Math.max(1, ...stages.map((s) => grouped[s.name]?.length || 0)),
+    [grouped, stages]
+  );
+
+  const handleValueChange = async (leadId: string, newValue: number) => {
+    setLeads(prevLeads => 
+      prevLeads.map(lead => 
+        lead.id === leadId ? { ...lead, value: newValue } : lead
+      )
+    );
+  };
+
+  async function changeLeadStatus(leadId: string, newStatus: string) {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Failed to update lead:', errorData);
+        throw new Error(errorData.error || "Failed to update lead");
+      }
+      
+      const updated = (await res.json()) as Lead;
+      setLeads((prev) => prev.map((l) => {
+        if (l.id === leadId) {
+          // Preserve client_folders and folder_id from the original lead if not in updated response
+          return { 
+            ...l, 
+            ...updated,
+            client_folders: updated.client_folders || l.client_folders,
+            folder_id: updated.folder_id || l.folder_id
+          };
+        }
+        return l;
+      }));
+      invalidate.leads();
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Failed to update lead";
+      console.error('Error updating lead status:', e);
+      setError(errorMessage);
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || !active) {
+      setActiveId(null);
+      return;
+    }
+
+    const leadId = String(active.id);
+    const newStage = String(over.id);
+
+    // Validate that the new stage is a valid stage
+    if (!stages.some(s => s.name === newStage)) {
+      setActiveId(null);
+      return;
+    }
+
+    // Find the lead being dragged
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead || lead.status === newStage) {
+      setActiveId(null);
+      return;
+    }
+
+    // Update the lead status
+    changeLeadStatus(leadId, newStage);
+    setActiveId(null);
+  }
+
+  const handleCreateStage = async () => {
+    if (!newStageName.trim()) return;
+    
+    try {
+      const res = await fetch("/api/pipeline-stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newStageName.trim() }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to create stage");
+      const newStage = await res.json();
+      setStages(prev => [...prev, newStage].sort((a, b) => a.position - b.position));
+      setNewStageName("");
+      setShowStageDialog(false);
+      invalidate.pipelineStages();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create stage");
+    }
+  };
+
+  const handleEditStage = async (stage: PipelineStage) => {
+    setEditingStage(stage);
+    setNewStageName(stage.name);
+    setShowStageDialog(true);
+  };
+
+  const handleUpdateStage = async () => {
+    if (!editingStage || !newStageName.trim()) return;
+    
+    try {
+      const res = await fetch(`/api/pipeline-stages/${editingStage.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newStageName.trim() }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to update stage");
+      const updatedStage = await res.json();
+      setStages(prev => prev.map(s => s.id === updatedStage.id ? updatedStage : s).sort((a, b) => a.position - b.position));
+      
+      // Update all leads with the old stage name to the new name
+      setLeads(prev => prev.map(lead => 
+        lead.status === editingStage.name ? { ...lead, status: updatedStage.name } : lead
+      ));
+      
+      setNewStageName("");
+      setEditingStage(null);
+      setShowStageDialog(false);
+      invalidate.pipelineStages();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update stage");
+    }
+  };
+
+  const handleDeleteStage = async (stageId: string) => {
+    const stageToDelete = stages.find(s => s.id === stageId);
+    if (!stageToDelete) return;
+
+    // Check if any leads are using this stage
+    const leadsInStage = leads.filter(l => l.status === stageToDelete.name);
+    if (leadsInStage.length > 0) {
+      alert(`Cannot delete stage. There are ${leadsInStage.length} lead(s) using this stage. Please move them first.`);
+      return;
+    }
+
+    // Store the deleted stage for undo
+    setDeletedStage(stageToDelete);
+    
+    // Optimistically remove from UI
+    setStages(prev => prev.filter(s => s.id !== stageId));
+    
+    // Set timeout to actually delete after 5 seconds if not undone
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/pipeline-stages/${stageId}`, {
+          method: "DELETE",
+        });
+        
+        if (!res.ok) {
+          // If deletion fails, restore the stage
+          setStages(prev => [...prev, stageToDelete].sort((a, b) => a.position - b.position));
+          const error = await res.json();
+          throw new Error(error.error || "Failed to delete stage");
+        }
+        invalidate.pipelineStages();
+      } catch (e) {
+        console.error("Error deleting stage:", e);
+        // Restore stage if deletion fails
+        setStages(prev => [...prev, stageToDelete].sort((a, b) => a.position - b.position));
+        alert(e instanceof Error ? e.message : "Failed to delete stage");
+      } finally {
+        setDeletedStage(null);
+      }
+    }, 5000); // 5 seconds to undo
+    
+    setUndoTimeout(timeout);
+  };
+
+  const handleUndoDelete = () => {
+    if (!deletedStage) return;
+    
+    // Clear the timeout
+    if (undoTimeout) {
+      clearTimeout(undoTimeout);
+      setUndoTimeout(null);
+    }
+    
+    // Restore the stage
+    setStages(prev => [...prev, deletedStage].sort((a, b) => a.position - b.position));
+    setDeletedStage(null);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimeout) {
+        clearTimeout(undoTimeout);
+      }
+    };
+  }, [undoTimeout]);
+
+  function handleDragStart(event: DragEndEvent | { active?: { id?: string | number } }) {
+    if (event?.active?.id) {
+      setActiveId(String(event.active.id));
+    }
+  }
+
+
+  return (
+    <>
+      <DashboardTour />
+      <div className="min-h-screen bg-gray-50 flex h-screen">
+        {/* Sidebar */}
+        <div data-tutorial="navigation" className="flex-shrink-0">
+          <PageSidebar 
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Mobile Menu Button */}
+          <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(true)}
+              className="mr-3"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <Link href="/" className="text-lg font-bold text-teal-600">
+              DyluxePro
+            </Link>
+          </div>
+
+          {/* Top Bar */}
+          <PageHeader
+          title="Sales Pipeline"
+          description="Track and manage your projects from lead to completion."
+          searchPlaceholder="Search clients, estimates..."
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          showSearch={true}
+          primaryAction={
+            <Link href="/clients/new">
+              <Button variant="outline" size="sm" data-tutorial="add-client">
+                <Plus className="h-4 w-4 mr-2" />
+                New Client
+              </Button>
+            </Link>
+          }
+          secondaryActions={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={startTutorial}
+                title="Take Tutorial"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Button>
+            </>
+          }
+          filters={
+            <>
+              {availableTags.length > 0 && (
+                <Select value={selectedTag || "all"} onValueChange={(value) => setSelectedTag(value === "all" ? null : value)}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by tag" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tags</SelectItem>
+                    {availableTags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>
+                        <div className="flex items-center">
+                          <Tag className="h-3 w-3 mr-2" />
+                          {tag}
+              </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button 
+                variant={showFilters ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
+            </>
+          }
+        />
+
+        {/* Dashboard Content */}
+        <main className="flex-1 p-6">
+          {/* AI Estimate hero banner */}
+          <Link
+            href="/estimates/new/ai"
+            className="block mb-6 group"
+            data-tutorial="ai-estimate"
+          >
+            <div className="relative overflow-hidden rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white flex items-center justify-center shadow-md">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      New: AI Estimate from a photo
+                    </h3>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-teal-600 text-white">
+                      BETA
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-1">
+                    Snap a photo of the job site — the AI identifies materials,
+                    pulls prices from your catalog, and drafts the estimate.
+                  </p>
+                </div>
+                <Button className="bg-teal-600 hover:bg-teal-700 group-hover:translate-x-0.5 transition-transform">
+                  Try it <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
+              </div>
+            </div>
+          </Link>
+
+          {/* Folder and Tag Filters */}
+          {showFilters && (
+          <div className="mb-6 space-y-4">
+            <FolderManager
+              folders={folders}
+              onFoldersChange={() => {
+                invalidate.clientFolders();
+                invalidate.leads();
+              }}
+              selectedFolderId={selectedFolderId}
+              onFolderSelect={setSelectedFolderId}
+              allItemsLabel="All Leads"
+            />
+
+            {/* Tag Filter */}
+            {availableTags.length > 0 && (
+              <div className="flex items-center space-x-2 flex-wrap gap-2">
+                <span className="text-sm font-medium text-gray-700">Filter by Tag:</span>
+                <Button
+                  variant={selectedTag === null ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTag(null)}
+                  className="whitespace-nowrap"
+                >
+                  All Tags
+                </Button>
+                {availableTags.map((tag) => (
+                  <Button
+                    key={tag}
+                    variant={selectedTag === tag ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                    className="whitespace-nowrap"
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    {tag}
+                  </Button>
+                ))}
+                {selectedTag && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTag(null)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+          )}
+
+          {/* Task Widget */}
+          <Card className="mb-6 border-0 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <CheckSquare className="h-5 w-5 text-teal-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Tasks</h2>
+                </div>
+                <Link href="/tasks">
+                  <Button variant="ghost" size="sm">
+                    View All
+                    <ChevronDown className="h-4 w-4 ml-1 rotate-[-90deg]" />
+                  </Button>
+                </Link>
+              </div>
+              
+              {tasks.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No tasks yet</p>
+                  <Link href="/tasks">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Task
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.slice(0, 5).map((task, idx) => {
+                    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'Completed';
+                    const isDueSoon = task.due_date && !isOverdue && new Date(task.due_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                    
+                    return (
+                      <Link 
+                        key={task.id} 
+                        href={`/tasks`}
+                        className="block p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all duration-200 card-hover stagger-item"
+                        style={{ animationDelay: `${idx * 0.05}s` }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-medium text-gray-900 truncate">{task.title}</h4>
+                              {isOverdue && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                  Overdue
+                                </span>
+                              )}
+                              {isDueSoon && !isOverdue && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  Due Soon
+                                </span>
+                              )}
+                            </div>
+                            {task.description && (
+                              <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                                {task.description}
+                              </p>
+                            )}
+                            <div className="flex items-center space-x-4 text-xs text-gray-500">
+                              <span className={`px-2 py-0.5 rounded ${
+                                task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                task.status === 'In Progress' ? 'bg-teal-100 text-teal-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {task.status}
+                              </span>
+                              {task.due_date && (
+                                <span className="flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {new Date(task.due_date).toLocaleDateString()}
+                                </span>
+                              )}
+                              {task.priority && (
+                                <span className={`px-2 py-0.5 rounded ${
+                                  task.priority === 'High' ? 'bg-red-100 text-red-800' :
+                                  task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {task.priority}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  {tasks.length > 5 && (
+                    <div className="text-center pt-2">
+                      <Link href="/tasks">
+                        <Button variant="ghost" size="sm">
+                          View {tasks.length - 5} more tasks
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Undo Notification */}
+          {deletedStage && (
+            <div className="mb-4 fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-5">
+              <Card className="border-2 border-teal-500 shadow-lg bg-white">
+                <CardContent className="p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-teal-100 flex items-center justify-center">
+                      <Trash2 className="h-5 w-5 text-teal-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        Stage "{deletedStage.name}" deleted
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        You have 5 seconds to undo
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleUndoDelete}
+                      className="bg-teal-600 hover:bg-teal-700"
+                    >
+                      <Undo2 className="h-4 w-4 mr-2" />
+                      Undo
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (undoTimeout) clearTimeout(undoTimeout);
+                        setDeletedStage(null);
+                        setUndoTimeout(null);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+          </div>
+          )}
+
+          {/* Pipeline Stats */}
+          {loading ? (
+            <DashboardSkeleton />
+          ) : (
+          <>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Pipeline Overview</h2>
+            <Dialog open={showStageDialog} onOpenChange={setShowStageDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm" onClick={() => { setEditingStage(null); setNewStageName(""); }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Stage
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingStage ? 'Rename Stage' : 'Create New Stage'}</DialogTitle>
+                  <DialogDescription>
+                    {editingStage ? 'Update the name of this pipeline stage' : 'Add a new stage to your sales pipeline'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label htmlFor="stage-name">Stage Name</Label>
+                    <Input
+                      id="stage-name"
+                      value={newStageName}
+                      onChange={(e) => setNewStageName(e.target.value)}
+                      placeholder="e.g., Qualified, Proposal Sent"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => { setShowStageDialog(false); setEditingStage(null); setNewStageName(""); }}>
+                      Cancel
+                    </Button>
+                    <Button onClick={editingStage ? handleUpdateStage : handleCreateStage}>
+                      {editingStage ? 'Update' : 'Create'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          {/* Pipeline stats cards - horizontal scroll when many stages */}
+          <div className="overflow-x-auto pb-4 mb-8 -mx-6 px-6">
+            <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 250px))` }}>
+              {stages.map((stage) => (
+                <Card key={stage.id} className="border-0 shadow-sm min-w-[200px]">
+                  <CardContent className="p-4">
+                    <div className="text-center">
+                      <h3 className="font-semibold text-gray-900 mb-1 whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: stage.color }} title={stage.name}>{stage.name}</h3>
+                      <div className="text-2xl font-bold mb-1" style={{ color: stage.color }}>{grouped[stage.name]?.length || 0}</div>
+                      <div className="text-sm text-gray-500">
+                        {formatCurrencyWithSymbol((grouped[stage.name] || [])
+                          .reduce((sum, lead) => sum + (lead.value ?? 0), 0))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Sales Pipeline Board with Drag and Drop - horizontal scroll when many stages */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="overflow-x-auto pb-4 -mx-6 px-6">
+              <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(280px, 320px))` }} data-tutorial="pipeline">
+              {stages.map((stage) => (
+                <DroppableStage
+                  key={stage.id}
+                  stage={stage}
+                  stages={stages}
+                  leads={grouped[stage.name] || []}
+                  onStatusChange={changeLeadStatus}
+                  onValueChange={handleValueChange}
+                  onEditStage={handleEditStage}
+                  onDeleteStage={handleDeleteStage}
+                />
+              ))}
+              </div>
+            </div>
+            <DragOverlay>
+              {activeId ? (
+                <Card className="p-4 border-2 border-blue-500 shadow-lg bg-white opacity-90">
+                  <div className="text-sm font-medium text-gray-900">
+                    {leads.find(l => l.id === activeId)?.name}
+                      </div>
+                    </Card>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+          </>
+          )}
+          {error && (
+            <div className="text-center text-sm text-red-600 mt-6">{error}</div>
+          )}
+        </main>
+      </div>
+    </div>
+    </>
+  );
+}
