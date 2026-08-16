@@ -29,9 +29,23 @@ export default function PortalLoginPage() {
       setLoading(false);
       return;
     }
-    const personaRes = await fetch("/api/auth/persona");
+
+    const personaRes = await fetch("/api/auth/persona?prefer=client");
     const persona = await personaRes.json();
-    router.push(persona.redirectTo || "/portal");
+
+    // Client Hub login is portal-only. Wrong accounts are signed out.
+    if (!persona.hasPortalAccess) {
+      await supabase.auth.signOut();
+      setError(
+        persona.hasCrmAccess
+          ? "This is a contractor account. Use CRM login instead."
+          : "This account is not invited to the Client Hub.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    router.push("/portal");
     setLoading(false);
   };
 

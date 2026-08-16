@@ -12,24 +12,41 @@ export default function AccountVerifiedPage() {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // Set flag to show welcome notification when redirected to dashboard
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('showWelcomeNotification', 'true');
-    }
+    let cancelled = false;
 
-    // Countdown timer
+    const go = async () => {
+      try {
+        const personaRes = await fetch("/api/auth/persona");
+        const persona = await personaRes.json();
+        const dest = persona.hasCrmAccess
+          ? persona.redirectTo || "/dashboard"
+          : persona.hasPortalAccess
+            ? "/portal"
+            : "/login";
+        if (dest === "/dashboard" && typeof window !== "undefined") {
+          sessionStorage.setItem("showWelcomeNotification", "true");
+        }
+        if (!cancelled) router.push(dest);
+      } catch {
+        if (!cancelled) router.push("/dashboard");
+      }
+    };
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          router.push('/dashboard');
+          void go();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [router]);
 
   return (
@@ -53,7 +70,17 @@ export default function AccountVerifiedPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                onClick={() => router.push('/dashboard')}
+                onClick={async () => {
+                  const personaRes = await fetch("/api/auth/persona");
+                  const persona = await personaRes.json();
+                  router.push(
+                    persona.hasCrmAccess
+                      ? persona.redirectTo || "/dashboard"
+                      : persona.hasPortalAccess
+                        ? "/portal"
+                        : "/login",
+                  );
+                }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
                 Go to Dashboard

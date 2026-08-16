@@ -1,66 +1,45 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { OrgRole } from "@/lib/org";
-import { getDefaultRouteForRole } from "@/lib/rbac";
+import type { OrgRole } from "./org";
+import { classifyPersona, type PersonaPrefer, type PersonaResult } from "./persona-classify";
 
-export type PersonaType = "contractor" | "client";
-
-export type PersonaResult = {
-  type: PersonaType;
-  redirectTo: string;
-  orgId?: string;
-  role?: OrgRole;
-  clientId?: string;
-};
+export type { PersonaType, PersonaPrefer, PersonaResult } from "./persona-classify";
+export { classifyPersona } from "./persona-classify";
 
 export async function resolvePersona(
   supabase: SupabaseClient,
   userId: string,
+  prefer?: PersonaPrefer,
 ): Promise<PersonaResult> {
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("persona, active_org_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (profile?.persona === "client") {
-    const { data: portalUser } = await supabase
+  const [{ data: portalUser }, { data: membership }] = await Promise.all([
+    supabase
       .from("client_portal_users")
-      .select("client_id, organization_id, status")
+      .select("client_id, organization_id")
       .eq("auth_user_id", userId)
       .eq("status", "active")
       .limit(1)
-      .maybeSingle();
+      .maybeSingle(),
+    supabase
+      .from("organization_members")
+      .select("org_id, role")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("joined_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
-    if (portalUser) {
-      return {
-        type: "client",
-        redirectTo: "/portal",
-        orgId: portalUser.organization_id,
-        clientId: portalUser.client_id,
-      };
-    }
-  }
-
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("org_id, role")
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .order("joined_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (membership) {
-    const role = membership.role as OrgRole;
-    return {
-      type: "contractor",
-      redirectTo: getDefaultRouteForRole(role),
-      orgId: membership.org_id,
-      role,
-    };
-  }
-
-  return { type: "contractor", redirectTo: "/dashboard" };
+  return classifyPersona(
+    portalUser
+      ? {
+          client_id: portalUser.client_id as string,
+          organization_id: portalUser.organization_id as string,
+        }
+      : null,
+    membership
+      ? { org_id: membership.org_id as string, role: membership.role as OrgRole }
+      : null,
+    prefer,
+  );
 }
 
 export function isContractorRoute(pathname: string): boolean {

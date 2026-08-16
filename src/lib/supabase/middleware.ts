@@ -5,50 +5,9 @@ import {
   isContractorRoute,
   isFieldRoute,
   isPortalRoute,
+  resolvePersona,
 } from '@/lib/persona'
 import { getDefaultRouteForRole } from '@/lib/rbac'
-import type { OrgRole } from '@/lib/org'
-
-async function getPersonaContext(
-  supabase: ReturnType<typeof createServerClient>,
-  userId: string,
-) {
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('persona')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (profile?.persona === 'client') {
-    const { data: portalUser } = await supabase
-      .from('client_portal_users')
-      .select('id')
-      .eq('auth_user_id', userId)
-      .eq('status', 'active')
-      .limit(1)
-      .maybeSingle()
-    if (portalUser) return { type: 'client' as const }
-  }
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('org_id, role')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('joined_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  if (membership) {
-    return {
-      type: 'contractor' as const,
-      orgId: membership.org_id as string,
-      role: membership.role as OrgRole,
-    }
-  }
-
-  return { type: 'contractor' as const, orgId: null, role: null }
-}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -106,28 +65,32 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && !publicRoute) {
-    const persona = await getPersonaContext(supabase, user.id)
+  const persona =
+    user && !publicRoute ? await resolvePersona(supabase, user.id) : null
 
-    if (persona.type === 'client') {
-      if (isContractorRoute(pathname) || isFieldRoute(pathname)) {
+  if (persona) {
+    // Client Hub routes: portal access only (never CRM via /portal)
+    if (isPortalRoute(pathname) && pathname !== '/portal/login' && !pathname.startsWith('/portal/register')) {
+      if (!persona.hasPortalAccess) {
         const url = request.nextUrl.clone()
-        url.pathname = '/portal'
+        url.pathname = persona.hasCrmAccess ? '/dashboard' : '/portal/login'
         return NextResponse.redirect(url)
       }
-    } else if (persona.role === 'worker') {
-      if (isContractorRoute(pathname) && pathname !== '/profile') {
+    }
+
+    // CRM / field: org membership only (never Hub via contractor routes)
+    if (isContractorRoute(pathname) || isFieldRoute(pathname)) {
+      if (!persona.hasCrmAccess) {
+        const url = request.nextUrl.clone()
+        url.pathname = persona.hasPortalAccess ? '/portal' : '/login'
+        return NextResponse.redirect(url)
+      }
+      if (persona.role === 'worker' && isContractorRoute(pathname) && pathname !== '/profile') {
         const url = request.nextUrl.clone()
         url.pathname = getDefaultRouteForRole('worker')
         return NextResponse.redirect(url)
       }
-    } else if (persona.role) {
-      if (isFieldRoute(pathname)) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
-        return NextResponse.redirect(url)
-      }
-      if (isPortalRoute(pathname)) {
+      if (persona.role && persona.role !== 'worker' && isFieldRoute(pathname)) {
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
@@ -135,10 +98,8 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  if (user && !publicRoute && !subscriptionExempt) {
-    const persona = await getPersonaContext(supabase, user.id)
-
-    if (persona.type !== 'client') {
+  if (user && persona && !publicRoute && !subscriptionExempt) {
+    if (persona.hasCrmAccess) {
       let subscription = null
 
       if (persona.orgId) {

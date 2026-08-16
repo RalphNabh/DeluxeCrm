@@ -45,8 +45,20 @@ export default function LoginPage() {
         if (data.user && !data.user.email_confirmed_at) {
           router.push("/verify-email");
         } else {
-          const personaRes = await fetch("/api/auth/persona");
+          const personaRes = await fetch("/api/auth/persona?prefer=contractor");
           const persona = await personaRes.json();
+
+          // CRM login is contractor-only. Clients are signed out and pointed to Hub.
+          if (!persona.hasCrmAccess) {
+            await supabase.auth.signOut();
+            setError(
+              persona.hasPortalAccess
+                ? "This is a Client Hub account. Use Client login instead."
+                : "This account does not have CRM access.",
+            );
+            return;
+          }
+
           router.push(persona.redirectTo || "/dashboard");
         }
       }
