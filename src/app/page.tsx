@@ -11,6 +11,8 @@ const copy = {
   en: {
     french: "Français",
     login: "Log in",
+    clientLogin: "Client login",
+    clientLoginHint: "Invited clients sign in to the Client Hub.",
     workflow: "Workflow",
     pricing: "Pricing",
     contact: "Contact",
@@ -27,6 +29,8 @@ const copy = {
   fr: {
     french: "English",
     login: "Connexion",
+    clientLogin: "Espace client",
+    clientLoginHint: "Les clients invités se connectent au portail.",
     workflow: "Flux de travail",
     pricing: "Tarifs",
     contact: "Contact",
@@ -70,6 +74,16 @@ export default function Home() {
               >
                 {t.login}
                 <LogIn className="h-4 w-4 opacity-90" aria-hidden />
+              </Link>
+              <span
+                className="inline-block h-3.5 w-px bg-white/40"
+                aria-hidden
+              />
+              <Link
+                href="/portal/login"
+                className="hover:text-white/90 transition-colors"
+              >
+                {t.clientLogin}
               </Link>
             </div>
           </div>
@@ -140,6 +154,12 @@ export default function Home() {
               </div>
 
               <p className="mt-3 text-sm text-white/50">{t.noCard}</p>
+              <p className="mt-2 text-sm text-white/45">
+                {t.clientLoginHint}{" "}
+                <Link href="/portal/login" className="text-white/80 underline underline-offset-2 hover:text-white">
+                  {t.clientLogin}
+                </Link>
+              </p>
 
               {/* Trust at the decision point */}
               <div className="mt-8 flex flex-wrap gap-6 sm:gap-10">
@@ -288,6 +308,16 @@ export default function Home() {
                 <li>
                   <Link href="/signup" className="hover:text-white transition-colors">
                     Start free
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/login" className="hover:text-white transition-colors">
+                    Contractor login
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/portal/login" className="hover:text-white transition-colors">
+                    Client login
                   </Link>
                 </li>
               </ul>

@@ -9,32 +9,7 @@ export async function GET() {
     const auth = await requirePortalUser(supabase);
     if (!auth.ok) return auth.response;
 
-    // Portal users are not org members; use service role after ownership check.
     const admin = createServiceRoleClient();
-
-    const [estimatesRes, invoicesRes, jobsRes] = await Promise.all([
-      admin
-        .from("estimates")
-        .select("id, estimate_number, total, status, created_at, valid_until")
-        .eq("client_id", auth.clientId)
-        .eq("organization_id", auth.orgId)
-        .neq("status", "Draft")
-        .order("created_at", { ascending: false }),
-      admin
-        .from("invoices")
-        .select("id, invoice_number, total, status, created_at, due_date, paid_at")
-        .eq("client_id", auth.clientId)
-        .eq("organization_id", auth.orgId)
-        .neq("status", "Draft")
-        .order("created_at", { ascending: false }),
-      admin
-        .from("jobs")
-        .select("id, title, status, start_time, end_time, location")
-        .eq("client_id", auth.clientId)
-        .eq("organization_id", auth.orgId)
-        .order("start_time", { ascending: false }),
-    ]);
-
     const [{ data: client }, { data: organization }] = await Promise.all([
       admin
         .from("clients")
@@ -50,9 +25,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      estimates: estimatesRes.data ?? [],
-      invoices: invoicesRes.data ?? [],
-      jobs: jobsRes.data ?? [],
+      email: auth.user.email ?? client?.email ?? null,
       client: {
         id: auth.clientId,
         name: client?.name ?? "Client",
@@ -64,7 +37,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    captureApiError(error, { route: "portal/dashboard/GET" });
+    captureApiError(error, { route: "portal/me/GET" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

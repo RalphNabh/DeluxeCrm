@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import PortalShell from "@/components/portal/portal-shell";
 
 interface ServiceRequest {
   id: string;
@@ -24,14 +24,8 @@ export default function PortalRequestsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">My Requests</h1>
-        <Link href="/portal">
-          <Button variant="outline" size="sm">Back to Hub</Button>
-        </Link>
-      </header>
-      <main className="max-w-2xl mx-auto p-4 space-y-4">
+    <PortalShell title="My requests">
+      <main className="max-w-3xl mx-auto p-4 space-y-4">
         {requests.map((req) => (
           <Card key={req.id}>
             <CardHeader className="pb-2">
@@ -60,9 +54,11 @@ export default function PortalRequestsPage() {
           </Card>
         ))}
         {!requests.length && (
-          <p className="text-center text-gray-500">No requests yet.</p>
+          <p className="text-center text-gray-500">
+            No requests yet. Submit one from Home.
+          </p>
         )}
       </main>
-    </div>
+    </PortalShell>
   );
 }

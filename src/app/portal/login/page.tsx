@@ -36,11 +36,14 @@ export default function PortalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Client Hub Login</CardTitle>
-          <CardDescription>Access your estimates, invoices, and requests</CardDescription>
+          <CardTitle>Client Hub</CardTitle>
+          <CardDescription>
+            Sign in to view estimates, pay invoices, and request work from your contractor.
+            Access is by invitation — check your email for a Client Hub invite.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -65,8 +68,8 @@ export default function PortalLoginPage() {
           </form>
           <p className="mt-4 text-sm text-center text-gray-600">
             Contractor?{" "}
-            <Link href="/login" className="text-blue-600 hover:underline">
-              Sign in here
+            <Link href="/login" className="text-teal-800 font-medium hover:underline">
+              Sign in to the CRM
             </Link>
           </p>
         </CardContent>

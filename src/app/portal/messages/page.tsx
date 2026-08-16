@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import PortalShell from "@/components/portal/portal-shell";
 
 export default function PortalMessagesPage() {
   const [conversations, setConversations] = useState<Array<{ id: string; clients?: { name?: string } }>>([]);
@@ -45,14 +45,8 @@ export default function PortalMessagesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b px-4 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Messages</h1>
-        <Link href="/portal">
-          <Button variant="outline" size="sm">Back</Button>
-        </Link>
-      </header>
-      <main className="flex-1 max-w-2xl mx-auto w-full p-4 flex flex-col gap-4">
+    <PortalShell title="Messages">
+      <main className="max-w-3xl mx-auto w-full p-4 flex flex-col gap-4">
         {conversations.length > 1 && (
           <div className="flex gap-2 flex-wrap">
             {conversations.map((c) => (
@@ -99,6 +93,6 @@ export default function PortalMessagesPage() {
           </CardContent>
         </Card>
       </main>
-    </div>
+    </PortalShell>
   );
 }

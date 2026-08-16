@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { downloadElementAsPdf, pdfFilenameSegment } from "@/lib/pdf/document-pdf";
+import PortalShell from "@/components/portal/portal-shell";
 
 type LineItem = {
   id: string;
@@ -128,39 +129,32 @@ export default function PortalInvoicePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 text-sm text-gray-500">
-        Loading invoice…
-      </div>
+      <PortalShell>
+        <div className="max-w-3xl mx-auto p-6 text-sm text-gray-500">
+          Loading invoice…
+        </div>
+      </PortalShell>
     );
   }
 
   if (!invoice) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <p className="text-red-600 text-sm">{error || "Invoice not found"}</p>
-        <Link href="/portal" className="text-sm text-blue-600 underline mt-2 inline-block">
-          Back to Hub
-        </Link>
-      </div>
+      <PortalShell>
+        <div className="max-w-3xl mx-auto p-6">
+          <p className="text-red-600 text-sm">{error || "Invoice not found"}</p>
+          <Link href="/portal" className="text-sm text-teal-800 underline mt-2 inline-block">
+            Back to Hub
+          </Link>
+        </div>
+      </PortalShell>
     );
   }
 
   const canPay = !["Paid", "Cancelled", "Draft"].includes(invoice.status);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-gray-900">
-          Invoice {invoice.invoice_number}
-        </h1>
-        <Link href="/portal">
-          <Button variant="outline" size="sm">
-            Back to Hub
-          </Button>
-        </Link>
-      </header>
-
-      <main className="max-w-2xl mx-auto p-4 space-y-4">
+    <PortalShell title={`Invoice ${invoice.invoice_number}`}>
+      <main className="max-w-3xl mx-auto p-4 space-y-4">
         {error && (
           <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
         )}
@@ -230,6 +224,6 @@ export default function PortalInvoicePage() {
           </div>
         </Card>
       </main>
-    </div>
+    </PortalShell>
   );
 }

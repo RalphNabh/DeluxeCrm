@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+import PortalShell from "@/components/portal/portal-shell";
 
 type LineItem = {
   id: string;
@@ -92,37 +93,30 @@ export default function PortalEstimatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 text-sm text-gray-500">
-        Loading estimate…
-      </div>
+      <PortalShell>
+        <div className="max-w-3xl mx-auto p-6 text-sm text-gray-500">
+          Loading estimate…
+        </div>
+      </PortalShell>
     );
   }
 
   if (!estimate) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <p className="text-red-600 text-sm">{error || "Estimate not found"}</p>
-        <Link href="/portal" className="text-sm text-blue-600 underline mt-2 inline-block">
-          Back to Hub
-        </Link>
-      </div>
+      <PortalShell>
+        <div className="max-w-3xl mx-auto p-6">
+          <p className="text-red-600 text-sm">{error || "Estimate not found"}</p>
+          <Link href="/portal" className="text-sm text-teal-800 underline mt-2 inline-block">
+            Back to Hub
+          </Link>
+        </div>
+      </PortalShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-gray-900">
-          Estimate {estimate.estimate_number}
-        </h1>
-        <Link href="/portal">
-          <Button variant="outline" size="sm">
-            Back to Hub
-          </Button>
-        </Link>
-      </header>
-
-      <main className="max-w-2xl mx-auto p-4 space-y-4">
+    <PortalShell title={`Estimate ${estimate.estimate_number}`}>
+      <main className="max-w-3xl mx-auto p-4 space-y-4">
         {error && (
           <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
         )}
@@ -203,6 +197,6 @@ export default function PortalEstimatePage() {
           </div>
         )}
       </main>
-    </div>
+    </PortalShell>
   );
 }

@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import SignOutButton from "@/components/auth/sign-out";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { Suspense } from "react";
+import PortalShell from "@/components/portal/portal-shell";
 
 function PortalDashboard() {
   const router = useRouter();
@@ -24,6 +24,8 @@ function PortalDashboard() {
       paid_at?: string | null;
     }>;
     jobs: Array<{ id: string; title: string; status: string; start_time: string }>;
+    client?: { name: string; email: string | null };
+    organization?: { name: string };
   } | null>(null);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [title, setTitle] = useState("");
@@ -111,19 +113,24 @@ function PortalDashboard() {
   const canPay = (status: string) =>
     !["Paid", "Cancelled", "Draft"].includes(status);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-gray-900">Client Hub</h1>
-        <div className="flex gap-2">
-          <Link href="/portal/messages">
-            <Button variant="outline" size="sm">Messages</Button>
-          </Link>
-          <SignOutButton />
-        </div>
-      </header>
+  const firstName = data?.client?.name?.trim().split(/\s+/)[0];
 
+  return (
+    <PortalShell>
       <main className="max-w-3xl mx-auto p-4 space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            {firstName ? `Hi, ${firstName}` : "Welcome"}
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Quotes, invoices, and jobs from{" "}
+            <span className="font-medium text-slate-800">
+              {data?.organization?.name ?? "your contractor"}
+            </span>
+            .
+          </p>
+        </div>
+
         {banner && (
           <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">{banner}</div>
         )}
@@ -137,7 +144,12 @@ function PortalDashboard() {
           </CardHeader>
           <CardContent>
             {!showRequestForm ? (
-              <Button onClick={() => setShowRequestForm(true)}>New service request</Button>
+              <div className="space-y-2">
+                <p className="text-sm text-slate-600">
+                  Tell your contractor what you need. They will see it in their Requests inbox.
+                </p>
+                <Button onClick={() => setShowRequestForm(true)}>New service request</Button>
+              </div>
             ) : (
               <div className="space-y-3">
                 <Input
@@ -182,20 +194,20 @@ function PortalDashboard() {
             {(data?.estimates ?? []).map((e) => (
               <div
                 key={e.id}
-                className="flex justify-between items-center border-b py-2 text-sm gap-2"
+                className="flex justify-between items-center border-b py-3 text-sm gap-2 last:border-0"
               >
                 <Link
                   href={`/portal/estimates/${e.id}`}
-                  className="text-blue-600 hover:underline"
+                  className="text-teal-800 font-medium hover:underline"
                 >
                   {e.estimate_number}
                 </Link>
-                <span className="text-right">
+                <span className="text-right text-slate-700">
                   {formatCurrencyWithSymbol(e.total)} — {e.status}
                   {["Sent", "Changes Requested"].includes(e.status) && (
                     <Link
                       href={`/portal/estimates/${e.id}`}
-                      className="ml-2 text-blue-600 hover:underline"
+                      className="ml-2 text-teal-800 hover:underline"
                     >
                       Review
                     </Link>
@@ -204,7 +216,9 @@ function PortalDashboard() {
               </div>
             ))}
             {!data?.estimates?.length && (
-              <p className="text-gray-500 text-sm">No estimates yet.</p>
+              <p className="text-gray-500 text-sm">
+                No estimates yet — your contractor will send one here.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -217,11 +231,11 @@ function PortalDashboard() {
             {(data?.invoices ?? []).map((inv) => (
               <div
                 key={inv.id}
-                className="flex justify-between items-center border-b py-2 text-sm gap-2"
+                className="flex justify-between items-center border-b py-3 text-sm gap-2 last:border-0"
               >
                 <Link
                   href={`/portal/invoices/${inv.id}`}
-                  className="text-blue-600 hover:underline"
+                  className="text-teal-800 font-medium hover:underline"
                 >
                   {inv.invoice_number}
                 </Link>
@@ -248,7 +262,9 @@ function PortalDashboard() {
               </div>
             ))}
             {!data?.invoices?.length && (
-              <p className="text-gray-500 text-sm">No invoices yet.</p>
+              <p className="text-gray-500 text-sm">
+                No invoices yet — they will appear here when your contractor bills you.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -259,7 +275,7 @@ function PortalDashboard() {
           </CardHeader>
           <CardContent className="space-y-2">
             {(data?.jobs ?? []).map((job) => (
-              <div key={job.id} className="border-b py-2 text-sm">
+              <div key={job.id} className="border-b py-3 text-sm last:border-0">
                 <div className="font-medium">{job.title}</div>
                 <div className="text-gray-500">
                   {new Date(job.start_time).toLocaleString()} — {job.status}
@@ -267,12 +283,14 @@ function PortalDashboard() {
               </div>
             ))}
             {!data?.jobs?.length && (
-              <p className="text-gray-500 text-sm">No scheduled jobs.</p>
+              <p className="text-gray-500 text-sm">
+                No scheduled jobs yet.
+              </p>
             )}
           </CardContent>
         </Card>
       </main>
-    </div>
+    </PortalShell>
   );
 }
 
