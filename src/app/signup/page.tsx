@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,6 +21,7 @@ import {
   mapAuthError,
   SIGNUP_PENDING_EMAIL_KEY,
 } from "@/lib/auth-email-redirect";
+import { markWelcomePending } from "@/lib/welcome-notification";
 
 export default function SignupPage() {
   const [firstName, setFirstName] = useState("");
@@ -104,7 +106,7 @@ export default function SignupPage() {
 
       const confirmedEmail = data.email || email.trim();
 
-      sessionStorage.setItem("showWelcomeNotification", "true");
+      markWelcomePending();
       sessionStorage.setItem(
         SIGNUP_PENDING_EMAIL_KEY,
         confirmedEmail.toLowerCase(),
@@ -207,15 +209,12 @@ export default function SignupPage() {
                     <Phone className="h-4 w-4" />
                     Phone Number
                   </Label>
-                  <Input
+                  <PhoneInput
                     id="phone"
                     name="phone"
-                    type="tel"
-                    autoComplete="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={setPhone}
                     className="mt-1"
-                    placeholder="(555) 123-4567"
                   />
                 </div>
               </div>

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function PublicRequestPage() {
@@ -125,10 +126,10 @@ export default function PublicRequestPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <Input
+            <PhoneInput
               placeholder="Phone (optional)"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={setPhone}
             />
             <Input
               placeholder="What do you need done?"

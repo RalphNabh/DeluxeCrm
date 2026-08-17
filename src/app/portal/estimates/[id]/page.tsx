@@ -24,7 +24,6 @@ type Estimate = {
   subtotal: number;
   tax: number;
   total: number;
-  notes?: string;
   contract_message?: string;
   valid_until?: string;
   estimate_line_items?: LineItem[];
@@ -154,8 +153,8 @@ export default function PortalEstimatePage() {
               <span>Total</span>
               <span>{formatCurrencyWithSymbol(estimate.total)}</span>
             </div>
-            {estimate.notes && (
-              <p className="text-gray-600 pt-2 whitespace-pre-wrap">{estimate.notes}</p>
+            {estimate.contract_message && !canAct && (
+              <p className="text-gray-600 pt-2 whitespace-pre-wrap">{estimate.contract_message}</p>
             )}
           </CardContent>
         </Card>

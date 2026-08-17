@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { 
@@ -320,13 +321,11 @@ export default function ProfilePage() {
                       <div>
                         <Label htmlFor="phone">Phone Number</Label>
                         {editing ? (
-                          <Input
+                          <PhoneInput
                             id="phone"
-                            type="tel"
                             value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            onChange={(phone) => setFormData({ ...formData, phone })}
                             className="mt-1"
-                            placeholder="(555) 123-4567"
                           />
                         ) : (
                           <div className="mt-1 p-3 border border-gray-300 rounded-md bg-gray-50 flex items-center">

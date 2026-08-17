@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -244,13 +245,11 @@ export default function NewClientPage() {
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                       Phone
                     </label>
-                    <Input
+                    <PhoneInput
                       id="phone"
                       name="phone"
-                      type="tel"
                       value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="Enter phone number"
+                      onChange={(phone) => setFormData((prev) => ({ ...prev, phone }))}
                     />
                   </div>
 

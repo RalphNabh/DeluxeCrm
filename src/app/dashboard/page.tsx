@@ -84,6 +84,7 @@ import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { DashboardTour } from "@/components/tutorial/dashboard-tour";
 import { HelpCircle } from "lucide-react";
 import { useNotifications } from "@/components/notifications/notification-provider";
+import { consumeWelcomeIfFirstTime } from "@/lib/welcome-notification";
 import {
   useLeadsQuery,
   useEstimatesQuery,
@@ -730,47 +731,36 @@ export default function Dashboard() {
     clientsQuery.dataUpdatedAt,
   ]);
 
-  // Show welcome notification after login/signup
+  // Show welcome once after first signup / email verify — never on later logins
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Use a delay to ensure notification provider is ready after navigation
       const timer = setTimeout(() => {
-        // Check for sessionStorage flag (from login/signup)
-        const showWelcome = sessionStorage.getItem('showWelcomeNotification');
-        // Check for URL query parameter (from email verification callback)
         const urlParams = new URLSearchParams(window.location.search);
         const welcomeParam = urlParams.get('welcome');
-        
-        if (showWelcome === 'true' || welcomeParam === 'true') {
-          // Clear the flag first (before adding notification in case of errors)
-          sessionStorage.removeItem('showWelcomeNotification');
-          
-          // Remove query parameter from URL without reload
-          if (welcomeParam === 'true') {
-            urlParams.delete('welcome');
-            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-            window.history.replaceState({}, '', newUrl);
-          }
-          
-          // Add welcome notification
-          // Check if addNotification is a valid function (not the fallback)
-          if (addNotification && typeof addNotification === 'function') {
-            try {
-              addNotification({
-                type: 'success',
-                title: 'Welcome to DyluxePro!',
-                message: 'Your CRM is ready to use. Start by adding your first client.',
-                actionUrl: '/clients/new',
-                actionLabel: 'Add Client'
-              });
-            } catch (error) {
-              console.error('Failed to add welcome notification:', error);
-            }
-          } else {
-            console.warn('addNotification is not available');
+        const showWelcome = consumeWelcomeIfFirstTime(welcomeParam === 'true');
+
+        if (welcomeParam === 'true') {
+          urlParams.delete('welcome');
+          const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+          window.history.replaceState({}, '', newUrl);
+        }
+
+        if (!showWelcome) return;
+
+        if (addNotification && typeof addNotification === 'function') {
+          try {
+            addNotification({
+              type: 'success',
+              title: 'Welcome to DyluxePro!',
+              message: 'Your CRM is ready to use. Start by adding your first client.',
+              actionUrl: '/clients/new',
+              actionLabel: 'Add Client'
+            });
+          } catch (error) {
+            console.error('Failed to add welcome notification:', error);
           }
         }
-      }, 300); // Delay to ensure provider and DOM are ready after navigation
+      }, 300);
 
       return () => clearTimeout(timer);
     }

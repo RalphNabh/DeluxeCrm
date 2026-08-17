@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
@@ -158,7 +159,7 @@ export default function EditClientPage() {
                 </div>
                 <div>
                   <label className="block text-sm mb-1">Phone</label>
-                  <Input value={form.phone} onChange={(e) => update('phone', e.target.value)} />
+                  <PhoneInput value={form.phone || ''} onChange={(phone) => update('phone', phone)} />
                 </div>
               </div>
               <div>

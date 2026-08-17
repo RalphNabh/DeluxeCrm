@@ -6,67 +6,79 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import PortalShell from "@/components/portal/portal-shell";
 
+type Conversation = { id: string };
+type HubMessage = { id: string; body: string; sender_type: string };
+
 export default function PortalMessagesPage() {
-  const [conversations, setConversations] = useState<Array<{ id: string; clients?: { name?: string } }>>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Array<{ id: string; body: string; sender_type: string }>>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<HubMessage[]>([]);
   const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/portal/conversations")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setConversations(data);
-          if (data[0]) setSelectedId(data[0].id);
-        }
-      });
+    let cancelled = false;
+    const load = async () => {
+      setError(null);
+      const res = await fetch("/api/portal/conversations");
+      const data = await res.json().catch(() => ({}));
+      if (cancelled) return;
+      if (!res.ok || !Array.isArray(data) || !data[0]?.id) {
+        setError(data.error || "Could not open messages.");
+        setLoading(false);
+        return;
+      }
+      setConversationId(data[0].id);
+      const msgRes = await fetch(`/api/portal/conversations/${data[0].id}/messages`);
+      const msgs = await msgRes.json().catch(() => []);
+      if (cancelled) return;
+      if (msgRes.ok && Array.isArray(msgs)) setMessages(msgs);
+      setLoading(false);
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    fetch(`/api/portal/conversations/${selectedId}/messages`)
-      .then((r) => r.json())
-      .then((data) => Array.isArray(data) && setMessages(data));
-  }, [selectedId]);
-
   const sendMessage = async () => {
-    if (!selectedId || !body.trim()) return;
-    const res = await fetch(`/api/portal/conversations/${selectedId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body }),
-    });
-    if (res.ok) {
-      const msg = await res.json();
+    if (!conversationId || !body.trim() || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/portal/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: body.trim() }),
+      });
+      const msg = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(msg.error || "Could not send message.");
+        return;
+      }
       setMessages((prev) => [...prev, msg]);
       setBody("");
+    } finally {
+      setSending(false);
     }
   };
 
   return (
     <PortalShell title="Messages">
       <main className="max-w-3xl mx-auto w-full p-4 flex flex-col gap-4">
-        {conversations.length > 1 && (
-          <div className="flex gap-2 flex-wrap">
-            {conversations.map((c) => (
-              <Button
-                key={c.id}
-                size="sm"
-                variant={selectedId === c.id ? "default" : "outline"}
-                onClick={() => setSelectedId(c.id)}
-              >
-                {c.clients?.name ?? "Conversation"}
-              </Button>
-            ))}
-          </div>
-        )}
         <Card className="flex-1 flex flex-col">
           <CardHeader>
             <CardTitle className="text-base">Conversation</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col gap-3">
+            {error && (
+              <p className="text-sm text-red-600">{error}</p>
+            )}
             <div className="flex-1 space-y-2 overflow-y-auto min-h-[300px]">
+              {loading && (
+                <p className="text-gray-500 text-sm">Loading messages…</p>
+              )}
               {messages.map((m) => (
                 <div
                   key={m.id}
@@ -77,8 +89,10 @@ export default function PortalMessagesPage() {
                   {m.body}
                 </div>
               ))}
-              {!messages.length && (
-                <p className="text-gray-500 text-sm">No messages yet.</p>
+              {!loading && !messages.length && (
+                <p className="text-gray-500 text-sm">
+                  No messages yet. Say hello to your contractor.
+                </p>
               )}
             </div>
             <div className="flex gap-2">
@@ -86,9 +100,15 @@ export default function PortalMessagesPage() {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Type a message..."
+                disabled={!conversationId || sending}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               />
-              <Button onClick={sendMessage}>Send</Button>
+              <Button
+                onClick={sendMessage}
+                disabled={!conversationId || sending || !body.trim()}
+              >
+                {sending ? "Sending…" : "Send"}
+              </Button>
             </div>
           </CardContent>
         </Card>

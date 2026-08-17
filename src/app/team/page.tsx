@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   LayoutDashboard, 
@@ -367,12 +368,10 @@ export default function TeamPage() {
                     </div>
                     <div>
                       <Label htmlFor="add-phone">Phone</Label>
-                      <Input 
+                      <PhoneInput 
                         id="add-phone" 
-                        type="tel" 
-                        placeholder="(555) 123-4567"
                         value={formData.phone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        onChange={(phone) => setFormData(prev => ({ ...prev, phone }))}
                         className="mt-2"
                       />
                     </div>
@@ -757,12 +756,10 @@ export default function TeamPage() {
             </div>
             <div>
               <Label htmlFor="edit-phone">Phone</Label>
-              <Input 
+              <PhoneInput 
                 id="edit-phone" 
-                type="tel" 
-                placeholder="(555) 123-4567"
                 value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                onChange={(phone) => setFormData(prev => ({ ...prev, phone }))}
                 className="mt-2"
               />
             </div>

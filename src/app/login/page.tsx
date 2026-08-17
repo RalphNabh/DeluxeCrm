@@ -36,11 +36,6 @@ export default function LoginPage() {
         }
         setError(formatAuthErrorMessage(error.message));
       } else {
-        // Set flag to show welcome notification after redirect
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('showWelcomeNotification', 'true');
-        }
-        
         // Check if email is verified
         if (data.user && !data.user.email_confirmed_at) {
           router.push("/verify-email");

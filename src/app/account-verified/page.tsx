@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, ArrowRight } from "lucide-react";
+import { markWelcomePending } from "@/lib/welcome-notification";
 
 export default function AccountVerifiedPage() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function AccountVerifiedPage() {
             ? "/portal"
             : "/login";
         if (dest === "/dashboard" && typeof window !== "undefined") {
-          sessionStorage.setItem("showWelcomeNotification", "true");
+          markWelcomePending();
         }
         if (!cancelled) router.push(dest);
       } catch {

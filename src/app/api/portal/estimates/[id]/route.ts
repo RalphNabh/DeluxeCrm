@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const { data: estimate, error } = await admin
       .from("estimates")
       .select(
-        "id, estimate_number, status, subtotal, tax, total, notes, contract_message, valid_until, created_at, client_id, organization_id, estimate_line_items(id, description, quantity, unit, unit_price, total)",
+        "id, estimate_number, status, subtotal, tax, total, contract_message, valid_until, created_at, client_id, organization_id, estimate_line_items(id, description, quantity, unit, unit_price, total)",
       )
       .eq("id", id)
       .eq("client_id", auth.clientId)

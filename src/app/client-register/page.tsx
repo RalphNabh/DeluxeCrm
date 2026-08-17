@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
@@ -179,14 +180,12 @@ export default function ClientRegister() {
                   Phone Number
                 </Label>
                 <div className="relative mt-1">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
+                  <Phone className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <PhoneInput
                     id="phone"
-                    type="tel"
                     value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    onChange={(phone) => handleInputChange("phone", phone)}
                     className="pl-10"
-                    placeholder="(555) 123-4567"
                     required
                   />
                 </div>
