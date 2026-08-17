@@ -34,6 +34,12 @@ describe("migration column parsing", () => {
     assert.ok(ESTIMATE_COLUMNS.has("change_request_note"));
   });
 
+  it("finds hub messaging columns on messages", () => {
+    const MESSAGE_COLUMNS = columnsOf("messages");
+    assert.ok(MESSAGE_COLUMNS.has("message_type"));
+    assert.ok(MESSAGE_COLUMNS.has("metadata"));
+  });
+
   it("does not treat table constraints as columns", () => {
     for (const name of ["primary", "constraint", "unique", "check"]) {
       assert.equal(PAYMENT_COLUMNS.has(name), false);

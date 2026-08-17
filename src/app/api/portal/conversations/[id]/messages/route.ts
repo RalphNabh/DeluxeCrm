@@ -4,6 +4,8 @@ import { requirePortalUser } from "@/lib/api-auth";
 import { captureApiError } from "@/lib/api-error";
 import { parseJsonBody } from "@/lib/validation";
 import { z } from "zod";
+import { maybeSendNewMessageEmail } from "@/lib/email/message-alert";
+import { MESSAGE_PAGE_SIZE, MESSAGE_SELECT } from "@/lib/messaging/message-select";
 
 const messageSchema = z.object({
   body: z.string().min(1).max(5000),
@@ -17,16 +19,16 @@ async function requireOwnedConversation(
 ) {
   const { data: convo } = await admin
     .from("conversations")
-    .select("id")
+    .select("id, organization_id, organizations(name, owner_user_id)")
     .eq("id", conversationId)
     .eq("client_id", clientId)
     .eq("organization_id", orgId)
     .maybeSingle();
-  return Boolean(convo);
+  return convo;
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -35,25 +37,43 @@ export async function GET(
     const auth = await requirePortalUser(supabase);
     if (!auth.ok) return auth.response;
 
+    const before = request.nextUrl.searchParams.get("before");
+    const limit = Math.min(
+      Number(request.nextUrl.searchParams.get("limit")) || MESSAGE_PAGE_SIZE,
+      100,
+    );
+
     const admin = createServiceRoleClient();
-    const allowed = await requireOwnedConversation(
+    const convo = await requireOwnedConversation(
       admin,
       id,
       auth.clientId,
       auth.orgId,
     );
-    if (!allowed) {
+    if (!convo) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { data, error } = await admin
+    let query = admin
       .from("messages")
-      .select("id, body, sender_type, created_at")
+      .select(MESSAGE_SELECT)
       .eq("conversation_id", id)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(limit + 1);
 
+    if (before) {
+      query = query.lt("created_at", before);
+    }
+
+    const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json(data ?? []);
+
+    const rows = data ?? [];
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const messages = [...page].reverse();
+
+    return NextResponse.json({ messages, hasMore });
   } catch (error) {
     captureApiError(error, { route: "portal/conversations/messages/GET" });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -74,13 +94,13 @@ export async function POST(
     if (!parsed.ok) return parsed.response;
 
     const admin = createServiceRoleClient();
-    const allowed = await requireOwnedConversation(
+    const convo = await requireOwnedConversation(
       admin,
       id,
       auth.clientId,
       auth.orgId,
     );
-    if (!allowed) {
+    if (!convo) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -91,8 +111,10 @@ export async function POST(
         sender_auth_user_id: auth.user.id,
         sender_type: "client",
         body: parsed.data.body,
+        message_type: "text",
+        metadata: {},
       })
-      .select("id, body, sender_type, created_at")
+      .select(MESSAGE_SELECT)
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -101,6 +123,29 @@ export async function POST(
       .from("conversations")
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", id);
+
+    const org = convo.organizations as {
+      name?: string;
+      owner_user_id?: string;
+    } | null;
+    if (org?.owner_user_id) {
+      try {
+        const { data: ownerAuth } = await admin.auth.admin.getUserById(
+          org.owner_user_id,
+        );
+        const ownerEmail = ownerAuth?.user?.email;
+        if (ownerEmail) {
+          await maybeSendNewMessageEmail(admin, {
+            conversationId: id,
+            recipientEmail: ownerEmail,
+            deepLink: `/messages?clientId=${auth.clientId}`,
+            orgName: org.name,
+          });
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {

@@ -48,7 +48,7 @@ export const SIDEBAR_ITEMS: readonly NavItem[] = [
   { icon: BarChart3, label: "Reports", href: "/reports", permission: "view_all_clients" },
   { icon: UsersRound, label: "Team", href: "/team", permission: "invite_team" },
   { icon: Inbox, label: "Requests", href: "/requests", permission: "manage_requests" },
-  { icon: MessageSquare, label: "Messages", href: "/messages", permission: "manage_requests" },
+  { icon: MessageSquare, label: "Messages", href: "/messages", permission: "messaging" },
   { icon: Zap, label: "Automations", href: "/automations", permission: "manage_requests" },
   { icon: Gift, label: "Affiliates", href: "/affiliates", permission: "billing" },
   { icon: Settings, label: "Settings", href: "/settings" },

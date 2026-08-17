@@ -8,6 +8,11 @@ import {
   collectImageFiles,
   uploadServiceRequestPhotos,
 } from "@/lib/service-request-photos";
+import {
+  buildSystemMessageBody,
+  ensureClientConversation,
+  postSystemMessage,
+} from "@/lib/hub-messaging";
 
 const requestSchema = z.object({
   title: z.string().min(1).max(200),
@@ -120,10 +125,22 @@ export async function POST(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    await supabase.from("conversations").insert({
-      organization_id: auth.orgId,
-      client_id: auth.clientId,
-      service_request_id: data.id,
+    const admin = createServiceRoleClient();
+    await ensureClientConversation(admin, auth.clientId, auth.orgId, {
+      serviceRequestId: data.id,
+    });
+    await postSystemMessage(admin, {
+      clientId: auth.clientId,
+      organizationId: auth.orgId,
+      senderAuthUserId: auth.user.id,
+      senderType: "client",
+      body: buildSystemMessageBody("service_request", { title }),
+      metadata: {
+        kind: "service_request",
+        service_request_id: data.id,
+        title,
+      },
+      serviceRequestId: data.id,
     });
 
     return NextResponse.json(data, { status: 201 });

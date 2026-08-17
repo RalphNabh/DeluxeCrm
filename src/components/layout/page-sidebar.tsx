@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LucideIcon, X } from "lucide-react";
@@ -35,6 +36,20 @@ interface PageSidebarProps {
 export default function PageSidebar({ items, isOpen = false, onClose }: PageSidebarProps) {
   const pathname = usePathname();
   const { data: member } = useCurrentMemberQuery();
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    if (!member?.role) return;
+    const load = () => {
+      fetch("/api/conversations/unread-summary")
+        .then((r) => (r.ok ? r.json() : { total: 0 }))
+        .then((d) => setUnreadMessages(Number(d?.total) || 0))
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => clearInterval(interval);
+  }, [member?.role, pathname]);
 
   // Until the role is known, show the unfiltered list rather than flashing a
   // shortened menu and then expanding it.
@@ -111,7 +126,12 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
                         active ? "text-teal-300" : "text-slate-400 group-hover:text-white"
                       }`}
                     />
-                    <span>{item.label}</span>
+                    <span className="flex-1">{item.label}</span>
+                    {item.href === "/messages" && unreadMessages > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-500 px-1.5 text-[10px] font-semibold text-white">
+                        {unreadMessages > 99 ? "99+" : unreadMessages}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

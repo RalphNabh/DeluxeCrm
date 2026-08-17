@@ -8,7 +8,10 @@ import {
   getResendClient,
   isEmailConfigured,
 } from "@/lib/email/resend-client";
-import { postHubMessage } from "@/lib/portal-conversation";
+import {
+  buildSystemMessageBody,
+  postSystemMessage,
+} from "@/lib/hub-messaging";
 
 export type EstimateClientAction = "approve" | "request_changes";
 
@@ -175,7 +178,7 @@ export async function applyEstimateClientAction(
     };
   }
 
-  if (action === "request_changes" && note && orgId && estimate.client_id) {
+  if (orgId && estimate.client_id) {
     try {
       let senderId = senderAuthUserId || null;
       if (!senderId) {
@@ -190,13 +193,39 @@ export async function applyEstimateClientAction(
         senderId = (portalUser?.auth_user_id as string | undefined) ?? null;
       }
       if (senderId) {
-        await postHubMessage(supabase, {
-          clientId: estimate.client_id as string,
-          organizationId: orgId,
-          senderAuthUserId: senderId,
-          senderType: "client",
-          body: `Requested changes on estimate ${reference}:\n\n${note}`,
-        });
+        if (action === "request_changes") {
+          await postSystemMessage(supabase, {
+            clientId: estimate.client_id as string,
+            organizationId: orgId,
+            senderAuthUserId: senderId,
+            senderType: "client",
+            body: buildSystemMessageBody("estimate_change", {
+              estimateNumber: reference,
+              note,
+            }),
+            metadata: {
+              kind: "estimate_change",
+              estimate_id: estimateId,
+              estimate_number: reference,
+              note: note || undefined,
+            },
+          });
+        } else if (action === "approve") {
+          await postSystemMessage(supabase, {
+            clientId: estimate.client_id as string,
+            organizationId: orgId,
+            senderAuthUserId: senderId,
+            senderType: "client",
+            body: buildSystemMessageBody("estimate_approved", {
+              estimateNumber: reference,
+            }),
+            metadata: {
+              kind: "estimate_approved",
+              estimate_id: estimateId,
+              estimate_number: reference,
+            },
+          });
+        }
       }
     } catch (error) {
       captureApiError(error, {

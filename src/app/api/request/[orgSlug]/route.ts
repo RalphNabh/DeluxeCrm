@@ -7,6 +7,11 @@ import {
   collectImageFiles,
   uploadServiceRequestPhotos,
 } from "@/lib/service-request-photos";
+import {
+  buildSystemMessageBody,
+  ensureClientConversation,
+  postSystemMessage,
+} from "@/lib/hub-messaging";
 
 type RouteContext = { params: Promise<{ orgSlug: string }> };
 
@@ -198,10 +203,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    await admin.from("conversations").insert({
-      organization_id: org.id,
-      client_id: clientId,
-      service_request_id: requestRow.id,
+    await ensureClientConversation(admin, clientId, org.id, {
+      serviceRequestId: requestRow.id,
+    });
+    await postSystemMessage(admin, {
+      clientId,
+      organizationId: org.id,
+      senderAuthUserId: org.owner_user_id as string,
+      senderType: "client",
+      body: buildSystemMessageBody("service_request", { title }),
+      metadata: {
+        kind: "service_request",
+        service_request_id: requestRow.id,
+        title,
+      },
+      serviceRequestId: requestRow.id,
     });
 
     return NextResponse.json(

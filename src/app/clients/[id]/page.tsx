@@ -25,7 +25,9 @@ import {
   XCircle,
   AlertCircle,
   ExternalLink,
+  MessageSquare,
 } from 'lucide-react'
+import { formatMessageTime } from '@/lib/messaging/format'
 import { formatCurrencyWithSymbol } from '@/lib/utils/currency'
 
 interface ClientFolder {
@@ -80,6 +82,20 @@ interface Job {
   created_at: string;
 }
 
+interface HubMessagePreview {
+  id: string
+  body: string
+  message_type?: string
+  created_at?: string
+}
+
+interface ChangeRequestPreview {
+  id: string
+  estimate_number?: string
+  change_request_note?: string
+  status: string
+}
+
 interface ActivityItem {
   id: string;
   type: 'estimate' | 'invoice' | 'job' | 'client_created';
@@ -103,6 +119,8 @@ export default function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [portalInviteMessage, setPortalInviteMessage] = useState<string | null>(null)
   const [invitingPortal, setInvitingPortal] = useState(false)
+  const [hubMessages, setHubMessages] = useState<HubMessagePreview[]>([])
+  const [changeRequests, setChangeRequests] = useState<ChangeRequestPreview[]>([])
 
   useEffect(() => {
     const hubInvite = searchParams.get('hubInvite')
@@ -124,11 +142,12 @@ export default function ClientDetailPage() {
   const load = async () => {
     try {
       // Fetch all data in parallel
-      const [cRes, eRes, iRes, jRes] = await Promise.all([
+      const [cRes, eRes, iRes, jRes, hubRes] = await Promise.all([
         fetch('/api/clients'),
         fetch(`/api/estimates?client_id=${params.id}`),
         fetch(`/api/invoices?client_id=${params.id}`),
-        fetch('/api/jobs')
+        fetch('/api/jobs'),
+        fetch(`/api/clients/${params.id}/hub-messages`),
       ])
 
       // Process client
@@ -150,6 +169,12 @@ export default function ClientDetailPage() {
       const jobsData = jRes.ok ? await jRes.json() : []
       const clientJobs = jobsData.filter((job: Job) => job.client_id === params.id)
       setJobs(clientJobs || [])
+
+      if (hubRes.ok) {
+        const hubData = await hubRes.json()
+        setHubMessages(hubData.messages || [])
+        setChangeRequests(hubData.change_requests || [])
+      }
 
       // Build activity timeline
       buildActivityTimeline(c, estimatesData || [], invoicesData || [], clientJobs || [])
@@ -492,8 +517,69 @@ export default function ClientDetailPage() {
                 </Card>
               </div>
 
-              {/* Activity Timeline and Lists */}
+              {/* Client Hub messages */}
               <div className="lg:col-span-2 space-y-6">
+                <Card className="border-0 shadow-lg">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-teal-600" />
+                      Client Hub Messages
+                    </CardTitle>
+                    <Link href={`/messages?clientId=${client.id}`}>
+                      <Button size="sm" variant="outline">
+                        Open full conversation
+                      </Button>
+                    </Link>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {changeRequests.length > 0 && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p className="font-medium mb-2">Pending change requests</p>
+                        {changeRequests.map((cr) => (
+                          <div key={cr.id} className="mb-2 last:mb-0">
+                            <Link
+                              href={`/estimates/${cr.id}`}
+                              className="text-teal-700 hover:underline font-medium"
+                            >
+                              Estimate {cr.estimate_number || cr.id.slice(0, 8)}
+                            </Link>
+                            {cr.change_request_note && (
+                              <p className="mt-1 text-amber-800 whitespace-pre-wrap">
+                                {cr.change_request_note}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {hubMessages.length === 0 ? (
+                      <p className="text-sm text-gray-600 text-center py-4">
+                        No Client Hub activity yet. Invite the client to start messaging.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {hubMessages.map((m) => (
+                          <div
+                            key={m.id}
+                            className={`text-sm p-2 rounded-lg ${
+                              m.message_type === 'system'
+                                ? 'bg-slate-100 text-slate-600 text-center'
+                                : 'bg-gray-50'
+                            }`}
+                          >
+                            <p className="whitespace-pre-wrap">{m.body}</p>
+                            {m.created_at && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                {formatMessageTime(m.created_at)}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Activity Timeline */}
                 <Card className="border-0 shadow-lg">
                   <CardHeader>

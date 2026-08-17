@@ -28,6 +28,7 @@ export default function PortalShell({
   const pathname = usePathname();
   const router = useRouter();
   const [me, setMe] = useState<PortalMe | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     fetch("/api/portal/me")
@@ -40,6 +41,18 @@ export default function PortalShell({
       })
       .then((d) => d && setMe(d));
   }, [router]);
+
+  useEffect(() => {
+    const loadUnread = () => {
+      fetch("/api/portal/conversations/unread-summary")
+        .then((r) => r.json())
+        .then((d) => setUnreadMessages(Number(d?.total) || 0))
+        .catch(() => {});
+    };
+    loadUnread();
+    const interval = setInterval(loadUnread, 30_000);
+    return () => clearInterval(interval);
+  }, [pathname]);
 
   const orgName = me?.organization?.name ?? "Client Hub";
   const clientName = me?.client?.name;
@@ -75,13 +88,18 @@ export default function PortalShell({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap",
+                  "px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap relative",
                   active
                     ? "bg-slate-50 text-teal-800 border-b-2 border-teal-700"
                     : "text-slate-600 hover:text-slate-900",
                 )}
               >
                 {item.label}
+                {item.href === "/portal/messages" && unreadMessages > 0 && (
+                  <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-semibold text-white">
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                )}
               </Link>
             );
           })}
