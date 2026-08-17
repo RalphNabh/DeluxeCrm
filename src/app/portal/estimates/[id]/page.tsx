@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import PortalShell from "@/components/portal/portal-shell";
 
@@ -39,6 +40,8 @@ export default function PortalEstimatePage() {
   const [error, setError] = useState<string | null>(null);
   const [contractAgreed, setContractAgreed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showChangeForm, setShowChangeForm] = useState(false);
+  const [changeNote, setChangeNote] = useState("");
 
   useEffect(() => {
     fetch(`/api/portal/estimates/${id}`)
@@ -69,6 +72,17 @@ export default function PortalEstimatePage() {
       setError("Please agree to the terms before approving.");
       return;
     }
+    if (action === "request_changes") {
+      if (!showChangeForm) {
+        setShowChangeForm(true);
+        setError(null);
+        return;
+      }
+      if (!changeNote.trim()) {
+        setError("Please describe the changes you need.");
+        return;
+      }
+    }
     setActing(true);
     setError(null);
     setMessage(null);
@@ -76,7 +90,10 @@ export default function PortalEstimatePage() {
       const res = await fetch(`/api/portal/estimates/${id}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          clientMessage: action === "request_changes" ? changeNote.trim() : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -84,7 +101,12 @@ export default function PortalEstimatePage() {
         return;
       }
       setEstimate({ ...estimate, status: data.status });
-      setMessage(data.message || "Updated");
+      setShowChangeForm(false);
+      setMessage(
+        action === "request_changes"
+          ? "Change request sent. Your contractor can reply in Messages."
+          : data.message || "Updated",
+      );
     } finally {
       setActing(false);
     }
@@ -121,7 +143,12 @@ export default function PortalEstimatePage() {
         )}
         {message && (
           <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
-            {message}
+            {message}{" "}
+            {estimate.status === "Changes Requested" && (
+              <Link href="/portal/messages" className="underline font-medium">
+                Open Messages
+              </Link>
+            )}
           </div>
         )}
 
@@ -182,17 +209,55 @@ export default function PortalEstimatePage() {
         )}
 
         {canAct && (
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => runAction("approve")} disabled={acting}>
-              Approve estimate
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => runAction("request_changes")}
-              disabled={acting}
-            >
-              Request changes
-            </Button>
+          <div className="space-y-3">
+            {showChangeForm && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">What would you like changed?</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Textarea
+                    value={changeNote}
+                    onChange={(e) => setChangeNote(e.target.value)}
+                    placeholder="Example: Please use a cheaper tile, and move the start date to next month."
+                    rows={4}
+                    maxLength={5000}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => runAction("request_changes")}
+                      disabled={acting || !changeNote.trim()}
+                    >
+                      Send change request
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setShowChangeForm(false);
+                        setError(null);
+                      }}
+                      disabled={acting}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => runAction("approve")} disabled={acting}>
+                Approve estimate
+              </Button>
+              {!showChangeForm && (
+                <Button
+                  variant="outline"
+                  onClick={() => runAction("request_changes")}
+                  disabled={acting}
+                >
+                  Request changes
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </main>

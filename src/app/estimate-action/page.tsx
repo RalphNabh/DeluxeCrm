@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 function EstimateActionContent() {
@@ -17,6 +18,7 @@ function EstimateActionContent() {
   } | null>(null);
   const [contractAgreed, setContractAgreed] = useState(false);
   const [estimate, setEstimate] = useState<{ contract_message?: string } | null>(null);
+  const [changeNote, setChangeNote] = useState("");
 
   const estimateId = searchParams.get('estimateId');
   const action = searchParams.get('action');
@@ -44,13 +46,6 @@ function EstimateActionContent() {
     }
   }, [estimateId, action, clientEmail]);
 
-  useEffect(() => {
-    // Only auto-submit for request_changes, not for approve (approve needs checkbox confirmation)
-    if (estimateId && action && action === 'request_changes') {
-      handleAction();
-    }
-  }, [estimateId, action]);
-
   const handleAction = async () => {
     if (!estimateId || !action) return;
 
@@ -67,6 +62,14 @@ function EstimateActionContent() {
       return; // Don't proceed without agreement
     }
 
+    if (action === 'request_changes' && !changeNote.trim()) {
+      setResult({
+        success: false,
+        message: 'Please describe the changes you need.',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch('/api/email/action', {
@@ -78,6 +81,7 @@ function EstimateActionContent() {
           clientEmail,
           clientName,
           token,
+          clientMessage: action === 'request_changes' ? changeNote.trim() : undefined,
         })
       });
 
@@ -225,12 +229,29 @@ function EstimateActionContent() {
                 </div>
               )}
               
+              {action === 'request_changes' && (
+                <div className="text-left space-y-2">
+                  <label className="text-sm font-medium text-gray-700" htmlFor="change-note">
+                    What would you like changed?
+                  </label>
+                  <Textarea
+                    id="change-note"
+                    value={changeNote}
+                    onChange={(e) => setChangeNote(e.target.value)}
+                    placeholder="Example: Please use a cheaper tile, and move the start date to next month."
+                    rows={4}
+                    maxLength={5000}
+                  />
+                </div>
+              )}
+              
               <Button 
                 onClick={handleAction}
                 className="w-full"
                 disabled={
                   loading ||
-                  !!(action === 'approve' && estimate?.contract_message && !contractAgreed)
+                  !!(action === 'approve' && estimate?.contract_message && !contractAgreed) ||
+                  (action === 'request_changes' && !changeNote.trim())
                 }
               >
                 {action === 'approve' ? 'Approve Estimate' : 'Request Changes'}

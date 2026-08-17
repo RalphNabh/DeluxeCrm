@@ -10,6 +10,7 @@ import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 const actionSchema = z.object({
   action: z.enum(["approve", "request_changes"]),
   clientName: z.string().max(200).optional(),
+  clientMessage: z.string().trim().max(5000).optional(),
 });
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -31,6 +32,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const parsed = await parseJsonBody(request, actionSchema);
     if (!parsed.ok) return parsed.response;
+
+    if (
+      parsed.data.action === "request_changes" &&
+      !parsed.data.clientMessage?.trim()
+    ) {
+      return NextResponse.json(
+        { error: "Please describe the changes you need." },
+        { status: 400 },
+      );
+    }
 
     const admin = createServiceRoleClient();
     const { data: estimate, error } = await admin
@@ -69,6 +80,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       action: parsed.data.action,
       clientEmail,
       clientName: parsed.data.clientName || clientRecord?.name,
+      clientMessage: parsed.data.clientMessage,
+      senderAuthUserId: auth.user.id,
       verifyClientEmail: false,
     });
 

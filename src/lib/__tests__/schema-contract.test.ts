@@ -31,7 +31,7 @@ describe("migration column parsing", () => {
     assert.ok(ESTIMATE_COLUMNS.has("sent_at"));
     assert.ok(ESTIMATE_COLUMNS.has("estimate_number"));
     assert.ok(ESTIMATE_COLUMNS.has("valid_until"));
-    assert.ok(LEAD_COLUMNS.has("client_id"));
+    assert.ok(ESTIMATE_COLUMNS.has("change_request_note"));
   });
 
   it("does not treat table constraints as columns", () => {

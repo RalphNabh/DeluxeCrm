@@ -42,6 +42,7 @@ interface Estimate {
   tax: number;
   total: number;
   contract_message?: string;
+  change_request_note?: string;
   tags?: string[];
   created_at: string;
   updated_at: string;
@@ -473,6 +474,20 @@ function EstimateDetailContent() {
             className="max-w-4xl mx-auto space-y-6 bg-white p-6"
             style={{ position: 'relative' }}
           >
+            {estimate.status === 'Changes Requested' && estimate.change_request_note && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                <p className="font-medium mb-1">Client requested changes</p>
+                <p className="whitespace-pre-wrap">{estimate.change_request_note}</p>
+                {estimate.client_id && (
+                  <Link
+                    href={`/messages?clientId=${estimate.client_id}`}
+                    className="inline-block mt-2 font-medium underline"
+                  >
+                    Reply in Messages
+                  </Link>
+                )}
+              </div>
+            )}
             {/* Client Info */}
             <Card>
               <CardHeader>

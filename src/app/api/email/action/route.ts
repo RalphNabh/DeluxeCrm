@@ -13,6 +13,7 @@ const actionSchema = z.object({
   clientEmail: z.string().email(),
   clientName: z.string().max(200).optional(),
   token: z.string().min(10),
+  clientMessage: z.string().trim().max(5000).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -28,7 +29,15 @@ export async function POST(request: NextRequest) {
     const parsed = await parseJsonBody(request, actionSchema);
     if (!parsed.ok) return parsed.response;
 
-    const { estimateId, action, clientEmail, clientName, token } = parsed.data;
+    const { estimateId, action, clientEmail, clientName, token, clientMessage } =
+      parsed.data;
+
+    if (action === "request_changes" && !clientMessage?.trim()) {
+      return NextResponse.json(
+        { error: "Please describe the changes you need." },
+        { status: 400 },
+      );
+    }
 
     if (!verifyEstimateActionToken(token, estimateId, clientEmail, action)) {
       return NextResponse.json(
@@ -43,6 +52,7 @@ export async function POST(request: NextRequest) {
       action,
       clientEmail,
       clientName,
+      clientMessage,
       verifyClientEmail: true,
     });
 

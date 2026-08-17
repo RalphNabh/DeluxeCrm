@@ -40,3 +40,42 @@ export async function ensurePortalConversation(
 
   return created as PortalConversation;
 }
+
+export async function postHubMessage(
+  admin: SupabaseClient,
+  input: {
+    clientId: string;
+    organizationId: string;
+    senderAuthUserId: string;
+    senderType: "client" | "contractor";
+    body: string;
+  },
+): Promise<{ id: string }> {
+  const conversation = await ensurePortalConversation(
+    admin,
+    input.clientId,
+    input.organizationId,
+  );
+
+  const { data, error } = await admin
+    .from("messages")
+    .insert({
+      conversation_id: conversation.id,
+      sender_auth_user_id: input.senderAuthUserId,
+      sender_type: input.senderType,
+      body: input.body,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || "Failed to send message");
+  }
+
+  await admin
+    .from("conversations")
+    .update({ last_message_at: new Date().toISOString() })
+    .eq("id", conversation.id);
+
+  return { id: data.id as string };
+}

@@ -58,6 +58,7 @@ export function isContractorRoute(pathname: string): boolean {
     "/reports",
     "/settings",
     "/requests",
+    "/messages",
     "/affiliates",
     "/subscription",
     "/mobile",

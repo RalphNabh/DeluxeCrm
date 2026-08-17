@@ -8,6 +8,7 @@ import {
   getResendClient,
   isEmailConfigured,
 } from "@/lib/email/resend-client";
+import { postHubMessage } from "@/lib/portal-conversation";
 
 export type EstimateClientAction = "approve" | "request_changes";
 
@@ -30,6 +31,8 @@ export async function applyEstimateClientAction(
     action: EstimateClientAction;
     clientEmail: string;
     clientName?: string;
+    clientMessage?: string;
+    senderAuthUserId?: string;
     /** When false, require estimate.clients.email to match clientEmail. */
     verifyClientEmail?: boolean;
   },
@@ -39,6 +42,8 @@ export async function applyEstimateClientAction(
     action,
     clientEmail,
     clientName,
+    clientMessage,
+    senderAuthUserId,
     verifyClientEmail = true,
   } = input;
 
@@ -115,6 +120,7 @@ export async function applyEstimateClientAction(
   const reference =
     (estimate.estimate_number as string | null) || estimateId.slice(0, 8);
 
+  const note = clientMessage?.trim() || "";
   const emailSubject =
     action === "approve"
       ? `Estimate approved by ${displayName} - ${reference}`
@@ -122,14 +128,21 @@ export async function applyEstimateClientAction(
   const emailMessage =
     action === "approve"
       ? `Great news! ${displayName} approved estimate ${reference}.`
-      : `${displayName} asked for changes to estimate ${reference}. Review it and send an updated version.`;
+      : note
+        ? `${displayName} asked for changes to estimate ${reference}:\n\n"${note}"`
+        : `${displayName} asked for changes to estimate ${reference}. Review it and send an updated version.`;
+
+  const updatePayload: Record<string, unknown> = {
+    status: newStatus,
+    updated_at: new Date().toISOString(),
+  };
+  if (action === "request_changes" && note) {
+    updatePayload.change_request_note = note;
+  }
 
   const { data: updated, error: updateError } = await supabase
     .from("estimates")
-    .update({
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", estimateId)
     .in("status", [...ACTIONABLE_STATUSES])
     .select("id")
@@ -160,6 +173,37 @@ export async function applyEstimateClientAction(
       httpStatus: 409,
       error: "Estimate was updated by another request. Refresh and try again.",
     };
+  }
+
+  if (action === "request_changes" && note && orgId && estimate.client_id) {
+    try {
+      let senderId = senderAuthUserId || null;
+      if (!senderId) {
+        const { data: portalUser } = await supabase
+          .from("client_portal_users")
+          .select("auth_user_id")
+          .eq("client_id", estimate.client_id)
+          .eq("organization_id", orgId)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle();
+        senderId = (portalUser?.auth_user_id as string | undefined) ?? null;
+      }
+      if (senderId) {
+        await postHubMessage(supabase, {
+          clientId: estimate.client_id as string,
+          organizationId: orgId,
+          senderAuthUserId: senderId,
+          senderType: "client",
+          body: `Requested changes on estimate ${reference}:\n\n${note}`,
+        });
+      }
+    } catch (error) {
+      captureApiError(error, {
+        route: "estimate-client-action",
+        step: "hub-message",
+      });
+    }
   }
 
   if (action === "approve") {
@@ -217,11 +261,17 @@ export async function applyEstimateClientAction(
     }
 
     const appUrl = getAppUrl();
+    const noteHtml = note
+      ? `<blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#333;white-space:pre-wrap;">${note.replace(/</g, "&lt;")}</blockquote>`
+      : "";
     const confirmationEmailHtml = `
         <html><body style="font-family: Arial, sans-serif;">
           <h2>${newStatus}</h2>
-          <p>${emailMessage}</p>
-          <p><a href="${appUrl}/estimates/${estimateId}">View estimate in dashboard</a></p>
+          <p>${emailMessage.split("\n")[0]}</p>
+          ${noteHtml}
+          <p><a href="${appUrl}/estimates/${estimateId}">View estimate</a>
+          &nbsp;·&nbsp;
+          <a href="${appUrl}/messages">Reply in Messages</a></p>
         </body></html>
       `;
 
