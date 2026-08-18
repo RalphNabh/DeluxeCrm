@@ -7,8 +7,7 @@ import PageHeader from "@/components/layout/page-header";
 import ConversationList, {
   type ConversationListItem,
 } from "@/components/messaging/conversation-list";
-import MessageThread from "@/components/messaging/message-thread";
-import MessageComposer from "@/components/messaging/message-composer";
+import MessageChatPanel from "@/components/messaging/message-chat-panel";
 import { useConversationMessages } from "@/hooks/use-conversation-messages";
 
 function ContractorMessages() {
@@ -41,7 +40,6 @@ function ContractorMessages() {
       .finally(() => setLoadingList(false));
   }, [clientIdFilter, refreshList]);
 
-  // Keep conversation list fresh while on this page.
   useEffect(() => {
     const tick = () => {
       if (document.visibilityState !== "visible") return;
@@ -95,17 +93,17 @@ function ContractorMessages() {
   const error = listError || threadError;
 
   return (
-    <>
+    <div className="flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden md:h-dvh">
       <PageHeader
         title="Messages"
         description="Reply to Client Hub conversations."
       />
-      <main className="flex-1 p-4 md:p-6 grid gap-4 md:grid-cols-[260px_1fr]">
-        <Card>
-          <CardHeader>
+      <main className="grid min-h-0 flex-1 gap-4 overflow-hidden p-4 md:grid-cols-[260px_1fr] md:p-6">
+        <Card className="flex min-h-0 flex-col overflow-hidden">
+          <CardHeader className="shrink-0 pb-3">
             <CardTitle className="text-base">Clients</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-0">
             <ConversationList
               conversations={conversations}
               selectedId={selectedId}
@@ -116,33 +114,22 @@ function ContractorMessages() {
           </CardContent>
         </Card>
 
-        <Card className="flex flex-col min-h-[420px]">
-          <CardHeader>
-            <CardTitle className="text-base">
-              {selected?.clients?.name || "Conversation"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-3">
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {loadingMessages && !messages.length && (
-              <p className="text-sm text-gray-500">Loading messages…</p>
-            )}
-            <MessageThread
-              messages={messages}
-              viewerRole="contractor"
-              emptyMessage={
-                selectedId ? "No messages yet." : "Select a conversation."
-              }
-            />
-            <MessageComposer
-              onSend={sendMessage}
-              disabled={!selectedId}
-              placeholder="Reply to your client…"
-            />
-          </CardContent>
-        </Card>
+        <MessageChatPanel
+          className="min-h-0 h-full"
+          title={selected?.clients?.name || "Conversation"}
+          messages={messages}
+          viewerRole="contractor"
+          onSend={sendMessage}
+          error={error}
+          loading={loadingMessages}
+          emptyMessage={
+            selectedId ? "No messages yet." : "Select a conversation."
+          }
+          composerDisabled={!selectedId}
+          composerPlaceholder="Reply to your client…"
+        />
       </main>
-    </>
+    </div>
   );
 }
 

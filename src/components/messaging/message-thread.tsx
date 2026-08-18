@@ -30,10 +30,12 @@ export default function MessageThread({
   emptyMessage = "No messages yet.",
   className = "",
 }: MessageThreadProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
   const grouped = useMemo(() => {
@@ -62,14 +64,20 @@ export default function MessageThread({
 
   if (!messages.length) {
     return (
-      <div className={`text-sm text-gray-500 py-8 text-center ${className}`}>
+      <div
+        ref={containerRef}
+        className={`flex min-h-0 flex-1 items-center justify-center overflow-y-auto overscroll-contain px-4 py-8 text-center text-sm text-gray-500 ${className}`}
+      >
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className={`flex-1 space-y-2 overflow-y-auto min-h-[280px] ${className}`}>
+    <div
+      ref={containerRef}
+      className={`min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-2 ${className}`}
+    >
       {grouped.map((item) => {
         if (item.type === "divider") {
           return (
@@ -133,7 +141,6 @@ export default function MessageThread({
           </div>
         );
       })}
-      <div ref={bottomRef} />
     </div>
   );
 }
