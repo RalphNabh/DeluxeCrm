@@ -178,6 +178,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       clientId = created.id;
     }
 
+    if (!clientId) {
+      return NextResponse.json(
+        { error: "Failed to resolve client record" },
+        { status: 500 },
+      );
+    }
+
     const { data: requestRow, error: insertError } = await admin
       .from("service_requests")
       .insert({
