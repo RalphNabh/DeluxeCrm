@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/api-auth";
 import { captureApiError } from "@/lib/api-error";
@@ -109,18 +109,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .eq("id", id);
 
     const client = convo.clients as { name?: string; email?: string } | null;
-    if (client?.email) {
+    const recipientEmail = client?.email;
+    const recipientName = client?.name;
+    after(async () => {
+      if (!recipientEmail) return;
       try {
         await maybeSendNewMessageEmail(admin, {
           conversationId: id,
-          recipientEmail: client.email,
-          recipientName: client.name,
+          recipientEmail,
+          recipientName,
           deepLink: "/portal/messages",
         });
       } catch {
-        /* non-fatal */
+        /* never fail the send */
       }
-    }
+    });
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {

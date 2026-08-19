@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { columnsOf } from "./helpers/migration-columns.ts";
+import { columnsOf, readMigrations } from "./helpers/migration-columns.ts";
 import { buildPaymentInsert, sumPayments, today } from "../payments.ts";
 import { paymentCreateSchema } from "../api-schemas.ts";
 
@@ -38,6 +38,26 @@ describe("migration column parsing", () => {
     const MESSAGE_COLUMNS = columnsOf("messages");
     assert.ok(MESSAGE_COLUMNS.has("message_type"));
     assert.ok(MESSAGE_COLUMNS.has("metadata"));
+  });
+
+  it("declares contractor_inbox for service_role", () => {
+    const sql = readMigrations();
+    assert.match(
+      sql,
+      /create\s+or\s+replace\s+function\s+public\.contractor_inbox\s*\(\s*p_org_id\s+uuid\s*\)/i,
+    );
+    assert.match(
+      sql,
+      /grant\s+execute\s+on\s+function\s+public\.contractor_inbox\s*\(\s*uuid\s*\)\s+to\s+service_role/i,
+    );
+    assert.match(
+      sql,
+      /revoke\s+all\s+on\s+function\s+public\.contractor_inbox\s*\(\s*uuid\s*\)\s+from\s+anon,\s*authenticated/i,
+    );
+  });
+
+  it("adds last_alert_at on conversations", () => {
+    assert.ok(columnsOf("conversations").has("last_alert_at"));
   });
 
   it("does not treat table constraints as columns", () => {

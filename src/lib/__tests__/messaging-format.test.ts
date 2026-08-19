@@ -7,7 +7,8 @@ import {
   formatMessageTime,
   truncatePreview,
 } from "../messaging/format.ts";
-import { buildSystemMessageBody } from "../hub-messaging.ts";
+import { buildSystemMessageBody, inboxToUnreadSummary } from "../hub-messaging.ts";
+import { mergeContractorInbox } from "../messaging/enrich-conversations.ts";
 import { columnsOf } from "./helpers/migration-columns.ts";
 
 describe("formatMessageTime", () => {
@@ -90,5 +91,53 @@ describe("messages schema columns", () => {
     assert.ok(MESSAGE_COLUMNS.has("message_type"));
     assert.ok(MESSAGE_COLUMNS.has("metadata"));
     assert.ok(MESSAGE_COLUMNS.has("read_at"));
+  });
+});
+
+describe("contractor inbox mapper", () => {
+  it("merges unread counts and truncates last-message preview", () => {
+    const merged = mergeContractorInbox(
+      [
+        { id: "c1", client_id: "client-1" },
+        { id: "c2", client_id: "client-2" },
+      ],
+      [
+        {
+          conversation_id: "c1",
+          unread_count: "3",
+          last_body: "hello   world",
+          last_created_at: "2026-08-18T12:00:00Z",
+        },
+      ],
+    );
+    assert.equal(merged[0].unread_count, 3);
+    assert.equal(merged[0].last_message_preview, "hello world");
+    assert.equal(merged[1].unread_count, 0);
+    assert.equal(merged[1].last_message_preview, null);
+  });
+
+  it("sums unread across conversations", () => {
+    const summary = inboxToUnreadSummary([
+      {
+        conversation_id: "c1",
+        unread_count: "2",
+        last_body: "a",
+        last_created_at: null,
+      },
+      {
+        conversation_id: "c2",
+        unread_count: 0,
+        last_body: "b",
+        last_created_at: null,
+      },
+      {
+        conversation_id: "c3",
+        unread_count: 5,
+        last_body: "c",
+        last_created_at: null,
+      },
+    ]);
+    assert.equal(summary.total, 7);
+    assert.deepEqual(summary.byConversation, { c1: 2, c3: 5 });
   });
 });

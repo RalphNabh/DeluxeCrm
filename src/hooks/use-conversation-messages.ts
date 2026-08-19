@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ThreadMessage } from "@/components/messaging/message-thread";
+import { notifyUnreadChanged } from "@/lib/messaging/unread-badge";
 
 type UseConversationMessagesOptions = {
   conversationId: string | null;
@@ -18,7 +19,7 @@ type MessagesResponse = {
   hasMore: boolean;
 };
 
-const DEFAULT_POLL_MS = 4_000;
+const DEFAULT_POLL_MS = 15_000;
 
 function messagesUrl(apiBase: "crm" | "portal", conversationId: string, before?: string) {
   const prefix =
@@ -37,6 +38,10 @@ function readUrl(apiBase: "crm" | "portal", conversationId: string) {
     : `/api/conversations/${conversationId}/read`;
 }
 
+function isRealtimeDisconnected(status: string) {
+  return status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED";
+}
+
 export function useConversationMessages({
   conversationId,
   apiBase,
@@ -48,8 +53,9 @@ export function useConversationMessages({
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const idsRef = useRef(new Set<string>());
-  const realtimeOkRef = useRef(false);
+  const hadDropRef = useRef(false);
 
   const mergeMessages = useCallback((incoming: ThreadMessage[]) => {
     setMessages((prev) => {
@@ -71,6 +77,7 @@ export function useConversationMessages({
     try {
       await fetch(readUrl(apiBase, conversationId), { method: "PATCH" });
       onMarkRead?.();
+      notifyUnreadChanged();
     } catch {
       /* non-fatal */
     }
@@ -132,13 +139,20 @@ export function useConversationMessages({
     [apiBase, conversationId, enabled, markRead, mergeMessages, applyIncomingRows],
   );
 
+  const fetchMessagesRef = useRef(fetchMessages);
+  fetchMessagesRef.current = fetchMessages;
+  const applyIncomingRowsRef = useRef(applyIncomingRows);
+  applyIncomingRowsRef.current = applyIncomingRows;
+
   useEffect(() => {
     if (!conversationId || !enabled) {
       setMessages([]);
       idsRef.current = new Set();
+      setRealtimeConnected(false);
       return;
     }
-    realtimeOkRef.current = false;
+    hadDropRef.current = false;
+    setRealtimeConnected(false);
     void fetchMessages();
   }, [conversationId, enabled, fetchMessages]);
 
@@ -148,8 +162,25 @@ export function useConversationMessages({
 
     let cancelled = false;
     const supabase = createClient();
+    const channel = supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const row = payload.new as ThreadMessage;
+          const tabVisible =
+            typeof document !== "undefined" && document.visibilityState === "visible";
+          applyIncomingRowsRef.current([row], tabVisible);
+        },
+      );
 
-    const subscribe = async () => {
+    const start = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -158,50 +189,40 @@ export function useConversationMessages({
       if (session?.access_token) {
         supabase.realtime.setAuth(session.access_token);
       }
+      if (cancelled) return;
 
-      const channel = supabase
-        .channel(`messages:${conversationId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload) => {
-            realtimeOkRef.current = true;
-            const row = payload.new as ThreadMessage;
-            applyIncomingRows([row], true);
-          },
-        )
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") {
-            realtimeOkRef.current = true;
+      channel.subscribe((status) => {
+        if (cancelled) return;
+        if (status === "SUBSCRIBED") {
+          setRealtimeConnected(true);
+          if (hadDropRef.current) {
+            hadDropRef.current = false;
+            void fetchMessagesRef.current(undefined, { silent: true, markRead: false });
           }
-        });
-
-      return channel;
+        } else if (isRealtimeDisconnected(status)) {
+          hadDropRef.current = true;
+          setRealtimeConnected(false);
+        }
+      });
     };
 
-    let channel: Awaited<ReturnType<typeof subscribe>> | undefined;
-    void subscribe().then((ch) => {
-      channel = ch;
-    });
+    void start();
 
     return () => {
       cancelled = true;
-      if (channel) void supabase.removeChannel(channel);
+      setRealtimeConnected(false);
+      void supabase.removeChannel(channel);
     };
-  }, [conversationId, enabled, applyIncomingRows]);
+  }, [conversationId, enabled]);
 
-  // Poll fallback when tab is visible (covers Realtime auth/WS failures).
+  // Poll only while Realtime is disconnected. Skip hidden tabs. Do not mark-read.
   useEffect(() => {
     if (!conversationId || !enabled || pollIntervalMs <= 0) return;
+    if (realtimeConnected) return;
 
     const tick = () => {
       if (document.visibilityState !== "visible") return;
-      void fetchMessages(undefined, { silent: true, markRead: true });
+      void fetchMessagesRef.current(undefined, { silent: true, markRead: false });
     };
 
     const interval = window.setInterval(tick, pollIntervalMs);
@@ -214,7 +235,7 @@ export function useConversationMessages({
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [conversationId, enabled, pollIntervalMs, fetchMessages]);
+  }, [conversationId, enabled, pollIntervalMs, realtimeConnected]);
 
   useEffect(() => {
     if (!conversationId || !enabled) return;
@@ -244,5 +265,6 @@ export function useConversationMessages({
     refresh: () => fetchMessages(),
     loadMore,
     markRead,
+    realtimeConnected,
   };
 }

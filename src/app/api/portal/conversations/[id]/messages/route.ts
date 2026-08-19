@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requirePortalUser } from "@/lib/api-auth";
 import { captureApiError } from "@/lib/api-error";
@@ -128,24 +128,25 @@ export async function POST(
       name?: string;
       owner_user_id?: string;
     } | null;
-    if (org?.owner_user_id) {
+    const ownerUserId = org?.owner_user_id;
+    const orgName = org?.name;
+    const clientId = auth.clientId;
+    after(async () => {
+      if (!ownerUserId) return;
       try {
-        const { data: ownerAuth } = await admin.auth.admin.getUserById(
-          org.owner_user_id,
-        );
+        const { data: ownerAuth } = await admin.auth.admin.getUserById(ownerUserId);
         const ownerEmail = ownerAuth?.user?.email;
-        if (ownerEmail) {
-          await maybeSendNewMessageEmail(admin, {
-            conversationId: id,
-            recipientEmail: ownerEmail,
-            deepLink: `/messages?clientId=${auth.clientId}`,
-            orgName: org.name,
-          });
-        }
+        if (!ownerEmail) return;
+        await maybeSendNewMessageEmail(admin, {
+          conversationId: id,
+          recipientEmail: ownerEmail,
+          deepLink: `/messages?clientId=${clientId}`,
+          orgName,
+        });
       } catch {
-        /* non-fatal */
+        /* never fail the send */
       }
-    }
+    });
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {

@@ -179,30 +179,47 @@ export async function getUnreadCount(
   return count ?? 0;
 }
 
+export type ContractorInboxRow = {
+  conversation_id: string;
+  unread_count: number | string;
+  last_body: string | null;
+  last_created_at: string | null;
+};
+
+export async function fetchContractorInbox(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<ContractorInboxRow[]> {
+  const { data, error } = await admin.rpc("contractor_inbox", {
+    p_org_id: organizationId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ContractorInboxRow[];
+}
+
+export function inboxToUnreadSummary(inbox: ContractorInboxRow[]): {
+  total: number;
+  byConversation: Record<string, number>;
+} {
+  const byConversation: Record<string, number> = {};
+  let total = 0;
+  for (const row of inbox) {
+    const count = Number(row.unread_count) || 0;
+    if (count > 0) {
+      byConversation[row.conversation_id] = count;
+      total += count;
+    }
+  }
+  return { total, byConversation };
+}
+
 /** Total unread across all org conversations for contractor view. */
 export async function getOrgUnreadSummary(
   admin: SupabaseClient,
   organizationId: string,
 ): Promise<{ total: number; byConversation: Record<string, number> }> {
-  const { data: convos, error: convoError } = await admin
-    .from("conversations")
-    .select("id")
-    .eq("organization_id", organizationId);
-
-  if (convoError) throw new Error(convoError.message);
-
-  const byConversation: Record<string, number> = {};
-  let total = 0;
-
-  for (const convo of convos ?? []) {
-    const count = await getUnreadCount(admin, convo.id as string, "contractor");
-    if (count > 0) {
-      byConversation[convo.id as string] = count;
-      total += count;
-    }
-  }
-
-  return { total, byConversation };
+  const inbox = await fetchContractorInbox(admin, organizationId);
+  return inboxToUnreadSummary(inbox);
 }
 
 /** Total unread for a portal client across their thread(s). */

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import SignOutButton from "@/components/auth/sign-out";
 import { cn } from "@/lib/utils";
+import { UNREAD_CHANGED_EVENT } from "@/lib/messaging/unread-badge";
 
 type PortalMe = {
   email?: string | null;
@@ -50,8 +51,12 @@ export default function PortalShell({
         .catch(() => {});
     };
     loadUnread();
-    const interval = setInterval(loadUnread, 30_000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadUnread, 60_000);
+    window.addEventListener(UNREAD_CHANGED_EVENT, loadUnread);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(UNREAD_CHANGED_EVENT, loadUnread);
+    };
   }, [pathname]);
 
   const orgName = me?.organization?.name ?? "Client Hub";

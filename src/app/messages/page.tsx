@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import PageHeader from "@/components/layout/page-header";
@@ -9,6 +9,16 @@ import ConversationList, {
 } from "@/components/messaging/conversation-list";
 import MessageChatPanel from "@/components/messaging/message-chat-panel";
 import { useConversationMessages } from "@/hooks/use-conversation-messages";
+import { createClient } from "@/lib/supabase/client";
+import { truncatePreview } from "@/lib/messaging/format";
+import { notifyUnreadChanged } from "@/lib/messaging/unread-badge";
+
+type InboxInsertRow = {
+  conversation_id?: string;
+  body?: string;
+  sender_type?: string;
+  created_at?: string;
+};
 
 function ContractorMessages() {
   const searchParams = useSearchParams();
@@ -17,6 +27,10 @@ function ContractorMessages() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(true);
+  const selectedIdRef = useRef<string | null>(null);
+  const conversationsRef = useRef<ConversationListItem[]>([]);
+  selectedIdRef.current = selectedId;
+  conversationsRef.current = conversations;
 
   const refreshList = useCallback(async () => {
     const res = await fetch("/api/conversations");
@@ -41,15 +55,73 @@ function ContractorMessages() {
   }, [clientIdFilter, refreshList]);
 
   useEffect(() => {
-    const tick = () => {
-      if (document.visibilityState !== "visible") return;
-      void refreshList().then(setConversations);
+    let cancelled = false;
+    const supabase = createClient();
+    const channel = supabase.channel("crm-inbox-messages").on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      },
+      (payload) => {
+        const row = payload.new as InboxInsertRow;
+        const conversationId = row.conversation_id;
+        if (!conversationId) return;
+
+        const existing = conversationsRef.current.find((c) => c.id === conversationId);
+        if (!existing) {
+          void refreshList().then(setConversations);
+          notifyUnreadChanged();
+          return;
+        }
+
+        setConversations((prev) => {
+          const idx = prev.findIndex((c) => c.id === conversationId);
+          if (idx === -1) return prev;
+          const item: ConversationListItem = { ...prev[idx] };
+          if (row.body) item.last_message_preview = truncatePreview(row.body);
+          if (row.created_at) item.last_message_at = row.created_at;
+          if (row.sender_type === "client" && item.id !== selectedIdRef.current) {
+            item.unread_count = (item.unread_count ?? 0) + 1;
+          }
+          const next = [...prev];
+          next.splice(idx, 1);
+          next.unshift(item);
+          return next;
+        });
+
+        if (row.sender_type === "client" && conversationId !== selectedIdRef.current) {
+          notifyUnreadChanged();
+        }
+      },
+    );
+
+    const start = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token);
+      }
+      if (cancelled) return;
+      channel.subscribe();
     };
-    const interval = window.setInterval(tick, 5_000);
-    document.addEventListener("visibilitychange", tick);
+
+    void start();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshList().then(setConversations);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", tick);
+      cancelled = true;
+      void supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [refreshList]);
 
@@ -68,7 +140,11 @@ function ContractorMessages() {
     conversationId: selectedId,
     apiBase: "crm",
     onMarkRead: () => {
-      void refreshList().then(setConversations);
+      const id = selectedIdRef.current;
+      if (!id) return;
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, unread_count: 0 } : c)),
+      );
     },
   });
 

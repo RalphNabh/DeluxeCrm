@@ -8,6 +8,7 @@ import UserProfile from "@/components/layout/user-profile";
 import { Button } from "@/components/ui/button";
 import { isNavItemActive, navItemsForRole, type NavItem } from "@/lib/navigation";
 import { useCurrentMemberQuery } from "@/lib/query/hooks";
+import { UNREAD_CHANGED_EVENT } from "@/lib/messaging/unread-badge";
 
 /**
  * Legacy item shape used by older pages that pass `items` directly.
@@ -47,8 +48,12 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
         .catch(() => {});
     };
     load();
-    const interval = setInterval(load, 30_000);
-    return () => clearInterval(interval);
+    const interval = setInterval(load, 60_000);
+    window.addEventListener(UNREAD_CHANGED_EVENT, load);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(UNREAD_CHANGED_EVENT, load);
+    };
   }, [member?.role, pathname]);
 
   // Until the role is known, show the unfiltered list rather than flashing a

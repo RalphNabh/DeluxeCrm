@@ -7,11 +7,10 @@ import {
 } from "@/lib/email/resend-client";
 
 const THROTTLE_MS = 15 * 60 * 1000;
-const lastAlertSent = new Map<string, number>();
 
 /**
  * Send a throttled email when the other party receives a new Hub message.
- * Max one email per conversation per 15 minutes.
+ * Max one email per conversation per 15 minutes (persisted on conversations.last_alert_at).
  */
 export async function maybeSendNewMessageEmail(
   admin: SupabaseClient,
@@ -25,9 +24,16 @@ export async function maybeSendNewMessageEmail(
 ): Promise<void> {
   if (!isEmailConfigured() || !input.recipientEmail) return;
 
-  const key = input.conversationId;
-  const last = lastAlertSent.get(key) ?? 0;
-  if (Date.now() - last < THROTTLE_MS) return;
+  const { data: convo } = await admin
+    .from("conversations")
+    .select("last_alert_at")
+    .eq("id", input.conversationId)
+    .maybeSingle();
+
+  const last = convo?.last_alert_at
+    ? new Date(convo.last_alert_at as string).getTime()
+    : 0;
+  if (Number.isFinite(last) && Date.now() - last < THROTTLE_MS) return;
 
   const resend = getResendClient();
   const from = getFromAddress();
@@ -49,5 +55,8 @@ export async function maybeSendNewMessageEmail(
     `,
   });
 
-  lastAlertSent.set(key, Date.now());
+  await admin
+    .from("conversations")
+    .update({ last_alert_at: new Date().toISOString() })
+    .eq("id", input.conversationId);
 }

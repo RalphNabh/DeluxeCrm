@@ -30,7 +30,11 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const enriched = await enrichConversationsForContractor(admin, data ?? []);
+    const enriched = await enrichConversationsForContractor(
+      admin,
+      auth.ctx.orgId,
+      data ?? [],
+    );
     return NextResponse.json(enriched);
   } catch (error) {
     captureApiError(error, { route: "conversations/GET" });
