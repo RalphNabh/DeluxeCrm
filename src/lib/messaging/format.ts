@@ -6,6 +6,30 @@ export function truncatePreview(text: string, max = PREVIEW_MAX): string {
   return `${trimmed.slice(0, max - 1)}…`;
 }
 
+export type InboxPreviewRow = {
+  conversation_id: string;
+  unread_count: number | string;
+  last_body: string | null;
+  last_created_at: string | null;
+};
+
+export function mergeContractorInbox(
+  rows: Array<Record<string, unknown>>,
+  inbox: InboxPreviewRow[],
+): Array<Record<string, unknown>> {
+  const byId = new Map(inbox.map((row) => [row.conversation_id, row]));
+  return rows.map((row) => {
+    const extra = byId.get(row.id as string);
+    return {
+      ...row,
+      last_message_preview: extra?.last_body
+        ? truncatePreview(extra.last_body)
+        : null,
+      unread_count: Number(extra?.unread_count) || 0,
+    };
+  });
+}
+
 function isSameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&

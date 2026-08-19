@@ -7,20 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  LayoutDashboard, 
   Users, 
-  FileText, 
   DollarSign,
-  Calendar,
-  BarChart3,
-  Zap, 
-  Settings, 
-  Search,
-  Bell,
   ChevronDown,
-  Plus,
-  CheckSquare,
-  User,
   Copy,
   Share2,
   TrendingUp,
@@ -31,7 +20,6 @@ import {
   Clock,
   X,
   Mail,
-  Link2,
   AlertCircle
 } from "lucide-react";
 import {
@@ -48,7 +36,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import SignOutButton from "@/components/auth/sign-out";
-import UserProfile from "@/components/layout/user-profile";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { Label } from "@/components/ui/label";

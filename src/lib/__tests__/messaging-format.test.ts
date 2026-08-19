@@ -5,10 +5,10 @@ import {
   formatDayDivider,
   formatListTime,
   formatMessageTime,
+  mergeContractorInbox,
   truncatePreview,
 } from "../messaging/format.ts";
 import { buildSystemMessageBody, inboxToUnreadSummary } from "../hub-messaging.ts";
-import { mergeContractorInbox } from "../messaging/enrich-conversations.ts";
 import { columnsOf } from "./helpers/migration-columns.ts";
 
 describe("formatMessageTime", () => {

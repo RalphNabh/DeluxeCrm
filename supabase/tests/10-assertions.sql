@@ -256,6 +256,14 @@ begin
     exists (select 1 from pg_proc where proname = 'increment_ai_usage'),
     'increment_ai_usage function exists'
   );
+  perform pg_temp.expect(
+    exists (select 1 from pg_proc where proname = 'contractor_inbox'),
+    'contractor_inbox function exists'
+  );
+  perform pg_temp.expect(
+    pg_temp.has_column('conversations', 'last_alert_at'),
+    'conversations.last_alert_at exists'
+  );
 
   raise notice 'payment and invite hardening';
   perform pg_temp.expect(pg_temp.has_column('stripe_webhook_events', 'status'), 'stripe_webhook_events.status exists');
