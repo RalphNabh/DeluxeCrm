@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { LogIn, Mail, Star } from "lucide-react";
-import { ContractorMarquee } from "@/components/marketing/contractor-marquee";
+import { HeroVideoLoop } from "@/components/marketing/hero-video-loop";
 import { SupportChatWidget } from "@/components/marketing/support-chat";
 
 const copy = {
@@ -129,11 +129,11 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero — one composition */}
-      <section className="mkt-grain relative overflow-hidden">
-        <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14 lg:pt-10 lg:pb-16">
-          <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-10 lg:gap-8 items-center">
-            <div className="max-w-xl">
+      {/* Hero — text over ambient background video */}
+      <section className="mkt-grain relative overflow-hidden bg-[var(--mkt-ink)] min-h-[85vh]">
+        <HeroVideoLoop />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-14 lg:pt-10 lg:pb-16">
+          <div className="max-w-xl lg:max-w-[540px]">
               <h1 className="mkt-display text-[clamp(2.4rem,5.4vw,3.75rem)] font-extrabold leading-[1.02] tracking-tight text-white mb-5">
                 {t.headline}
               </h1>
@@ -194,11 +194,6 @@ export default function Home() {
                   <p className="text-xs text-white/50">{t.trust2Body}</p>
                 </div>
               </div>
-            </div>
-
-            <div className="relative lg:-mr-4">
-              <ContractorMarquee />
-            </div>
           </div>
         </div>
       </section>

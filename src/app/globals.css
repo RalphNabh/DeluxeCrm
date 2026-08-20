@@ -303,6 +303,31 @@ body {
   animation: mkt-marquee-up linear infinite;
 }
 
+.mkt-hero-video-scrim-x {
+  background: linear-gradient(
+    to right,
+    var(--mkt-ink) 0%,
+    var(--mkt-ink) 35%,
+    rgba(30, 41, 59, 0.85) 55%,
+    rgba(30, 41, 59, 0.4) 75%,
+    transparent 100%
+  );
+}
+
+.mkt-hero-video-scrim-y {
+  background: linear-gradient(
+    to bottom,
+    transparent 60%,
+    var(--mkt-ink) 88%,
+    var(--mkt-paper) 100%
+  );
+}
+
+.mkt-hero-video-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 28%);
+  mask-image: linear-gradient(to right, transparent 0%, black 28%);
+}
+
 .mkt-grain {
   position: relative;
 }
