@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SignupOAuthButtons } from "@/components/signup/signup-oauth-buttons";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthErrorMessage } from "@/lib/auth-email-redirect";
 
@@ -135,6 +136,17 @@ export default function LoginPage() {
               >
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">or</span>
+                </div>
+              </div>
+
+              <SignupOAuthButtons mode="login" disabled={loading} onError={setError} />
             </form>
           </CardContent>
         </Card>

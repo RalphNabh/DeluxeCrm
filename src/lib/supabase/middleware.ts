@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { isApiRoute, isPublicRoute, isSubscriptionExempt } from '@/lib/route-access'
+import { isSubscriptionAccessAllowed } from '@/lib/subscription-access'
 import {
   isContractorRoute,
   isFieldRoute,
@@ -120,9 +121,7 @@ export async function updateSession(request: NextRequest) {
         subscription = data
       }
 
-      const isActive = subscription &&
-        subscription.status === 'active' &&
-        (!subscription.current_period_end || new Date(subscription.current_period_end) > new Date())
+      const isActive = isSubscriptionAccessAllowed(subscription)
 
       if (!isActive) {
         const url = request.nextUrl.clone()

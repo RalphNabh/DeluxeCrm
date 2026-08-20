@@ -194,15 +194,66 @@ export const clientFolderSchema = z.object({
   description: z.string().max(500).optional(),
 });
 
-export const signupSchema = z.object({
-  email: z.string().trim().email().max(254),
-  password: z.string().min(6).max(128),
-  first_name: z.string().trim().min(1).max(100),
-  last_name: z.string().trim().min(1).max(100),
-  phone: z.string().trim().max(50).optional(),
-  company_name: z.string().trim().max(200).optional(),
-  business_type: z.string().trim().max(100).optional(),
+const signupTeamSizeSchema = z.enum(["solo", "2-5", "6-10", "11-15", "16+"]);
+const signupYearsSchema = z.enum(["lt1", "1-3", "3-5", "5-10", "10+"]);
+const signupGoalSchema = z.enum([
+  "scheduling",
+  "quoting",
+  "invoicing",
+  "payments",
+  "team",
+  "marketing",
+  "other",
+]);
+const signupReferralSchema = z.enum([
+  "google_search",
+  "social_media",
+  "friend_referral",
+  "trade_show",
+  "youtube",
+  "podcast",
+  "other",
+]);
+const signupRevenueSchema = z.enum([
+  "under_100k",
+  "100k-500k",
+  "500k-1m",
+  "1m-5m",
+  "5m+",
+  "prefer_not_to_say",
+]);
+
+export const signupOnboardingFieldsSchema = z.object({
+  marketing_opt_in: z.boolean().optional(),
+  team_size: signupTeamSizeSchema.optional(),
+  years_in_business: signupYearsSchema.optional(),
+  primary_goals: z.array(signupGoalSchema).max(5).optional(),
+  referral_source: signupReferralSchema.optional(),
+  estimated_revenue: signupRevenueSchema.optional(),
+  referral_code: z.string().trim().max(50).optional(),
 });
+
+export const signupSchema = z
+  .object({
+    email: z.string().trim().email().max(254),
+    password: z.string().min(6).max(128),
+    first_name: z.string().trim().min(1).max(100),
+    last_name: z.string().trim().min(1).max(100),
+    phone: z.string().trim().max(50).optional(),
+    company_name: z.string().trim().min(1).max(200),
+    business_type: z.string().trim().min(1).max(100),
+  })
+  .merge(signupOnboardingFieldsSchema);
+
+export const completeSignupSchema = z
+  .object({
+    first_name: z.string().trim().min(1).max(100),
+    last_name: z.string().trim().min(1).max(100),
+    phone: z.string().trim().max(50).optional(),
+    company_name: z.string().trim().min(1).max(200),
+    business_type: z.string().trim().min(1).max(100),
+  })
+  .merge(signupOnboardingFieldsSchema);
 
 export const userProfileUpdateSchema = z.object({
   first_name: z.string().trim().max(100).optional(),

@@ -8,8 +8,9 @@ import {
   mapAuthError,
 } from "@/lib/auth-email-redirect";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { createOrganizationForUser } from "@/lib/org";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { provisionSignupAccount } from "@/lib/signup-provision";
+import type { OnboardingSettings } from "@/lib/signup-onboarding";
 import { parseJsonBody } from "@/lib/validation";
 
 function getAuthClient() {
@@ -149,6 +150,13 @@ export async function POST(request: NextRequest) {
       phone,
       company_name,
       business_type,
+      marketing_opt_in,
+      team_size,
+      years_in_business,
+      primary_goals,
+      referral_source,
+      estimated_revenue,
+      referral_code,
     } = parsed.data;
 
     const fullName = `${first_name} ${last_name}`;
@@ -217,27 +225,26 @@ export async function POST(request: NextRequest) {
     if (data.user?.id && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       try {
         const admin = createServiceRoleClient();
-        await admin.from("user_profiles").upsert(
-          {
-            id: data.user.id,
-            user_id: data.user.id,
-            first_name,
-            last_name,
-            full_name: fullName,
-            phone: phone || null,
-            company_name: company_name || null,
-            business_type: business_type || null,
-            persona: "contractor",
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "id" },
-        );
+        const onboarding: OnboardingSettings = {
+          team_size,
+          years_in_business,
+          primary_goals,
+          referral_source,
+          estimated_revenue,
+          marketing_opt_in,
+        };
 
-        await createOrganizationForUser(
-          admin,
-          data.user.id,
-          company_name || `${first_name}'s Company`,
-        );
+        await provisionSignupAccount(admin, {
+          userId: data.user.id,
+          email,
+          first_name,
+          last_name,
+          phone,
+          company_name,
+          business_type,
+          onboarding,
+          referral_code,
+        });
       } catch (profileErr) {
         captureApiError(profileErr, { route: "auth/signup", step: "profile" });
       }

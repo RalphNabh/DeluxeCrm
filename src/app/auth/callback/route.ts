@@ -1,38 +1,67 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { userNeedsSignupOnboarding } from "@/lib/signup-provision";
+import { NextResponse } from "next/server";
+
+function onboardingResumePath(ref: string | null): string {
+  const base = "/signup?oauth=continue";
+  const code = ref?.trim().toUpperCase();
+  return code ? `${base}&ref=${encodeURIComponent(code)}` : base;
+}
+
+function isDashboardIntent(next: string | null): boolean {
+  if (!next) return true;
+  return next === "/dashboard" || next.startsWith("/dashboard?");
+}
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const nextParam = requestUrl.searchParams.get('next')
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
+  const nextParam = requestUrl.searchParams.get("next");
+  const refParam = requestUrl.searchParams.get("ref");
   // Only allow relative in-app redirects
   const next =
-    nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
+    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
       ? nextParam
-      : null
+      : null;
 
   if (code) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
-      if (user?.email_confirmed_at) {
-        // Prefer the caller-provided next (e.g. Client Hub invite completion)
-        if (next) {
-          return NextResponse.redirect(new URL(next, requestUrl.origin))
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        let destination =
+          next ||
+          (user.email_confirmed_at ? "/account-verified" : "/verify-email");
+
+        if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const admin = createServiceRoleClient();
+            const needsOnboarding = await userNeedsSignupOnboarding(
+              admin,
+              user.id,
+            );
+            if (needsOnboarding && isDashboardIntent(next)) {
+              destination = onboardingResumePath(refParam);
+            }
+          } catch {
+            /* fall through to default destination */
+          }
         }
-        return NextResponse.redirect(
-          new URL('/account-verified', requestUrl.origin),
-        )
+
+        if (user.email_confirmed_at || destination.includes("/signup")) {
+          return NextResponse.redirect(new URL(destination, requestUrl.origin));
+        }
       }
     }
   }
 
   return NextResponse.redirect(
-    new URL(next || '/verify-email', requestUrl.origin),
-  )
+    new URL(next || "/verify-email", requestUrl.origin),
+  );
 }
-
