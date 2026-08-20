@@ -247,8 +247,8 @@ export const SIGNUP_TESTIMONIALS = [
   {
     quote:
       "As soon as we started using DyluxePro, we could make and send estimates within minutes.",
-    author: "Ryaan Tuttle",
-    role: "Best Handyman Boston",
+    author: "Andre",
+    role: "Adeco Construction Company",
   },
   {
     quote:
