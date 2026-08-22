@@ -1,0 +1,26 @@
+---
+description: Commit and push using the user's git identity, never Cursor Agent
+alwaysApply: true
+---
+
+# Git commit identity
+
+This machine has correct `git config user.name` / `user.email` (Ralph Nabhan).  
+**Cursor agent shells often inject** `GIT_AUTHOR_*` / `GIT_COMMITTER_*` as `Cursor Agent <cursoragent@cursor.com>`, which **overrides** config and produces the wrong author on GitHub.
+
+## When committing (required)
+
+1. **Clear** Cursor overrides in the shell before `git commit`:
+   - PowerShell:  
+     `Remove-Item Env:GIT_AUTHOR_NAME, Env:GIT_AUTHOR_EMAIL, Env:GIT_COMMITTER_NAME, Env:GIT_COMMITTER_EMAIL -ErrorAction SilentlyContinue`
+   - bash:  
+     `unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL`
+2. **Do not** set `GIT_AUTHOR_*`, `GIT_COMMITTER_*`, or `git commit --author=...`.
+3. **Do not** use `Cursor Agent` / `cursoragent@cursor.com` as author or committer.
+4. After commit, verify:  
+   `git log -1 --format="%an <%ae>"`  
+   Must show the configured human identity (e.g. Ralph Nabhan), not Cursor Agent.
+
+## Push
+
+Push with normal `git push` as usual. Auth is separate; author is the commit metadata above.
