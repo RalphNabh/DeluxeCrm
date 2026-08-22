@@ -21,7 +21,7 @@ Actionable checklist mapped to this repo. Use it before inviting paying customer
 | Rate limiting | Yes | Upstash env vars required in prod |
 | Crons (automations, visits, AI cleanup) | Yes | `CRON_SECRET` in Vercel |
 | Error monitoring (Sentry) | Yes | DSN in Vercel |
-| Privacy / Terms | Basic pages | Lawyer review recommended |
+| Privacy / Terms | Basic pages | Draft OK for soft launch; lawyer when revenue/ads scale |
 | CI (lint, test, build, migrations) | Yes | Must stay green on `main` |
 
 ---
@@ -350,9 +350,17 @@ Defined in `vercel.json`:
 | Business entity + bank | External |
 | Support inbox | Set `CONTACT_EMAIL` |
 
-- [ ] Lawyer review of Privacy + Terms (recommended before paid marketing)
-- [ ] Refund policy documented and matches Stripe portal behavior
+**Launch (light pass)**
+
+- [ ] Privacy + Terms pages live and linked from signup, footer, and Google OAuth branding
+- [ ] Refund/cancellation policy documented and matches Stripe portal behavior
 - [ ] Cookie consent if targeting EU/UK/CA
+
+**When revenue is healthy and/or you run paid ads** (do not skip)
+
+- [ ] Hire a lawyer (or paid legal-policy service) to review/replace Privacy Policy and Terms of Service for your jurisdiction (e.g. Canada / US)
+- [ ] Re-review before scaling Google/Meta/ads spend, App Store listing, or enterprise sales
+- [ ] Confirm policies cover Google OAuth, Stripe billing/Connect, Resend email, AI features, and client (end-customer) data in the CRM
 
 ---
 
@@ -446,7 +454,7 @@ Do this on **production** with a throwaway account.
 
 **Week 2 — Trust**
 
-- [ ] §9 Legal review light pass
+- [ ] §9 Legal light pass (pages live + accurate draft)
 - [ ] §8 Secret rotation if needed
 - [ ] §11 Monitoring alerts
 
@@ -460,6 +468,10 @@ Do this on **production** with a throwaway account.
 
 - [ ] Marketing / SEO on `src/app/page.tsx`
 - [ ] CI green on every push to `main`
+
+**Later — revenue + paid ads**
+
+- [ ] §9 Lawyer / professional review of Privacy + Terms before heavy ad spend or meaningful MRR growth
 
 ---
 

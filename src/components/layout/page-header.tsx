@@ -28,7 +28,7 @@ export default function PageHeader({
   filters,
 }: PageHeaderProps) {
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4 transition-colors">
+    <div className="border-b border-gray-200 bg-white px-4 py-4 transition-colors md:px-6">
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
@@ -37,7 +37,7 @@ export default function PageHeader({
           )}
         </div>
         
-        <div className="flex flex-col space-y-3 md:flex-row md:items-center md:space-y-0 md:space-x-3">
+        <div className="flex flex-col flex-wrap gap-3 space-y-0 md:flex-row md:items-center">
           {showSearch && (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -58,13 +58,13 @@ export default function PageHeader({
           )}
           
           {secondaryActions && (
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               {secondaryActions}
             </div>
           )}
-          
+
           {primaryAction && (
-            <div>
+            <div className="w-full md:w-auto [&>a]:block [&>a>button]:w-full [&>button]:w-full md:[&>a]:inline md:[&>a>button]:w-auto md:[&>button]:w-auto">
               {primaryAction}
             </div>
           )}
