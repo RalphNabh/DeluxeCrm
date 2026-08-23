@@ -661,9 +661,9 @@ export default function AutomationsPage() {
                   <Link href="/requests" className="text-xs text-blue-700 hover:underline">
                     Send a test lead, then check Requests
                   </Link>
-                  <a href="mailto:support@dyluxepro.com" className="text-xs text-gray-500 hover:underline">
+                  <Link href="/contact" className="text-xs text-gray-500 hover:underline">
                     Need help connecting? We'll set it up for you
-                  </a>
+                  </Link>
                 </div>
               </div>
             </CardContent>
