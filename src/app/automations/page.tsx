@@ -226,6 +226,38 @@ export default function AutomationsPage() {
     } catch {}
   };
 
+  const startFromTemplate = (templateId: string) => {
+    const template = AUTOMATION_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+    setSelectedTemplate(templateId);
+    setCustomName('');
+    if (template.action_type === 'send_email') {
+      setCustomSubject(template.action_payload?.subject || '');
+      setCustomBody(template.action_payload?.body || '');
+    } else {
+      setCustomSubject('');
+      setCustomBody('');
+    }
+    setActionError(null);
+    setShowNewAutomation(true);
+  };
+
+  const getTemplateIcon = (templateId: string) => {
+    const icons: Record<string, typeof Mail> = {
+      estimate_followup: Clock,
+      estimate_approved_thankyou: CheckCircle,
+      invoice_overdue_reminder: AlertCircle,
+      new_client_welcome: Gift,
+      new_request_autoreply: Send,
+      job_completion_thankyou: CheckSquare,
+      lead_estimate_sent: Mail,
+      lead_approved: User,
+      lead_job_scheduled: Calendar,
+      lead_completed: CheckCircle,
+    };
+    return icons[templateId] || Zap;
+  };
+
   const createAutomation = async () => {
     if (!selectedTemplate) {
       setActionError('Please select an automation template');
@@ -571,6 +603,46 @@ export default function AutomationsPage() {
             <ListPageSkeleton cards={3} />
           ) : (
           <>
+          {/* Popular Automations */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-semibold text-gray-900">Popular Automations</h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              One-click starting points — pick one, customize the message, and turn it on.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {AUTOMATION_TEMPLATES.map((template) => {
+                const TemplateIcon = getTemplateIcon(template.id);
+                const inUse = automations.some(a => a.trigger_event === template.trigger_event);
+                return (
+                  <Card key={template.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="p-2 bg-blue-100 rounded-lg shrink-0">
+                          <TemplateIcon className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-medium text-gray-900 leading-tight">{template.name}</h3>
+                          <p className="text-xs text-gray-500 mt-1">{getTriggerLabel(template.trigger_event)}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-4">{template.description}</p>
+                      <div className="flex items-center justify-between">
+                        <Button size="sm" variant="outline" onClick={() => startFromTemplate(template.id)}>
+                          Use Template
+                        </Button>
+                        {inUse && (
+                          <span className="text-xs text-green-700 font-medium">✓ Added</span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="border-0 shadow-sm">
@@ -626,10 +698,10 @@ export default function AutomationsPage() {
               <CardContent className="p-12 text-center">
                 <Zap className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Automations Yet</h3>
-                <p className="text-gray-600 mb-6">Get started by creating your first automation to streamline your workflow.</p>
+                <p className="text-gray-600 mb-6">Pick one of the popular automations above, or build your own from scratch.</p>
                 <Button onClick={() => setShowNewAutomation(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Automation
+                  Create Custom Automation
                 </Button>
               </CardContent>
             </Card>
