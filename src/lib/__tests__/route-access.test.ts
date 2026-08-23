@@ -18,6 +18,7 @@ describe("isPublicRoute", () => {
     assert.equal(isPublicRoute("/signup/invite"), true);
     assert.equal(isPublicRoute("/auth/callback"), true);
     assert.equal(isPublicRoute("/request/acme-plumbing"), true);
+    assert.equal(isPublicRoute("/oauth/authorize"), true);
   });
 
   it("does not treat every path as public (regression)", () => {

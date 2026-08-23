@@ -22,6 +22,7 @@ const PUBLIC_PREFIXES = [
   "/invite/",
   "/portal/register",
   "/request/",
+  "/oauth/",
 ];
 
 const SUBSCRIPTION_EXEMPT_PREFIXES = [
