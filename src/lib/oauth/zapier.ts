@@ -5,19 +5,19 @@ const AUTH_CODE_TTL_MS = 5 * 60 * 1000;
 const ACCESS_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function getZapierClientId(): string {
-  const id = process.env.ZAPIER_OAUTH_CLIENT_ID;
+  const id = process.env.ZAPIER_OAUTH_CLIENT_ID?.trim();
   if (!id) throw new Error("ZAPIER_OAUTH_CLIENT_ID is not configured");
   return id;
 }
 
 export function getZapierClientSecret(): string {
-  const secret = process.env.ZAPIER_OAUTH_CLIENT_SECRET;
+  const secret = process.env.ZAPIER_OAUTH_CLIENT_SECRET?.trim();
   if (!secret) throw new Error("ZAPIER_OAUTH_CLIENT_SECRET is not configured");
   return secret;
 }
 
 export function getZapierRedirectUri(): string {
-  const uri = process.env.ZAPIER_OAUTH_REDIRECT_URI;
+  const uri = process.env.ZAPIER_OAUTH_REDIRECT_URI?.trim();
   if (!uri) throw new Error("ZAPIER_OAUTH_REDIRECT_URI is not configured");
   return uri;
 }

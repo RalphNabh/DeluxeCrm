@@ -50,6 +50,12 @@ export default async function OAuthAuthorizePage({
   }
 
   if (clientId !== expectedClientId || redirectUri !== expectedRedirectUri) {
+    console.error("[oauth/authorize] mismatch", {
+      clientIdMatch: clientId === expectedClientId,
+      redirectUriMatch: redirectUri === expectedRedirectUri,
+      receivedRedirectUri: redirectUri,
+      expectedRedirectUri,
+    });
     return <ErrorScreen message="Unrecognized application." />;
   }
 
