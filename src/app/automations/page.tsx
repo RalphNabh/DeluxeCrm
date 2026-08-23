@@ -603,6 +603,51 @@ export default function AutomationsPage() {
             <ListPageSkeleton cards={3} />
           ) : (
           <>
+          {/* Connect Lead Sources */}
+          <Card className="border-0 shadow-sm mb-8 bg-gradient-to-r from-blue-50 to-white">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-100 rounded-lg shrink-0">
+                    <Zap className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Google Ads leads &rarr; Requests, automatically
+                    </h2>
+                    <p className="text-sm text-gray-600 mt-1 max-w-xl">
+                      Connect Zapier once and every new lead from Google Ads (or 6,000+ other apps)
+                      lands in your Requests inbox — no copying URLs or tokens.
+                    </p>
+                    <ol className="text-xs text-gray-500 mt-2 space-y-0.5 list-decimal list-inside">
+                      <li>Click Connect with Zapier</li>
+                      <li>Sign in to DyluxePro when Zapier asks</li>
+                      <li>Pick Google Ads (or your source) and turn the Zap on</li>
+                    </ol>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start md:items-end gap-2 shrink-0">
+                  <a
+                    href="https://zapier.com/developer/public-invite/245396/ce25dca52ebf2ac52725f8b3669948fa/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button>
+                      Connect with Zapier
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </a>
+                  <Link href="/requests" className="text-xs text-blue-700 hover:underline">
+                    Send a test lead, then check Requests
+                  </Link>
+                  <a href="mailto:support@dyluxepro.com" className="text-xs text-gray-500 hover:underline">
+                    Need help connecting? We'll set it up for you
+                  </a>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Popular Automations */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-1">
