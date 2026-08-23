@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import PageHeader from "@/components/layout/page-header";
+import { notifyRequestsChanged } from "@/lib/requests/unread-badge";
+import { formatMetadataEntries, humanizeSource } from "@/lib/requests/metadata-labels";
 
 interface ServiceRequest {
   id: string;
@@ -14,6 +16,8 @@ interface ServiceRequest {
   status: string;
   created_at: string;
   photos?: string[];
+  source?: string;
+  metadata?: Record<string, unknown> | null;
   clients?: { id?: string; name?: string; email?: string };
 }
 
@@ -40,6 +44,7 @@ export default function RequestsInboxPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    notifyRequestsChanged();
     load();
   };
 
@@ -73,13 +78,20 @@ export default function RequestsInboxPage() {
           {requests.map((req) => (
             <Card key={req.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">{req.title}</CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CardTitle className="text-base">{req.title}</CardTitle>
+                  <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                    {humanizeSource(req.source, req.metadata)}
+                  </span>
+                </div>
                 <p className="text-sm text-gray-500">
                   {req.clients?.name} · {req.status} ·{" "}
                   {new Date(req.created_at).toLocaleDateString()}
                 </p>
               </CardHeader>
-              {(req.description || (Array.isArray(req.photos) && req.photos.length > 0)) && (
+              {(req.description ||
+                (Array.isArray(req.photos) && req.photos.length > 0) ||
+                formatMetadataEntries(req.metadata).length > 0) && (
                 <CardContent className="text-sm text-gray-600 pb-2 space-y-2">
                   {req.description && <p>{req.description}</p>}
                   {Array.isArray(req.photos) && req.photos.length > 0 && (
@@ -95,6 +107,16 @@ export default function RequestsInboxPage() {
                         </a>
                       ))}
                     </div>
+                  )}
+                  {formatMetadataEntries(req.metadata).length > 0 && (
+                    <dl className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2 text-xs text-gray-600 border-t pt-2 mt-2">
+                      {formatMetadataEntries(req.metadata).map((entry) => (
+                        <div key={entry.key} className="flex justify-between gap-2">
+                          <dt className="font-medium text-gray-500">{entry.label}</dt>
+                          <dd className="truncate text-right">{entry.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   )}
                 </CardContent>
               )}

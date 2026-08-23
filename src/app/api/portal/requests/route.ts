@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { requirePortalUser, requireManager } from "@/lib/api-auth";
 import { captureApiError } from "@/lib/api-error";
@@ -13,6 +13,8 @@ import {
   ensureClientConversation,
   postSystemMessage,
 } from "@/lib/hub-messaging";
+import { checkAndExecuteAutomations } from "@/lib/automations/executor";
+import { maybeSendNewLeadEmail } from "@/lib/email/lead-alert";
 
 const requestSchema = z.object({
   title: z.string().min(1).max(200),
@@ -119,6 +121,7 @@ export async function POST(request: NextRequest) {
         preferred_date: preferredDate ?? null,
         photos: photoUrls,
         status: "new",
+        source: "portal",
       })
       .select("*")
       .single();
@@ -142,6 +145,46 @@ export async function POST(request: NextRequest) {
       },
       serviceRequestId: data.id,
     });
+
+    const [{ data: org }, { data: client }] = await Promise.all([
+      admin
+        .from("organizations")
+        .select("id, owner_user_id, name")
+        .eq("id", auth.orgId)
+        .maybeSingle(),
+      admin
+        .from("clients")
+        .select("name, email")
+        .eq("id", auth.clientId)
+        .maybeSingle(),
+    ]);
+
+    if (org?.owner_user_id) {
+      await checkAndExecuteAutomations("service_request_received", {
+        event: "service_request_received",
+        user_id: org.owner_user_id as string,
+        organization_id: auth.orgId,
+        service_request_id: data.id,
+        client_id: auth.clientId,
+        client_name: client?.name,
+        client_email: client?.email,
+        title,
+        source: "portal",
+      });
+
+      after(() =>
+        maybeSendNewLeadEmail(admin, {
+          serviceRequestId: data.id,
+          organizationId: auth.orgId,
+          ownerUserId: org.owner_user_id as string,
+          orgName: org.name ?? undefined,
+          title,
+          clientName: client?.name ?? undefined,
+          clientEmail: client?.email ?? undefined,
+          source: "portal",
+        }).catch(() => {}),
+      );
+    }
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {

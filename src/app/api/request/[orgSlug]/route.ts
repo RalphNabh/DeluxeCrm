@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { captureApiError } from "@/lib/api-error";
@@ -12,6 +12,8 @@ import {
   ensureClientConversation,
   postSystemMessage,
 } from "@/lib/hub-messaging";
+import { checkAndExecuteAutomations } from "@/lib/automations/executor";
+import { maybeSendNewLeadEmail } from "@/lib/email/lead-alert";
 
 type RouteContext = { params: Promise<{ orgSlug: string }> };
 
@@ -226,6 +228,31 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
       serviceRequestId: requestRow.id,
     });
+
+    await checkAndExecuteAutomations("service_request_received", {
+      event: "service_request_received",
+      user_id: org.owner_user_id as string,
+      organization_id: org.id,
+      service_request_id: requestRow.id,
+      client_id: clientId,
+      client_name: name,
+      client_email: email,
+      title,
+      source: "public_form",
+    });
+
+    after(() =>
+      maybeSendNewLeadEmail(admin, {
+        serviceRequestId: requestRow.id,
+        organizationId: org.id,
+        ownerUserId: org.owner_user_id as string,
+        orgName: org.name ?? undefined,
+        title,
+        clientName: name,
+        clientEmail: email,
+        source: "public_form",
+      }).catch(() => {}),
+    );
 
     return NextResponse.json(
       { success: true, id: requestRow.id },

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { verifyAccessToken } from "@/lib/oauth/zapier";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
@@ -9,6 +9,8 @@ import {
   ensureClientConversation,
   postSystemMessage,
 } from "@/lib/hub-messaging";
+import { checkAndExecuteAutomations } from "@/lib/automations/executor";
+import { maybeSendNewLeadEmail } from "@/lib/email/lead-alert";
 
 const KNOWN_FIELDS = new Set([
   "name",
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
     const admin = createServiceRoleClient();
     const { data: org } = await admin
       .from("organizations")
-      .select("id, owner_user_id")
+      .select("id, owner_user_id, name")
       .eq("id", grant.organizationId)
       .maybeSingle();
 
@@ -154,6 +156,31 @@ export async function POST(request: NextRequest) {
       },
       serviceRequestId: requestRow.id,
     });
+
+    await checkAndExecuteAutomations("service_request_received", {
+      event: "service_request_received",
+      user_id: org.owner_user_id as string,
+      organization_id: org.id,
+      service_request_id: requestRow.id,
+      client_id: clientId,
+      client_name: name,
+      client_email: email,
+      title: title || "Lead from Zapier",
+      source: "zapier",
+    });
+
+    after(() =>
+      maybeSendNewLeadEmail(admin, {
+        serviceRequestId: requestRow.id,
+        organizationId: org.id,
+        ownerUserId: org.owner_user_id as string,
+        orgName: org.name ?? undefined,
+        title: title || "Lead from Zapier",
+        clientName: name,
+        clientEmail: email,
+        source: "zapier",
+      }).catch(() => {}),
+    );
 
     return NextResponse.json({ id: requestRow.id, status: "new" }, { status: 201 });
   } catch (error) {

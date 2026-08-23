@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { isNavItemActive, navItemsForRole, type NavItem } from "@/lib/navigation";
 import { useCurrentMemberQuery } from "@/lib/query/hooks";
 import { UNREAD_CHANGED_EVENT } from "@/lib/messaging/unread-badge";
+import { REQUESTS_UNREAD_CHANGED_EVENT } from "@/lib/requests/unread-badge";
 
 /**
  * Legacy item shape used by older pages that pass `items` directly.
@@ -38,6 +39,7 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
   const pathname = usePathname();
   const { data: member } = useCurrentMemberQuery();
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [unreadRequests, setUnreadRequests] = useState(0);
 
   useEffect(() => {
     if (!member?.role) return;
@@ -53,6 +55,23 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
     return () => {
       clearInterval(interval);
       window.removeEventListener(UNREAD_CHANGED_EVENT, load);
+    };
+  }, [member?.role, pathname]);
+
+  useEffect(() => {
+    if (!member?.role) return;
+    const load = () => {
+      fetch("/api/requests/unread-summary")
+        .then((r) => (r.ok ? r.json() : { total: 0 }))
+        .then((d) => setUnreadRequests(Number(d?.total) || 0))
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 60_000);
+    window.addEventListener(REQUESTS_UNREAD_CHANGED_EVENT, load);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(REQUESTS_UNREAD_CHANGED_EVENT, load);
     };
   }, [member?.role, pathname]);
 
@@ -135,6 +154,11 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
                     {item.href === "/messages" && unreadMessages > 0 && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-500 px-1.5 text-[10px] font-semibold text-white">
                         {unreadMessages > 99 ? "99+" : unreadMessages}
+                      </span>
+                    )}
+                    {item.href === "/requests" && unreadRequests > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-500 px-1.5 text-[10px] font-semibold text-white">
+                        {unreadRequests > 99 ? "99+" : unreadRequests}
                       </span>
                     )}
                   </Link>

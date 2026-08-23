@@ -121,6 +121,17 @@ const AUTOMATION_TEMPLATES = [
     }
   },
   {
+    id: 'new_request_autoreply',
+    name: 'Auto-Reply to New Requests',
+    description: 'Automatically acknowledge a new service request as soon as it comes in',
+    trigger_event: 'service_request_received',
+    action_type: 'send_email',
+    action_payload: {
+      subject: 'We\'ve received your request',
+      body: 'Hi {{client_name}},\n\nThanks for reaching out! We\'ve received your request "{{title}}" and will be in touch shortly.\n\nBest regards'
+    }
+  },
+  {
     id: 'job_completion_thankyou',
     name: 'Send Thank You After Job Completion',
     description: 'Send a thank you email when a job is marked as completed',
@@ -365,6 +376,7 @@ export default function AutomationsPage() {
       'client_created': 'When new client is added',
       'job_completed': 'When job is completed',
       'visit_completed': 'When visit is completed',
+      'service_request_received': 'When a new request comes in',
     };
     return labels[trigger] || trigger;
   };

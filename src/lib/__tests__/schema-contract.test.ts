@@ -60,6 +60,13 @@ describe("migration column parsing", () => {
     assert.ok(columnsOf("conversations").has("last_alert_at"));
   });
 
+  it("adds lead alert tracking and source/metadata on service_requests", () => {
+    const SERVICE_REQUEST_COLUMNS = columnsOf("service_requests");
+    assert.ok(SERVICE_REQUEST_COLUMNS.has("lead_alert_sent_at"));
+    assert.ok(SERVICE_REQUEST_COLUMNS.has("source"));
+    assert.ok(SERVICE_REQUEST_COLUMNS.has("metadata"));
+  });
+
   it("does not treat table constraints as columns", () => {
     for (const name of ["primary", "constraint", "unique", "check"]) {
       assert.equal(PAYMENT_COLUMNS.has(name), false);
