@@ -862,7 +862,7 @@ function ContextStep(props: {
           <Label htmlFor="notes">Notes for the AI</Label>
           <Textarea
             id="notes"
-            placeholder="Anything else the AI should know — e.g. 'client wants brass fittings', 'existing drywall stays'"
+            placeholder="Anything else the AI should know - e.g. 'client wants brass fittings', 'existing drywall stays'"
             value={props.notes}
             onChange={(e) => props.setNotes(e.target.value)}
             rows={3}
@@ -1037,7 +1037,7 @@ function ItemRow({
           </span>
         )}
         {item.confidence < 0.6 && isAi && (
-          <span className="text-amber-600">Low confidence — verify in person</span>
+          <span className="text-amber-600">Low confidence - verify in person</span>
         )}
         {!isCatalog && item.description.trim() !== "" && (
           <button
@@ -1087,7 +1087,7 @@ function FinalizeStep({
               {clients.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
-                  {c.email ? ` — ${c.email}` : ""}
+                  {c.email ? ` · ${c.email}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>

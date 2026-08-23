@@ -74,4 +74,4 @@ export function isUnusualPhone(value: string, committed = false): boolean {
 }
 
 export const UNUSUAL_PHONE_NOTE =
-  "Unusual format — you can still save this number.";
+  "Unusual format - you can still save this number.";

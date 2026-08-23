@@ -26,7 +26,7 @@ export const SIGNUP_STEPS: {
     id: "credentials",
     index: 1,
     title: "Create your account",
-    subtitle: "Start your free trial — no credit card required.",
+    subtitle: "Start your free trial - no credit card required.",
   },
   {
     id: "name",
@@ -74,13 +74,13 @@ export const SIGNUP_STEPS: {
     id: "referral",
     index: 9,
     title: "How did you hear about us?",
-    subtitle: "Thanks — this helps us improve.",
+    subtitle: "Thanks - this helps us improve.",
   },
   {
     id: "revenue",
     index: 10,
     title: "What's your estimated annual revenue?",
-    subtitle: "Optional — skip if you prefer.",
+    subtitle: "Optional - skip if you prefer.",
   },
 ];
 

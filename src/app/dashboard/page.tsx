@@ -279,7 +279,7 @@ function DraggableLeadCard({
             <Dialog open={isEditingValue} onOpenChange={setIsEditingValue}>
               <div className="flex items-center gap-1 justify-end">
                 <div className="text-sm font-semibold text-teal-600 whitespace-nowrap">
-                  {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '—'}
+                  {lead.value > 0 ? formatCurrencyWithSymbol(lead.value) : '-'}
                 </div>
                 <DialogTrigger asChild>
                   <Button
@@ -1096,7 +1096,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-700 mt-1">
-                    Snap a photo of the job site — the AI identifies materials,
+                    Snap a photo of the job site - the AI identifies materials,
                     pulls prices from your catalog, and drafts the estimate.
                   </p>
                 </div>

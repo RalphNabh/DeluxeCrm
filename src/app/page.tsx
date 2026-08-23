@@ -19,7 +19,7 @@ const copy = {
     startFree: "Start free",
     seePlans: "See plans",
     headline: "Quotes out. Crews booked. Paid.",
-    sub: "The job desk for contractors — clients, estimates, schedules, and invoices in one place so your crew stays on the tools, not in email threads.",
+    sub: "The job desk for contractors - clients, estimates, schedules, and invoices in one place so your crew stays on the tools, not in email threads.",
     noCard: "No credit card required. Cancel anytime.",
     trust1Title: "Built for the field",
     trust1Body: "Estimates, jobs, and invoices that match how crews work",
@@ -37,7 +37,7 @@ const copy = {
     startFree: "Essai gratuit",
     seePlans: "Voir les forfaits",
     headline: "Soumissions envoyées. Équipes planifiées. Payé.",
-    sub: "Le bureau de chantier pour entrepreneurs — clients, estimations, horaires et factures au même endroit, pour que votre équipe reste sur le terrain.",
+    sub: "Le bureau de chantier pour entrepreneurs - clients, estimations, horaires et factures au même endroit, pour que votre équipe reste sur le terrain.",
     noCard: "Aucune carte de crédit requise. Annulez en tout temps.",
     trust1Title: "Conçu pour le terrain",
     trust1Body: "Estimations, jobs et factures adaptés au travail des équipes",
@@ -218,7 +218,7 @@ export default function Home() {
               One desk for the whole job
             </h2>
             <p className="text-lg text-[var(--mkt-ink)]/65">
-              Quote it, schedule it, finish it, get paid — without jumping between
+              Quote it, schedule it, finish it, get paid - without jumping between
               five apps.
             </p>
           </div>
@@ -238,7 +238,7 @@ export default function Home() {
               {
                 step: "03",
                 title: "Collect the check",
-                body: "Invoice from the same record you estimated — less retyping, fewer lost payments.",
+                body: "Invoice from the same record you estimated - less retyping, fewer lost payments.",
               },
             ].map((item) => (
               <div key={item.step} className="border-t-2 border-[var(--mkt-ink)] pt-5">

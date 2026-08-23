@@ -39,7 +39,7 @@ export default function CheckEmailPanel({
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Account created</h2>
           <p className="text-gray-600">
-            One more step — confirm your email to get started.
+            One more step - confirm your email to get started.
           </p>
         </div>
       )}
@@ -124,7 +124,7 @@ export default function CheckEmailPanel({
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    I&apos;ve confirmed — continue
+                    I&apos;ve confirmed - continue
                   </>
                 )}
               </Button>

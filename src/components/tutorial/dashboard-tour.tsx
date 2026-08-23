@@ -18,7 +18,7 @@ const DASHBOARD_TUTORIAL_STEPS: TutorialStepConfig[] = [
     title: 'New: AI Estimate from a photo ✨',
     content: `Snap a photo of the job site and DyluxePro's AI identifies the materials, pulls prices from your catalog, and drafts a sendable estimate in seconds.
 
-Tap this banner to try it — works great on your phone in the field.`,
+Tap this banner to try it - works great on your phone in the field.`,
     placement: 'bottom',
   },
   {

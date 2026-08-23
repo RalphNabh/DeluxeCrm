@@ -626,7 +626,7 @@ export default function AutomationsPage() {
                     </h2>
                     <p className="text-sm text-gray-600 mt-1 max-w-xl">
                       Connect Zapier once and every new lead from Google Ads (or 6,000+ other apps)
-                      lands in your Requests inbox — no copying URLs or tokens.
+                      lands in your Requests inbox - no copying URLs or tokens.
                     </p>
                     <ol className="text-xs text-gray-500 mt-2 space-y-0.5 list-decimal list-inside">
                       <li>Click Connect with Zapier</li>
@@ -663,7 +663,7 @@ export default function AutomationsPage() {
               <h2 className="text-lg font-semibold text-gray-900">Popular Automations</h2>
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              One-click starting points — pick one, customize the message, and turn it on.
+              One-click starting points - pick one, customize the message, and turn it on.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {AUTOMATION_TEMPLATES.map((template) => {

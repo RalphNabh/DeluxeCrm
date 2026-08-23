@@ -56,7 +56,7 @@ export default function PortalLoginPage() {
           <CardTitle>Client Hub</CardTitle>
           <CardDescription>
             Sign in to view estimates, pay invoices, and request work from your contractor.
-            Access is by invitation — check your email for a Client Hub invite.
+            Access is by invitation - check your email for a Client Hub invite.
           </CardDescription>
         </CardHeader>
         <CardContent>

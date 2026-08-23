@@ -19,7 +19,7 @@ export function RevenueStep({ draft, onChange }: RevenueStepProps) {
         columns={1}
       />
       <p className="text-sm text-[var(--mkt-mist)] text-center">
-        This helps us recommend the right plan — you can skip with &ldquo;Prefer not to say&rdquo;.
+        This helps us recommend the right plan - you can skip with &ldquo;Prefer not to say&rdquo;.
       </p>
     </div>
   );

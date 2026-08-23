@@ -72,7 +72,7 @@ export function SignupWizardShell({
           <blockquote className="mt-12 hidden lg:block border-l-2 border-[var(--mkt-signal)] pl-4">
             <p className="text-white/90 italic">&ldquo;{testimonial.quote}&rdquo;</p>
             <footer className="mt-3 text-sm text-white/60">
-              — {testimonial.author}, {testimonial.role}
+              - {testimonial.author}, {testimonial.role}
             </footer>
           </blockquote>
         </div>

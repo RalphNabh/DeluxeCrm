@@ -203,7 +203,7 @@ function PortalDashboard() {
                   {e.estimate_number}
                 </Link>
                 <span className="text-right text-slate-700">
-                  {formatCurrencyWithSymbol(e.total)} — {e.status}
+                  {formatCurrencyWithSymbol(e.total)} · {e.status}
                   {["Sent", "Changes Requested"].includes(e.status) && (
                     <Link
                       href={`/portal/estimates/${e.id}`}
@@ -217,7 +217,7 @@ function PortalDashboard() {
             ))}
             {!data?.estimates?.length && (
               <p className="text-gray-500 text-sm">
-                No estimates yet — your contractor will send one here.
+                No estimates yet - your contractor will send one here.
               </p>
             )}
           </CardContent>
@@ -241,7 +241,7 @@ function PortalDashboard() {
                 </Link>
                 <div className="flex items-center gap-2">
                   <span>
-                    {formatCurrencyWithSymbol(inv.total)} — {inv.status}
+                    {formatCurrencyWithSymbol(inv.total)} · {inv.status}
                   </span>
                   {inv.status === "Paid" ? (
                     <Link href={`/portal/invoices/${inv.id}`}>
@@ -263,7 +263,7 @@ function PortalDashboard() {
             ))}
             {!data?.invoices?.length && (
               <p className="text-gray-500 text-sm">
-                No invoices yet — they will appear here when your contractor bills you.
+                No invoices yet - they will appear here when your contractor bills you.
               </p>
             )}
           </CardContent>
@@ -278,7 +278,7 @@ function PortalDashboard() {
               <div key={job.id} className="border-b py-3 text-sm last:border-0">
                 <div className="font-medium">{job.title}</div>
                 <div className="text-gray-500">
-                  {new Date(job.start_time).toLocaleString()} — {job.status}
+                  {new Date(job.start_time).toLocaleString()} · {job.status}
                 </div>
               </div>
             ))}

@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "DyluxePro CRM",
-    description: "The job desk for contractors — quotes, crews, and getting paid.",
+    description: "The job desk for contractors - quotes, crews, and getting paid.",
     url: process.env.NEXT_PUBLIC_APP_URL || "https://dyluxepro.com",
     siteName: "DyluxePro",
     type: "website",

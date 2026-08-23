@@ -167,7 +167,7 @@ export function mapAuthError(
     return {
       code: "network",
       message:
-        "We couldn't reach our authentication service. This is usually temporary — wait a minute and try again. If it keeps failing, our database may need to be restored in Supabase.",
+        "We couldn't reach our authentication service. This is usually temporary - wait a minute and try again. If it keeps failing, our database may need to be restored in Supabase.",
     };
   }
 

@@ -62,7 +62,7 @@ export function IndustryGrid({ value, onChange }: IndustryGridProps) {
       </div>
       {filtered.length === 0 ? (
         <p className="text-sm text-[var(--mkt-mist)] text-center py-4">
-          No matches — try &quot;Other&quot;
+          No matches - try &quot;Other&quot;
         </p>
       ) : null}
     </div>
