@@ -28,11 +28,14 @@ export async function PUT(
 
     const parsed = await parseJsonBody(request, teamMemberUpdateSchema);
     if (!parsed.ok) return parsed.response;
-    const { kind, role, status } = parsed.data;
+    const { kind, role, status, receives_lead_alerts } = parsed.data;
 
     if (kind === 'invitation') {
-      const updates: Record<string, string> = {};
+      const updates: Record<string, string | boolean> = {};
       if (role) updates.role = roleValue(role);
+      if (typeof receives_lead_alerts === 'boolean') {
+        updates.receives_lead_alerts = receives_lead_alerts;
+      }
       if (!Object.keys(updates).length) {
         return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
       }
@@ -70,7 +73,7 @@ export async function PUT(
       );
     }
 
-    const updates: Record<string, string> = { updated_at: new Date().toISOString() };
+    const updates: Record<string, string | boolean> = { updated_at: new Date().toISOString() };
     if (role) {
       const nextRole = roleValue(role);
       if (nextRole === 'owner') {
@@ -83,6 +86,9 @@ export async function PUT(
     }
     if (status) {
       updates.status = status === 'Active' ? 'active' : 'disabled';
+    }
+    if (typeof receives_lead_alerts === 'boolean') {
+      updates.receives_lead_alerts = receives_lead_alerts;
     }
 
     const { data, error } = await supabase

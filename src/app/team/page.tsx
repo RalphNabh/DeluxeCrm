@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   LayoutDashboard, 
@@ -75,6 +76,7 @@ interface TeamMember {
   total_hours: number;
   avatar?: string;
   notes?: string;
+  receives_lead_alerts: boolean;
 }
 
 export default function TeamPage() {
@@ -92,7 +94,8 @@ export default function TeamPage() {
     phone: '',
     role: 'Worker' as 'Owner' | 'Manager' | 'Worker' | 'Admin',
     status: 'Pending' as TeamMember['status'],
-    notes: ''
+    notes: '',
+    receives_lead_alerts: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -132,6 +135,7 @@ export default function TeamPage() {
           role: roleMap[formData.role] || 'worker',
           name: formData.name || undefined,
           phone: formData.phone || undefined,
+          receives_lead_alerts: formData.receives_lead_alerts,
         }),
       });
 
@@ -143,7 +147,7 @@ export default function TeamPage() {
       const data = await response.json();
       setMessage(`Invitation sent! Share link: ${data.inviteUrl}`);
       setShowAddMember(false);
-      setFormData({ name: '', email: '', phone: '', role: 'Worker', status: 'Pending', notes: '' });
+      resetForm();
       await invalidate.team();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to send invitation');
@@ -160,7 +164,8 @@ export default function TeamPage() {
       phone: member.phone || '',
       role: member.role,
       status: member.status,
-      notes: member.notes || ''
+      notes: member.notes || '',
+      receives_lead_alerts: member.receives_lead_alerts,
     });
     setShowEditMember(true);
   };
@@ -187,6 +192,7 @@ export default function TeamPage() {
               : formData.status === 'Inactive' || formData.status === 'Disabled'
                 ? 'Disabled'
                 : undefined,
+          receives_lead_alerts: formData.receives_lead_alerts,
         }),
       });
 
@@ -247,7 +253,8 @@ export default function TeamPage() {
       phone: '',
       role: 'Worker',
       status: 'Pending',
-      notes: ''
+      notes: '',
+      receives_lead_alerts: false,
     });
   };
 
@@ -410,8 +417,8 @@ export default function TeamPage() {
                     </div>
                     <div>
                       <Label htmlFor="add-notes">Notes</Label>
-                      <Textarea 
-                        id="add-notes" 
+                      <Textarea
+                        id="add-notes"
                         placeholder="Optional notes about this team member..."
                         value={formData.notes}
                         onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
@@ -419,9 +426,24 @@ export default function TeamPage() {
                         rows={3}
                       />
                     </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-200">
+                      <div>
+                        <Label htmlFor="add-lead-alerts">Notify about new leads</Label>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Email this person when a new request comes in
+                        </p>
+                      </div>
+                      <Switch
+                        id="add-lead-alerts"
+                        checked={formData.receives_lead_alerts}
+                        onCheckedChange={(checked) =>
+                          setFormData(prev => ({ ...prev, receives_lead_alerts: checked }))
+                        }
+                      />
+                    </div>
                     <div className="flex justify-end space-x-2 pt-4">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => {
                           setShowAddMember(false);
                           resetForm();
@@ -613,6 +635,16 @@ export default function TeamPage() {
                         </div>
                       </div>
 
+                      {(member.role === 'Owner' || member.receives_lead_alerts) && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Lead Alerts</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                            <Bell className="h-3 w-3" />
+                            On
+                          </span>
+                        </div>
+                      )}
+
                       {member.phone && (
                         <div className="flex items-center text-sm text-gray-600">
                           <Phone className="h-4 w-4 mr-2" />
@@ -798,13 +830,31 @@ export default function TeamPage() {
             </div>
             <div>
               <Label htmlFor="edit-notes">Notes</Label>
-              <Textarea 
-                id="edit-notes" 
+              <Textarea
+                id="edit-notes"
                 placeholder="Optional notes about this team member..."
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                 className="mt-2"
                 rows={3}
+              />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <div>
+                <Label htmlFor="edit-lead-alerts">Notify about new leads</Label>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {formData.role === 'Owner'
+                    ? 'The owner is always notified about new leads'
+                    : 'Email this person when a new request comes in'}
+                </p>
+              </div>
+              <Switch
+                id="edit-lead-alerts"
+                checked={formData.role === 'Owner' ? true : formData.receives_lead_alerts}
+                disabled={formData.role === 'Owner'}
+                onCheckedChange={(checked) =>
+                  setFormData(prev => ({ ...prev, receives_lead_alerts: checked }))
+                }
               />
             </div>
             <div className="flex justify-end space-x-2 pt-4">

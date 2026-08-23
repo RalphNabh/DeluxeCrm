@@ -74,7 +74,6 @@ export default function SettingsPage() {
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const [leadRecipients, setLeadRecipients] = useState<string[]>([])
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [passwordData, setPasswordData] = useState({
@@ -130,18 +129,11 @@ export default function SettingsPage() {
           email_notifications: data.email_notifications !== false,
           weekly_reports: data.weekly_reports !== false,
         }))
-        setLeadRecipients(Array.isArray(data.lead_recipients) ? data.lead_recipients : [])
       }
     } catch {
       // Fall back to defaults if org settings unavailable
     }
   }
-
-  const addLeadRecipient = () => setLeadRecipients((prev) => [...prev, ''])
-  const removeLeadRecipient = (index: number) =>
-    setLeadRecipients((prev) => prev.filter((_, i) => i !== index))
-  const updateLeadRecipient = (index: number, value: string) =>
-    setLeadRecipients((prev) => prev.map((email, i) => (i === index ? value : email)))
 
   const fetchSeatInfo = async () => {
     try {
@@ -243,7 +235,6 @@ export default function SettingsPage() {
         sms_notifications: next.sms_notifications,
         email_notifications: next.email_notifications,
         weekly_reports: next.weekly_reports,
-        lead_recipients: leadRecipients.map((e) => e.trim()).filter(Boolean),
       }),
     })
     if (!response.ok) {
@@ -577,31 +568,6 @@ export default function SettingsPage() {
                     checked={settings.weekly_reports}
                     onCheckedChange={() => handleToggle('weekly_reports')}
                   />
-                </div>
-
-                <div className="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-3">
-                  <div>
-                    <h3 className="font-medium text-gray-900">Lead Alert Recipients</h3>
-                    <p className="text-sm text-gray-600">
-                      New request emails always go to the account owner. Add teammates to CC them too.
-                    </p>
-                  </div>
-                  {leadRecipients.map((email, i) => (
-                    <div key={i} className="flex gap-2">
-                      <Input
-                        value={email}
-                        onChange={(e) => updateLeadRecipient(i, e.target.value)}
-                        placeholder="teammate@example.com"
-                        type="email"
-                      />
-                      <Button variant="outline" size="sm" onClick={() => removeLeadRecipient(i)}>
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                  <Button variant="outline" size="sm" onClick={addLeadRecipient}>
-                    Add recipient
-                  </Button>
                 </div>
               </CardContent>
             </Card>

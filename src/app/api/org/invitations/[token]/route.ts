@@ -87,6 +87,7 @@ export async function POST(
         role: invitation.role,
         status: "active",
         invited_by: invitation.invited_by,
+        receives_lead_alerts: invitation.receives_lead_alerts ?? false,
       },
       { onConflict: "org_id,user_id" },
     );

@@ -28,6 +28,8 @@ export type TeamMemberView = {
   jobs_completed: number;
   total_hours: number;
   avatar?: string | null;
+  /** Whether this person is emailed when a new lead/request comes in. */
+  receives_lead_alerts: boolean;
 };
 
 export function roleLabel(role: string): string {

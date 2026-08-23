@@ -98,6 +98,7 @@ export const teamMemberUpdateSchema = z.object({
   kind: z.enum(["member", "invitation"]).default("member"),
   role: z.enum(["Owner", "Admin", "Manager", "Worker"]).optional(),
   status: z.enum(["Active", "Disabled"]).optional(),
+  receives_lead_alerts: z.boolean().optional(),
 });
 
 export const teamInviteSchema = z.object({
@@ -105,6 +106,7 @@ export const teamInviteSchema = z.object({
   role: z.enum(["admin", "manager", "worker"]).default("worker"),
   name: z.string().trim().max(200).optional(),
   phone: z.string().trim().max(50).optional(),
+  receives_lead_alerts: z.boolean().optional(),
 });
 
 export const jobCreateSchema = z.object({

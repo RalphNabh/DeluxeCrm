@@ -43,13 +43,29 @@ export async function maybeSendNewLeadEmail(
   const settings = (org?.settings ?? {}) as Record<string, unknown>;
   if (settings.email_notifications === false) return;
 
-  const notifications = (settings.notifications ?? {}) as Record<string, unknown>;
-  const extraRecipients = Array.isArray(notifications.lead_recipients)
-    ? (notifications.lead_recipients as unknown[]).map((e) => String(e))
-    : [];
-
   const { data: ownerAuth } = await admin.auth.admin.getUserById(input.ownerUserId);
   const ownerEmail = ownerAuth?.user?.email;
+
+  const { data: optedInMembers } = await admin
+    .from("organization_members")
+    .select("user_id")
+    .eq("org_id", input.organizationId)
+    .eq("status", "active")
+    .eq("receives_lead_alerts", true);
+
+  let extraRecipients: string[] = [];
+  if (optedInMembers?.length) {
+    const { data: profiles } = await admin
+      .from("user_profiles")
+      .select("email")
+      .in(
+        "user_id",
+        optedInMembers.map((m) => m.user_id),
+      );
+    extraRecipients = (profiles ?? [])
+      .map((p) => p.email)
+      .filter((e): e is string => Boolean(e));
+  }
 
   const recipients = Array.from(
     new Set([ownerEmail, ...extraRecipients].filter(Boolean).map((e) => e!.toLowerCase())),

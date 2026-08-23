@@ -12,6 +12,7 @@ type MembershipRow = {
   role: string;
   status: string;
   joined_at: string;
+  receives_lead_alerts: boolean;
 };
 
 type ProfileRow = {
@@ -31,6 +32,7 @@ type InvitationRow = {
   invited_phone: string | null;
   expires_at: string;
   created_at: string;
+  receives_lead_alerts: boolean;
 };
 
 /**
@@ -48,7 +50,7 @@ export async function listOrgMembers(
 ): Promise<Array<MembershipRow & { profile: ProfileRow | null }>> {
   const { data: memberships, error } = await supabase
     .from("organization_members")
-    .select("id, user_id, role, status, joined_at")
+    .select("id, user_id, role, status, joined_at, receives_lead_alerts")
     .eq("org_id", orgId)
     .order("joined_at", { ascending: true });
 
@@ -79,7 +81,7 @@ export async function listPendingInvitations(
   const { data } = await supabase
     .from("organization_invitations")
     .select(
-      "id, email, role, token, invited_name, invited_phone, expires_at, created_at",
+      "id, email, role, token, invited_name, invited_phone, expires_at, created_at, receives_lead_alerts",
     )
     .eq("org_id", orgId)
     .is("accepted_at", null)
@@ -166,6 +168,7 @@ export async function buildTeamList(
       jobs_completed: stat?.jobs ?? 0,
       total_hours: stat?.hours ?? 0,
       avatar: membership.profile?.avatar_url ?? null,
+      receives_lead_alerts: membership.receives_lead_alerts,
     };
   });
 
@@ -183,6 +186,7 @@ export async function buildTeamList(
     last_active: null,
     jobs_completed: 0,
     total_hours: 0,
+    receives_lead_alerts: invitation.receives_lead_alerts,
   }));
 
   return [...members, ...pending];

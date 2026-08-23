@@ -67,6 +67,11 @@ describe("migration column parsing", () => {
     assert.ok(SERVICE_REQUEST_COLUMNS.has("metadata"));
   });
 
+  it("adds receives_lead_alerts opt-in on members and invitations", () => {
+    assert.ok(columnsOf("organization_members").has("receives_lead_alerts"));
+    assert.ok(columnsOf("organization_invitations").has("receives_lead_alerts"));
+  });
+
   it("does not treat table constraints as columns", () => {
     for (const name of ["primary", "constraint", "unique", "check"]) {
       assert.equal(PAYMENT_COLUMNS.has(name), false);

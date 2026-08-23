@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const parsed = await parseJsonBody(request, teamInviteSchema);
     if (!parsed.ok) return parsed.response;
 
-    const { email, role, name, phone } = parsed.data;
+    const { email, role, name, phone, receives_lead_alerts } = parsed.data;
     const normalizedEmail = email.toLowerCase();
 
     // Re-inviting someone should refresh their existing invitation rather than
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
       invited_by: auth.ctx.user.id,
       invited_name: name ?? null,
       invited_phone: phone ?? null,
+      receives_lead_alerts: receives_lead_alerts ?? false,
       revoked_at: null,
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     };

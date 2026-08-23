@@ -10,27 +10,7 @@ type OrgSettingsPatch = {
   business_hours?: Record<string, unknown>;
   invoice_defaults?: Record<string, unknown>;
   branding?: Record<string, unknown>;
-  lead_recipients?: string[];
 };
-
-function cleanLeadRecipients(emails: unknown[]): string[] {
-  const seen = new Set<string>();
-  const cleaned: string[] = [];
-  for (const raw of emails) {
-    const email = String(raw).trim().toLowerCase();
-    if (
-      email &&
-      email.length <= 254 &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-      !seen.has(email)
-    ) {
-      seen.add(email);
-      cleaned.push(email);
-    }
-    if (cleaned.length >= 10) break;
-  }
-  return cleaned;
-}
 
 /**
  * Organization notification / preference settings stored on organizations.settings.
@@ -61,11 +41,6 @@ export async function GET() {
       business_hours: settings.business_hours ?? null,
       invoice_defaults: settings.invoice_defaults ?? null,
       branding: settings.branding ?? null,
-      lead_recipients: Array.isArray(
-        (settings.notifications as Record<string, unknown> | undefined)?.lead_recipients,
-      )
-        ? (settings.notifications as Record<string, unknown>).lead_recipients
-        : [],
     });
   } catch (error) {
     captureApiError(error, { route: "org/settings/GET" });
@@ -100,9 +75,8 @@ export async function PATCH(request: NextRequest) {
     if (body.branding && typeof body.branding === "object") {
       patch.branding = body.branding;
     }
-    const hasLeadRecipients = Array.isArray(body.lead_recipients);
 
-    if (Object.keys(patch).length === 0 && !hasLeadRecipients) {
+    if (Object.keys(patch).length === 0) {
       return NextResponse.json(
         { error: "No valid settings fields provided" },
         { status: 400 },
@@ -124,15 +98,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (hasLeadRecipients) {
-      const existingNotifications = ((org.settings as Record<string, unknown>)
-        ?.notifications ?? {}) as Record<string, unknown>;
-      patch.notifications = {
-        ...existingNotifications,
-        lead_recipients: cleanLeadRecipients(body.lead_recipients as unknown[]),
-      };
-    }
-
     const merged = {
       ...((org.settings as Record<string, unknown>) || {}),
       ...patch,
@@ -151,11 +116,6 @@ export async function PATCH(request: NextRequest) {
       sms_notifications: merged.sms_notifications === true,
       email_notifications: merged.email_notifications !== false,
       weekly_reports: merged.weekly_reports !== false,
-      lead_recipients: Array.isArray(
-        (merged.notifications as Record<string, unknown> | undefined)?.lead_recipients,
-      )
-        ? (merged.notifications as Record<string, unknown>).lead_recipients
-        : [],
     });
   } catch (error) {
     captureApiError(error, { route: "org/settings/PATCH" });
