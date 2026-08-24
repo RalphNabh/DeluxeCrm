@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import type { CalendarPreferences, DayOrientation } from "@/lib/calendar-preferences";
 import type { AppointmentLayout, CompletedStyle } from "@/lib/utils/calendar-overlap";
 
@@ -267,6 +269,22 @@ export function CalendarPreferencesPanel({
               label="Horizontal"
               preview={<HorizontalPreview />}
             />
+          </SettingRow>
+
+          <SettingRow
+            title="Weekends"
+            description="Show or hide Saturday and Sunday in the Month and Week views."
+          >
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-weekends"
+                checked={draft.showWeekends}
+                onCheckedChange={(checked) => setDraft((d) => ({ ...d, showWeekends: checked }))}
+              />
+              <Label htmlFor="show-weekends" className="text-sm text-gray-700">
+                {draft.showWeekends ? "Shown" : "Hidden"}
+              </Label>
+            </div>
           </SettingRow>
         </div>
 

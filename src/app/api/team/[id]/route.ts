@@ -28,7 +28,7 @@ export async function PUT(
 
     const parsed = await parseJsonBody(request, teamMemberUpdateSchema);
     if (!parsed.ok) return parsed.response;
-    const { kind, role, status, receives_lead_alerts } = parsed.data;
+    const { kind, role, status, receives_lead_alerts, calendar_color } = parsed.data;
 
     if (kind === 'invitation') {
       const updates: Record<string, string | boolean> = {};
@@ -89,6 +89,9 @@ export async function PUT(
     }
     if (typeof receives_lead_alerts === 'boolean') {
       updates.receives_lead_alerts = receives_lead_alerts;
+    }
+    if (calendar_color) {
+      updates.calendar_color = calendar_color;
     }
 
     const { data, error } = await supabase

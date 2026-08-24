@@ -64,6 +64,10 @@ export async function GET(request: NextRequest) {
           tags,
           client_id,
           recurrence_freq,
+          job_assignments (
+            user_id,
+            assigned_at
+          ),
           clients (
             id,
             name,

@@ -30,7 +30,27 @@ export type TeamMemberView = {
   avatar?: string | null;
   /** Whether this person is emailed when a new lead/request comes in. */
   receives_lead_alerts: boolean;
+  /** The auth user id, for members only - used to color-match calendar jobs. */
+  user_id?: string;
+  /** Hex color this person's jobs are shown in on the calendar. */
+  calendar_color?: string;
 };
+
+/** Deterministic fallback palette for members who haven't picked a color yet. */
+export const CALENDAR_COLOR_PALETTE = [
+  "#2563eb", // blue
+  "#16a34a", // green
+  "#dc2626", // red
+  "#d97706", // amber
+  "#7c3aed", // violet
+  "#0891b2", // cyan
+  "#db2777", // pink
+  "#65a30d", // lime
+];
+
+export function calendarColorForIndex(index: number): string {
+  return CALENDAR_COLOR_PALETTE[index % CALENDAR_COLOR_PALETTE.length];
+}
 
 export function roleLabel(role: string): string {
   return ROLE_LABELS[role as OrgRole] ?? "Worker";

@@ -51,13 +51,19 @@ import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
 import JobCreationModal from "@/components/jobs/job-creation-modal";
 import JobEditModal from "@/components/jobs/job-edit-modal";
+import { DndContext, useDroppable, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DraggableJobCard } from "@/components/calendar/draggable-job-card";
 import {
   calculateEventPositions,
+  firstAssigneeUserId,
   getCompletedClasses,
+  getJobCardAppearance,
+  getJobColor,
   getLayoutStyle,
+  type JobAssignment,
   type PositionedEvent,
 } from "@/lib/utils/calendar-overlap";
-import { useJobsQuery, useVisitsQuery, useInvalidateQueries } from "@/lib/query/hooks";
+import { useJobsQuery, useVisitsQuery, useTeamQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import { CalendarSkeleton } from "@/components/ui/page-skeletons";
 import { CalendarPreferencesPanel } from "@/components/calendar/calendar-preferences-panel";
 import {
@@ -67,6 +73,22 @@ import {
   saveCalendarPreferences,
   type CalendarPreferences,
 } from "@/lib/calendar-preferences";
+
+/** Local YYYY-MM-DD key, used to pair a dragged card with its drop-target day column. */
+function localDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+const MIN_VISIT_DURATION_MINUTES = 15;
+
+/** Snap a delta in px to the nearest 15 minutes, given how many px = 1 hour. */
+function pxDeltaToSnappedMinutes(deltaPx: number, pxPerHour: number): number {
+  const deltaMinutes = (deltaPx / pxPerHour) * 60;
+  return Math.round(deltaMinutes / MIN_VISIT_DURATION_MINUTES) * MIN_VISIT_DURATION_MINUTES;
+}
 
 interface Job {
   id: string;
@@ -87,12 +109,41 @@ interface Job {
   estimate_id?: string;
   job_id?: string;
   visit_id?: string;
+  job_assignments?: JobAssignment[];
   estimates?: {
     id: string;
     status: string;
     total: number;
     created_at: string;
   } | null;
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'Scheduled': return 'bg-blue-100 text-blue-800';
+    case 'In Progress': return 'bg-yellow-100 text-yellow-800';
+    case 'Completed': return 'bg-green-100 text-green-800';
+    case 'Cancelled': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'Scheduled': return Clock;
+    case 'In Progress': return AlertTriangle;
+    case 'Completed': return CheckCircle;
+    case 'Cancelled': return Trash2;
+    default: return Clock;
+  }
+}
+
+function formatTime(timeString: string) {
+  return new Date(timeString).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 }
 
 function mapVisitStatus(status: string): string {
@@ -128,8 +179,149 @@ function visitsToCalendarJobs(visits: unknown[]): Job[] {
       equipment: (job?.equipment as string[]) || undefined,
       notes: (visit.notes as string) || undefined,
       tags: (visit.tags as string[]) || (job?.tags as string[]) || [],
+      job_assignments: (job?.job_assignments as JobAssignment[]) || undefined,
     };
   });
+}
+
+const WEEK_HOUR_PX = 50;
+
+/**
+ * One day column in Week view. A droppable target (for dragging jobs between
+ * days) that also renders each job as a draggable/resizable card - pulled out
+ * of the page component so useDroppable's hook call isn't inside a .map().
+ */
+function WeekDayColumn({
+  day,
+  isToday,
+  totalHeight,
+  positionedJobs,
+  startHour,
+  prefs,
+  colorByUserId,
+  usingVisits,
+  onEditJob,
+  onResizeEnd,
+}: {
+  day: Date;
+  isToday: boolean;
+  totalHeight: number;
+  positionedJobs: (Job & PositionedEvent)[];
+  startHour: number;
+  prefs: CalendarPreferences;
+  colorByUserId: Map<string, string>;
+  usingVisits: boolean;
+  onEditJob: (job: Job) => void;
+  onResizeEnd: (job: Job & PositionedEvent, deltaPx: number, pxPerHour: number) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day:${localDateKey(day)}` });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`border-r relative pt-1 ${isToday ? 'bg-blue-50/40' : 'bg-white'} ${isOver ? 'bg-blue-100/50' : ''}`}
+      style={{ minHeight: `${totalHeight}px` }}
+    >
+      {positionedJobs.map((job) => {
+        const StatusIcon = getStatusIcon(job.status);
+        const startDate = new Date(job.start_time);
+        const endDate = new Date(job.end_time);
+
+        const startHour_job = startDate.getHours();
+        const startMinute = startDate.getMinutes();
+        const endHour_job = endDate.getHours();
+        const endMinute = endDate.getMinutes();
+
+        const startTimeMinutes = startHour_job * 60 + startMinute;
+        const endTimeMinutes = endHour_job * 60 + endMinute;
+        const durationHours = (endTimeMinutes - startTimeMinutes) / 60;
+
+        const topPosition = (startHour_job - startHour) * WEEK_HOUR_PX + (startMinute / 60) * WEEK_HOUR_PX;
+
+        const padding = 4;
+        const layoutStyle = getLayoutStyle(job, prefs.appointmentLayout);
+        const completed = getCompletedClasses(job.status, prefs.completedStyle);
+        const color = getJobColor(firstAssigneeUserId(job.job_assignments), colorByUserId);
+        const appearance = getJobCardAppearance(color);
+        const draggable = usingVisits && Boolean(job.visit_id);
+
+        return (
+          <DraggableJobCard
+            key={job.id}
+            dragId={job.id}
+            dragDisabled={!draggable}
+            dragData={{ job, pxPerHour: WEEK_HOUR_PX, axis: 'vertical' }}
+            className={`absolute p-2 ${appearance.cardClassName} rounded-lg cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group ${completed.card}`}
+            style={{
+              top: `${topPosition}px`,
+              height: `${durationHours * WEEK_HOUR_PX}px`,
+              left: `calc(${layoutStyle.left} + ${padding}px)`,
+              width: `calc(${layoutStyle.width} - ${padding * 2}px)`,
+              zIndex: layoutStyle.zIndex,
+              ...appearance.cardStyle,
+            }}
+            onClick={() => onEditJob(job)}
+            resize={draggable ? { axis: 'vertical', onCommit: (deltaPx) => onResizeEnd(job, deltaPx, WEEK_HOUR_PX) } : undefined}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center space-x-2">
+                <StatusIcon className={`h-3 w-3 ${appearance.accentClassName}`} />
+                <span className={`text-xs font-semibold ${color ? 'text-gray-900' : 'text-blue-900'}`}>
+                  {formatTime(job.start_time)}
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditJob(job);
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-200 rounded"
+                title="Edit job"
+              >
+                <Edit className={`h-3 w-3 ${appearance.accentClassName}`} />
+              </button>
+            </div>
+            <div className="flex items-center space-x-1 mb-1">
+              <div className={`text-sm font-semibold text-gray-900 truncate flex-1 ${completed.title}`}>
+                {job.title}
+              </div>
+              {job.estimate_id && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Has linked estimate">
+                  <FileText className="h-2.5 w-2.5" />
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-gray-600 truncate">
+              {job.client_name}
+            </div>
+            {job.tags && job.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {job.tags.slice(0, 2).map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    <Tag className="h-2 w-2 mr-0.5" />
+                    {tag}
+                  </span>
+                ))}
+                {job.tags.length > 2 && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                    +{job.tags.length - 2}
+                  </span>
+                )}
+              </div>
+            )}
+            {job.location && (
+              <div className="text-xs text-gray-500 truncate mt-1">
+                📍 {job.location}
+              </div>
+            )}
+          </DraggableJobCard>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function CalendarPage() {
@@ -141,7 +333,82 @@ export default function CalendarPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);;
   const [prefs, setPrefs] = useState<CalendarPreferences>(DEFAULT_CALENDAR_PREFERENCES);
   const [showPrefsPanel, setShowPrefsPanel] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
   const invalidate = useInvalidateQueries();
+
+  const teamQuery = useTeamQuery();
+  const colorByUserId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of (teamQuery.data ?? []) as Array<{ user_id?: string; calendar_color?: string }>) {
+      if (member.user_id && member.calendar_color) {
+        map.set(member.user_id, member.calendar_color);
+      }
+    }
+    return map;
+  }, [teamQuery.data]);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  async function rescheduleVisit(visitId: string, scheduledStart: string, scheduledEnd: string) {
+    try {
+      const res = await fetch(`/api/visits/${visitId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduled_start: scheduledStart, scheduled_end: scheduledEnd }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to reschedule job");
+      }
+      await invalidate.visits();
+    } catch (e) {
+      setScheduleError(e instanceof Error ? e.message : "Failed to reschedule job");
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    if (!usingVisits) return;
+    const { active, delta, over } = event;
+    const data = active.data.current as
+      | { job: Job & PositionedEvent; pxPerHour: number; axis: "vertical" | "horizontal" }
+      | undefined;
+    if (!data || !data.job.visit_id) return;
+
+    const deltaPx = data.axis === "horizontal" ? delta.x : delta.y;
+    const overId = typeof over?.id === "string" ? over.id : null;
+    const targetDateKey = overId?.startsWith("day:") ? overId.slice(4) : null;
+    if (Math.abs(deltaPx) < 1 && !targetDateKey) return;
+
+    const snappedMinutes = pxDeltaToSnappedMinutes(deltaPx, data.pxPerHour);
+    const originalStart = new Date(data.job.start_time);
+    const originalEnd = new Date(data.job.end_time);
+    const durationMs = originalEnd.getTime() - originalStart.getTime();
+
+    let newStart = new Date(originalStart.getTime() + snappedMinutes * 60000);
+    if (targetDateKey) {
+      const [y, m, d] = targetDateKey.split("-").map(Number);
+      const withNewDay = new Date(newStart);
+      withNewDay.setFullYear(y, m - 1, d);
+      newStart = withNewDay;
+    }
+    const newEnd = new Date(newStart.getTime() + durationMs);
+
+    rescheduleVisit(data.job.visit_id, newStart.toISOString(), newEnd.toISOString());
+  }
+
+  function handleResizeEnd(job: Job & PositionedEvent, deltaPx: number, pxPerHour: number) {
+    if (!job.visit_id) return;
+    const snappedMinutes = pxDeltaToSnappedMinutes(deltaPx, pxPerHour);
+    const start = new Date(job.start_time);
+    const originalEnd = new Date(job.end_time);
+    const minEnd = new Date(start.getTime() + MIN_VISIT_DURATION_MINUTES * 60000);
+    let newEnd = new Date(originalEnd.getTime() + snappedMinutes * 60000);
+    if (newEnd < minEnd) newEnd = minEnd;
+
+    rescheduleVisit(job.visit_id, start.toISOString(), newEnd.toISOString());
+  }
 
   useEffect(() => {
     setPrefs(loadCalendarPreferences());
@@ -283,43 +550,16 @@ export default function CalendarPage() {
     return { startHour, endHour };
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Scheduled': return 'bg-blue-100 text-blue-800';
-      case 'In Progress': return 'bg-yellow-100 text-yellow-800';
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Scheduled': return Clock;
-      case 'In Progress': return AlertTriangle;
-      case 'Completed': return CheckCircle;
-      case 'Cancelled': return Trash2;
-      default: return Clock;
-    }
-  };
-
-  const formatTime = (timeString: string) => {
-    return new Date(timeString).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
   const getWeekDays = () => {
     const startOfWeek = new Date(selectedDate);
     startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
-    
-    return Array.from({ length: 7 }, (_, i) => {
+
+    const days = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
       return date;
     });
+    return prefs.showWeekends ? days : days.filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
   };
 
   const navigateDate = (direction: 'prev' | 'next') => {
@@ -480,29 +720,41 @@ export default function CalendarPage() {
           <>
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {selectedDate.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              {selectedDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               })}
             </h2>
+            {scheduleError && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                <span>{scheduleError}</span>
+                <button onClick={() => setScheduleError(null)} className="font-medium hover:underline shrink-0">
+                  Dismiss
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Calendar View */}
-          {view === 'week' && (
+          {view === 'week' && (() => {
+            const weekDays = getWeekDays();
+            const gridTemplateColumns = `repeat(${weekDays.length + 1}, minmax(0, 1fr))`;
+            return (
+            <DndContext sensors={dndSensors} onDragEnd={handleDragEnd}>
             <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
               {/* Week Header */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                <div className="grid grid-cols-8">
+                <div className="grid" style={{ gridTemplateColumns }}>
                   <div className="p-6 border-r border-blue-500/20">
                     <div className="text-sm font-medium opacity-90">Time</div>
                   </div>
-                  {getWeekDays().map((day, index) => {
+                  {weekDays.map((day, index) => {
                     const isToday = day.toDateString() === new Date().toDateString();
                     return (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className={`p-6 border-r border-blue-500/20 text-center ${
                           isToday ? 'bg-blue-500/20 border-blue-400' : ''
                         }`}
@@ -530,22 +782,22 @@ export default function CalendarPage() {
                   })}
                 </div>
               </div>
-              
+
               {/* Week Body */}
               {(() => {
                 const { startHour, endHour } = getWeekTimeRange();
                 const hoursCount = endHour - startHour + 1;
-                const totalHeight = hoursCount * 50;
-                
+                const totalHeight = hoursCount * WEEK_HOUR_PX;
+
                 return (
-                  <div className="grid grid-cols-8 overflow-y-auto max-h-[calc(100vh-300px)]" style={{ minHeight: '600px' }}>
+                  <div className="grid overflow-y-auto max-h-[calc(100vh-300px)]" style={{ minHeight: '600px', gridTemplateColumns }}>
                     <div className="p-4 border-r bg-gray-50/50 relative sticky left-0 z-10">
                       <div className="space-y-0">
                         {Array.from({ length: hoursCount }, (_, i) => {
                           const hour = startHour + i;
                           return (
-                            <div 
-                              key={hour} 
+                            <div
+                              key={hour}
                               className="text-xs text-gray-500 font-medium h-[50px] flex items-start pt-1"
                             >
                               {hour === 0 ? '12:00 AM' : hour === 12 ? '12:00 PM' : hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`}
@@ -554,125 +806,33 @@ export default function CalendarPage() {
                         })}
                       </div>
                     </div>
-                    {getWeekDays().map((day, dayIndex) => {
+                    {weekDays.map((day, dayIndex) => {
                       const isToday = day.toDateString() === new Date().toDateString();
+                      const dayJobs = getJobsForDate(day);
+                      const positionedJobs = calculateEventPositions(dayJobs) as (Job & PositionedEvent)[];
                       return (
-                        <div 
-                          key={dayIndex} 
-                          className={`border-r relative pt-1 ${
-                            isToday ? 'bg-blue-50/40' : 'bg-white'
-                          }`}
-                          style={{ minHeight: `${totalHeight}px` }}
-                        >
-                          {(() => {
-                            const dayJobs = getJobsForDate(day);
-                            const positionedJobs = calculateEventPositions(dayJobs);
-                            
-                            return positionedJobs.map((positionedJob) => {
-                              const job = positionedJob as Job & PositionedEvent;
-                              const StatusIcon = getStatusIcon(job.status);
-                              const startDate = new Date(job.start_time);
-                              const endDate = new Date(job.end_time);
-                              
-                              // Use the start time and end time from the job for display
-                              // This shows the same time range on each day the job spans
-                              const startHour_job = startDate.getHours();
-                              const startMinute = startDate.getMinutes();
-                              const endHour_job = endDate.getHours();
-                              const endMinute = endDate.getMinutes();
-                              
-                              // Calculate duration in hours: from start time to end time
-                              const startTimeMinutes = startHour_job * 60 + startMinute;
-                              const endTimeMinutes = endHour_job * 60 + endMinute;
-                              const durationHours = (endTimeMinutes - startTimeMinutes) / 60;
-                              
-                              // Calculate position relative to startHour (not 0)
-                              const topPosition = (startHour_job - startHour) * 50 + (startMinute / 60) * 50;
-
-                              // Account for padding (8px total = 4px on each side)
-                              const padding = 4; // px on each side
-                              const layoutStyle = getLayoutStyle(job, prefs.appointmentLayout);
-                              const completed = getCompletedClasses(job.status, prefs.completedStyle);
-
-                              return (
-                                <div
-                                  key={job.id}
-                                  className={`absolute p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group ${completed.card}`}
-                                  style={{
-                                    top: `${topPosition}px`,
-                                    height: `${durationHours * 50}px`,
-                                    left: `calc(${layoutStyle.left} + ${padding}px)`,
-                                    width: `calc(${layoutStyle.width} - ${padding * 2}px)`,
-                                    zIndex: layoutStyle.zIndex,
-                                  }}
-                                  onClick={() => handleEditJob(job)}
-                                >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center space-x-2">
-                                <StatusIcon className="h-3 w-3 text-blue-600" />
-                                <span className="text-xs font-semibold text-blue-900">
-                                  {formatTime(job.start_time)}
-                                </span>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditJob(job);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-200 rounded"
-                                title="Edit job"
-                              >
-                                <Edit className="h-3 w-3 text-blue-600" />
-                              </button>
-                            </div>
-                            <div className="flex items-center space-x-1 mb-1">
-                              <div className={`text-sm font-semibold text-gray-900 truncate flex-1 ${completed.title}`}>
-                                {job.title}
-                              </div>
-                              {job.estimate_id && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Has linked estimate">
-                                  <FileText className="h-2.5 w-2.5" />
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-600 truncate">
-                              {job.client_name}
-                            </div>
-                            {job.tags && job.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {job.tags.slice(0, 2).map((tag, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                                  >
-                                    <Tag className="h-2 w-2 mr-0.5" />
-                                    {tag}
-                                  </span>
-                                ))}
-                                {job.tags.length > 2 && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                                    +{job.tags.length - 2}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {job.location && (
-                              <div className="text-xs text-gray-500 truncate mt-1">
-                                📍 {job.location}
-                              </div>
-                            )}
-                          </div>
-                        );
-                            });
-                          })()}
-                        </div>
+                        <WeekDayColumn
+                          key={dayIndex}
+                          day={day}
+                          isToday={isToday}
+                          totalHeight={totalHeight}
+                          positionedJobs={positionedJobs}
+                          startHour={startHour}
+                          prefs={prefs}
+                          colorByUserId={colorByUserId}
+                          usingVisits={usingVisits}
+                          onEditJob={handleEditJob}
+                          onResizeEnd={handleResizeEnd}
+                        />
                       );
                     })}
                   </div>
                 );
               })()}
             </div>
-          )}
+            </DndContext>
+            );
+          })()}
 
           {/* Month View */}
           {view === 'month' && (
@@ -705,17 +865,30 @@ export default function CalendarPage() {
               </div>
 
               {/* Month Grid */}
-              <div className="grid grid-cols-7">
+              {(() => {
+                const monthDayLabels = prefs.showWeekends
+                  ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                  : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                const allMonthDates = Array.from(
+                  { length: 35 },
+                  (_, i) => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), i - 6),
+                );
+                const monthDates = prefs.showWeekends
+                  ? allMonthDates
+                  : allMonthDates.filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
+                const monthGridColsClass = prefs.showWeekends ? 'grid-cols-7' : 'grid-cols-5';
+
+                return (
+              <div className={`grid ${monthGridColsClass}`}>
                 {/* Day Headers */}
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                {monthDayLabels.map((day) => (
                   <div key={day} className="p-4 bg-gray-50 border-r border-b text-center font-semibold text-gray-700">
                     {day}
                   </div>
                 ))}
-                
+
                 {/* Calendar Days */}
-                {Array.from({ length: 35 }, (_, i) => {
-                  const date = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), i - 6);
+                {monthDates.map((date, i) => {
                   const isCurrentMonth = date.getMonth() === selectedDate.getMonth();
                   const isToday = date.toDateString() === new Date().toDateString();
                   const dayJobs = getJobsForDate(date);
@@ -739,16 +912,19 @@ export default function CalendarPage() {
                         {dayJobs.slice(0, 3).map((job) => {
                           const StatusIcon = getStatusIcon(job.status);
                           const completed = getCompletedClasses(job.status, prefs.completedStyle);
+                          const color = getJobColor(firstAssigneeUserId(job.job_assignments), colorByUserId);
+                          const appearance = getJobCardAppearance(color);
                           return (
                             <div
                               key={job.id}
-                              className={`w-full p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded text-xs cursor-pointer hover:shadow-md transition-all group ${completed.card}`}
+                              className={`w-full p-2 ${appearance.cardClassName} rounded text-xs cursor-pointer hover:shadow-md transition-all group ${completed.card}`}
+                              style={appearance.cardStyle}
                               onClick={() => handleEditJob(job)}
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center space-x-1">
-                                  <StatusIcon className="h-2 w-2 text-blue-600" />
-                                  <span className="font-medium text-blue-900">
+                                  <StatusIcon className={`h-2 w-2 ${appearance.accentClassName}`} />
+                                  <span className={`font-medium ${color ? 'text-gray-900' : 'text-blue-900'}`}>
                                     {formatTime(job.start_time)}
                                   </span>
                                 </div>
@@ -760,7 +936,7 @@ export default function CalendarPage() {
                                   className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-blue-200 rounded"
                                   title="Edit job"
                                 >
-                                  <Edit className="h-2.5 w-2.5 text-blue-600" />
+                                  <Edit className={`h-2.5 w-2.5 ${appearance.accentClassName}`} />
                                 </button>
                               </div>
                               <div className="flex items-center space-x-1">
@@ -807,6 +983,8 @@ export default function CalendarPage() {
                   );
                 })}
               </div>
+                );
+              })()}
             </div>
           )}
 
@@ -846,6 +1024,7 @@ export default function CalendarPage() {
               </div>
 
               {/* Day Timeline */}
+              <DndContext sensors={dndSensors} onDragEnd={handleDragEnd}>
               <div className="p-6">
                 {(() => {
                   const dayJobs = getJobsForDate(selectedDate);
@@ -926,23 +1105,31 @@ export default function CalendarPage() {
                               const height = ROW_HEIGHT - 8;
                               const StatusIcon = getStatusIcon(job.status);
                               const completed = getCompletedClasses(job.status, prefs.completedStyle);
+                              const color = getJobColor(firstAssigneeUserId(job.job_assignments), colorByUserId);
+                              const appearance = getJobCardAppearance(color);
+                              const draggable = usingVisits && Boolean(job.visit_id);
 
                               return (
-                                <div
+                                <DraggableJobCard
                                   key={job.id}
-                                  className={`absolute p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg cursor-pointer hover:shadow-lg transition-all group overflow-hidden ${completed.card}`}
+                                  dragId={job.id}
+                                  dragDisabled={!draggable}
+                                  dragData={{ job, pxPerHour: HOUR_WIDTH, axis: 'horizontal' }}
+                                  className={`absolute p-2 ${appearance.cardClassName} rounded-lg cursor-pointer hover:shadow-lg transition-all group overflow-hidden ${completed.card}`}
                                   style={{
                                     left: `${left}px`,
                                     width: `${width}px`,
                                     top: `${top}px`,
                                     height: `${height}px`,
                                     zIndex: job.column + 1,
+                                    ...appearance.cardStyle,
                                   }}
                                   onClick={() => handleEditJob(job)}
+                                  resize={draggable ? { axis: 'horizontal', onCommit: (deltaPx) => handleResizeEnd(job, deltaPx, HOUR_WIDTH) } : undefined}
                                 >
                                   <div className="flex items-center gap-1 mb-0.5">
-                                    <StatusIcon className="h-3 w-3 text-blue-600 shrink-0" />
-                                    <span className="text-xs font-semibold text-blue-900 truncate">
+                                    <StatusIcon className={`h-3 w-3 shrink-0 ${appearance.accentClassName}`} />
+                                    <span className={`text-xs font-semibold truncate ${color ? 'text-gray-900' : 'text-blue-900'}`}>
                                       {formatTime(job.start_time)}
                                     </span>
                                   </div>
@@ -950,7 +1137,7 @@ export default function CalendarPage() {
                                     {job.title}
                                   </div>
                                   <div className="text-xs text-gray-600 truncate">{job.client_name}</div>
-                                </div>
+                                </DraggableJobCard>
                               );
                             })}
                           </div>
@@ -1014,24 +1201,32 @@ export default function CalendarPage() {
                           const StatusIcon = getStatusIcon(job.status);
                           const layoutStyle = getLayoutStyle(job, prefs.appointmentLayout);
                           const completed = getCompletedClasses(job.status, prefs.completedStyle);
+                          const color = getJobColor(firstAssigneeUserId(job.job_assignments), colorByUserId);
+                          const appearance = getJobCardAppearance(color);
+                          const draggable = usingVisits && Boolean(job.visit_id);
 
                           return (
-                            <div
+                            <DraggableJobCard
                               key={job.id}
-                              className={`absolute p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:shadow-lg transition-all duration-200 group overflow-hidden ${completed.card}`}
+                              dragId={job.id}
+                              dragDisabled={!draggable}
+                              dragData={{ job, pxPerHour: HOUR_HEIGHT, axis: 'vertical' }}
+                              className={`absolute p-3 ${appearance.cardClassName} rounded-lg hover:shadow-lg transition-all duration-200 group overflow-hidden cursor-pointer ${completed.card}`}
                               style={{
                                 top: `${top}px`,
                                 height: `${height}px`,
                                 left: `calc(${layoutStyle.left} + ${padding}px)`,
                                 width: `calc(${layoutStyle.width} - ${padding * 2}px)`,
                                 zIndex: layoutStyle.zIndex,
+                                ...appearance.cardStyle,
                               }}
                               onClick={() => handleEditJob(job)}
+                              resize={draggable ? { axis: 'vertical', onCommit: (deltaPx) => handleResizeEnd(job, deltaPx, HOUR_HEIGHT) } : undefined}
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center space-x-2">
-                                  <StatusIcon className="h-4 w-4 text-blue-600" />
-                                  <span className="text-sm font-semibold text-blue-900">
+                                  <StatusIcon className={`h-4 w-4 ${appearance.accentClassName}`} />
+                                  <span className={`text-sm font-semibold ${color ? 'text-gray-900' : 'text-blue-900'}`}>
                                     {formatTime(job.start_time)} - {formatTime(job.end_time)}
                                   </span>
                                 </div>
@@ -1044,7 +1239,7 @@ export default function CalendarPage() {
                                     className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-200 rounded"
                                     title="Edit job"
                                   >
-                                    <Edit className="h-4 w-4 text-blue-600" />
+                                    <Edit className={`h-4 w-4 ${appearance.accentClassName}`} />
                                   </button>
                                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
                                     {job.status}
@@ -1081,7 +1276,7 @@ export default function CalendarPage() {
                                   )}
                                 </div>
                               )}
-                            </div>
+                            </DraggableJobCard>
                           );
                         })}
                       </div>
@@ -1089,6 +1284,7 @@ export default function CalendarPage() {
                   );
                 })()}
               </div>
+              </DndContext>
             </div>
           )}
 

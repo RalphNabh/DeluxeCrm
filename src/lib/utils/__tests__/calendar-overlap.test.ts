@@ -2,7 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  firstAssigneeUserId,
   getCompletedClasses,
+  getJobCardAppearance,
+  getJobColor,
   getLayoutStyle,
   type PositionedEvent,
 } from "../calendar-overlap.ts";
@@ -62,5 +65,51 @@ describe("getCompletedClasses", () => {
     const result = getCompletedClasses("Completed", "strikethrough");
     assert.equal(result.card, "");
     assert.match(result.title, /line-through/);
+  });
+});
+
+describe("firstAssigneeUserId", () => {
+  it("returns null when there are no assignments", () => {
+    assert.equal(firstAssigneeUserId(undefined), null);
+    assert.equal(firstAssigneeUserId(null), null);
+    assert.equal(firstAssigneeUserId([]), null);
+  });
+
+  it("returns the earliest-assigned user, regardless of array order", () => {
+    const assignments = [
+      { user_id: "later", assigned_at: "2026-01-02T00:00:00Z" },
+      { user_id: "earliest", assigned_at: "2026-01-01T00:00:00Z" },
+    ];
+    assert.equal(firstAssigneeUserId(assignments), "earliest");
+  });
+});
+
+describe("getJobColor", () => {
+  it("returns null when there's no assignee", () => {
+    assert.equal(getJobColor(null, new Map([["u1", "#ff0000"]])), null);
+  });
+
+  it("returns null when the assignee has no color on file", () => {
+    assert.equal(getJobColor("u1", new Map()), null);
+  });
+
+  it("resolves a tinted background and the raw color as the border", () => {
+    const color = getJobColor("u1", new Map([["u1", "#ff0000"]]));
+    assert.equal(color?.border, "#ff0000");
+    assert.match(color?.background ?? "", /^rgba\(255, 0, 0, 0\.14\)$/);
+  });
+});
+
+describe("getJobCardAppearance", () => {
+  it("falls back to the default blue gradient when there's no color", () => {
+    const appearance = getJobCardAppearance(null);
+    assert.match(appearance.cardClassName, /bg-gradient-to-r/);
+    assert.deepEqual(appearance.cardStyle, {});
+  });
+
+  it("switches to a left-accent border when a color is resolved", () => {
+    const appearance = getJobCardAppearance({ background: "rgba(0,0,0,0.1)", border: "#123456" });
+    assert.match(appearance.cardClassName, /border-l-4/);
+    assert.equal(appearance.cardStyle.borderLeftColor, "#123456");
   });
 });

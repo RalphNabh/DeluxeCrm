@@ -168,6 +168,81 @@ export function getCompletedClasses(
   };
 }
 
+/** One row from `job_assignments`, as attached to a calendar job/visit. */
+export interface JobAssignment {
+  user_id: string;
+  assigned_at: string;
+}
+
+/**
+ * The "primary" assignee for coloring purposes: whoever was assigned first.
+ * There's no separate primary flag in the schema, so earliest `assigned_at`
+ * is the only stable, deterministic choice.
+ */
+export function firstAssigneeUserId(
+  assignments?: JobAssignment[] | null,
+): string | null {
+  if (!assignments || assignments.length === 0) return null;
+  return [...assignments].sort(
+    (a, b) => new Date(a.assigned_at).getTime() - new Date(b.assigned_at).getTime(),
+  )[0].user_id;
+}
+
+export interface JobColor {
+  /** Light tinted background, derived from the member's color. */
+  background: string;
+  /** The member's color itself, used for the border/accent. */
+  border: string;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const value = parseInt(full, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Resolve a job's assignee color, or null to fall back to the default look. */
+export function getJobColor(
+  assigneeUserId: string | null,
+  colorByUserId: Map<string, string>,
+): JobColor | null {
+  if (!assigneeUserId) return null;
+  const hex = colorByUserId.get(assigneeUserId);
+  if (!hex) return null;
+  return { background: hexToRgba(hex, 0.14), border: hex };
+}
+
+export interface JobCardAppearance {
+  cardClassName: string;
+  cardStyle: { borderLeftColor?: string; backgroundColor?: string };
+  accentClassName: string;
+}
+
+/**
+ * Card classes/styles for a job, given its resolved assignee color (or null
+ * for the default blue look). Tailwind can't generate classes for arbitrary
+ * per-org hex colors, so a colored card switches to an inline-styled left
+ * accent border instead of the default gradient classes.
+ */
+export function getJobCardAppearance(color: JobColor | null): JobCardAppearance {
+  if (!color) {
+    return {
+      cardClassName: "bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200",
+      cardStyle: {},
+      accentClassName: "text-blue-600",
+    };
+  }
+  return {
+    cardClassName: "bg-white border border-gray-200 border-l-4",
+    cardStyle: { borderLeftColor: color.border, backgroundColor: color.background },
+    accentClassName: "text-gray-700",
+  };
+}
+
 /**
  * Get overlap groups for a specific time range
  * Useful for calculating positions when events span different dates

@@ -6,12 +6,14 @@ export interface CalendarPreferences {
   appointmentLayout: AppointmentLayout;
   completedStyle: CompletedStyle;
   dayOrientation: DayOrientation;
+  showWeekends: boolean;
 }
 
 export const DEFAULT_CALENDAR_PREFERENCES: CalendarPreferences = {
   appointmentLayout: "nested",
   completedStyle: "grayed_out",
   dayOrientation: "vertical",
+  showWeekends: true,
 };
 
 const STORAGE_KEY = "calendar-view-settings";
@@ -30,12 +32,14 @@ export function parseCalendarPreferences(raw: string | null): CalendarPreference
       typeof parsed === "object" &&
       VALID_APPOINTMENT_LAYOUTS.includes(parsed.appointmentLayout as AppointmentLayout) &&
       VALID_COMPLETED_STYLES.includes(parsed.completedStyle as CompletedStyle) &&
-      VALID_DAY_ORIENTATIONS.includes(parsed.dayOrientation as DayOrientation)
+      VALID_DAY_ORIENTATIONS.includes(parsed.dayOrientation as DayOrientation) &&
+      typeof parsed.showWeekends === "boolean"
     ) {
       return {
         appointmentLayout: parsed.appointmentLayout as AppointmentLayout,
         completedStyle: parsed.completedStyle as CompletedStyle,
         dayOrientation: parsed.dayOrientation as DayOrientation,
+        showWeekends: parsed.showWeekends,
       };
     }
     return null;

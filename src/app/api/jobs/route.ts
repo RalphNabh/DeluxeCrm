@@ -24,6 +24,10 @@ export async function GET(request: NextRequest) {
       .from('jobs')
       .select(`
         *,
+        job_assignments (
+          user_id,
+          assigned_at
+        ),
         clients (
           id,
           name,

@@ -99,6 +99,7 @@ export const teamMemberUpdateSchema = z.object({
   role: z.enum(["Owner", "Admin", "Manager", "Worker"]).optional(),
   status: z.enum(["Active", "Disabled"]).optional(),
   receives_lead_alerts: z.boolean().optional(),
+  calendar_color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 });
 
 export const teamInviteSchema = z.object({

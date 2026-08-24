@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  calendarColorForIndex,
   displayNameFor,
   membershipStatusLabel,
   roleLabel,
@@ -13,6 +14,7 @@ type MembershipRow = {
   status: string;
   joined_at: string;
   receives_lead_alerts: boolean;
+  calendar_color: string | null;
 };
 
 type ProfileRow = {
@@ -50,7 +52,7 @@ export async function listOrgMembers(
 ): Promise<Array<MembershipRow & { profile: ProfileRow | null }>> {
   const { data: memberships, error } = await supabase
     .from("organization_members")
-    .select("id, user_id, role, status, joined_at, receives_lead_alerts")
+    .select("id, user_id, role, status, joined_at, receives_lead_alerts, calendar_color")
     .eq("org_id", orgId)
     .order("joined_at", { ascending: true });
 
@@ -153,7 +155,7 @@ export async function buildTeamList(
     completedJobStats(supabase, orgId),
   ]);
 
-  const members: TeamMemberView[] = memberships.map((membership) => {
+  const members: TeamMemberView[] = memberships.map((membership, index) => {
     const stat = stats.get(membership.user_id);
     return {
       id: membership.id,
@@ -169,6 +171,8 @@ export async function buildTeamList(
       total_hours: stat?.hours ?? 0,
       avatar: membership.profile?.avatar_url ?? null,
       receives_lead_alerts: membership.receives_lead_alerts,
+      user_id: membership.user_id,
+      calendar_color: membership.calendar_color ?? calendarColorForIndex(index),
     };
   });
 

@@ -19,6 +19,7 @@ describe("parseCalendarPreferences", () => {
           appointmentLayout: "diagonal",
           completedStyle: "grayed_out",
           dayOrientation: "vertical",
+          showWeekends: true,
         }),
       ),
       null,
@@ -32,16 +33,32 @@ describe("parseCalendarPreferences", () => {
     );
   });
 
+  it("returns null when showWeekends isn't a boolean", () => {
+    assert.equal(
+      parseCalendarPreferences(
+        JSON.stringify({
+          appointmentLayout: "nested",
+          completedStyle: "grayed_out",
+          dayOrientation: "vertical",
+          showWeekends: "yes",
+        }),
+      ),
+      null,
+    );
+  });
+
   it("parses a valid preferences object", () => {
     const raw = JSON.stringify({
       appointmentLayout: "stacked",
       completedStyle: "strikethrough",
       dayOrientation: "horizontal",
+      showWeekends: false,
     });
     assert.deepEqual(parseCalendarPreferences(raw), {
       appointmentLayout: "stacked",
       completedStyle: "strikethrough",
       dayOrientation: "horizontal",
+      showWeekends: false,
     });
   });
 });

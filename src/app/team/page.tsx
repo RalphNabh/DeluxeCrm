@@ -61,6 +61,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useTeamQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import { CardGridSkeleton } from "@/components/ui/page-skeletons";
+import { CALENDAR_COLOR_PALETTE } from "@/lib/team";
 
 interface TeamMember {
   id: string;
@@ -77,6 +78,7 @@ interface TeamMember {
   avatar?: string;
   notes?: string;
   receives_lead_alerts: boolean;
+  calendar_color?: string;
 }
 
 export default function TeamPage() {
@@ -96,6 +98,7 @@ export default function TeamPage() {
     status: 'Pending' as TeamMember['status'],
     notes: '',
     receives_lead_alerts: false,
+    calendar_color: CALENDAR_COLOR_PALETTE[0],
   });
   const [saving, setSaving] = useState(false);
 
@@ -166,6 +169,7 @@ export default function TeamPage() {
       status: member.status,
       notes: member.notes || '',
       receives_lead_alerts: member.receives_lead_alerts,
+      calendar_color: member.calendar_color || CALENDAR_COLOR_PALETTE[0],
     });
     setShowEditMember(true);
   };
@@ -193,6 +197,7 @@ export default function TeamPage() {
                 ? 'Disabled'
                 : undefined,
           receives_lead_alerts: formData.receives_lead_alerts,
+          calendar_color: formData.calendar_color,
         }),
       });
 
@@ -255,6 +260,7 @@ export default function TeamPage() {
       status: 'Pending',
       notes: '',
       receives_lead_alerts: false,
+      calendar_color: CALENDAR_COLOR_PALETTE[0],
     });
   };
 
@@ -605,12 +611,21 @@ export default function TeamPage() {
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={member.avatar} />
-                          <AvatarFallback>
-                            {member.name.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={member.avatar} />
+                            <AvatarFallback>
+                              {member.name.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          {member.kind !== 'invitation' && member.calendar_color && (
+                            <span
+                              className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white"
+                              style={{ backgroundColor: member.calendar_color }}
+                              title="Calendar color"
+                            />
+                          )}
+                        </div>
                         <div>
                           <h3 className="font-semibold text-gray-900">{member.name}</h3>
                           <p className="text-sm text-gray-600">{member.email}</p>
@@ -856,6 +871,29 @@ export default function TeamPage() {
                   setFormData(prev => ({ ...prev, receives_lead_alerts: checked }))
                 }
               />
+            </div>
+            <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <Label>Calendar color</Label>
+              <p className="text-xs text-gray-500 mt-0.5 mb-2">
+                {formData.role === 'Owner'
+                  ? "The owner's role can't be edited here, so this can't be changed yet"
+                  : "This person's jobs show in this color on the calendar"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {CALENDAR_COLOR_PALETTE.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    disabled={formData.role === 'Owner'}
+                    onClick={() => setFormData(prev => ({ ...prev, calendar_color: color }))}
+                    className={`h-7 w-7 rounded-full border-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      formData.calendar_color === color ? 'border-gray-900' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    aria-label={`Use color ${color}`}
+                  />
+                ))}
+              </div>
             </div>
             <div className="flex justify-end space-x-2 pt-4">
               <Button 
