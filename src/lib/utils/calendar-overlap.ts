@@ -114,6 +114,60 @@ export function calculateEventPositions(
   return positioned;
 }
 
+export type AppointmentLayout = "nested" | "stacked";
+export type CompletedStyle = "grayed_out" | "strikethrough";
+
+/**
+ * Resolve the left/width/z-index for one positioned event given the
+ * user's chosen appointment layout.
+ *
+ * "nested" keeps the side-by-side column split calculateEventPositions
+ * already computed. "stacked" ignores that split and gives every event
+ * the full column width, fanning overlapping events out by a small
+ * pixel offset (using the same `column` index) so none are fully
+ * hidden - matches Jobber's documented tradeoff: stacked favors seeing
+ * true empty-time gaps over side-by-side overlap clarity.
+ */
+export function getLayoutStyle(
+  event: PositionedEvent,
+  layout: AppointmentLayout,
+): { left: string; width: string; zIndex: number } {
+  if (layout === "stacked") {
+    const CASCADE_PX = 10;
+    return {
+      left: `${event.column * CASCADE_PX}px`,
+      width: `calc(100% - ${event.column * CASCADE_PX}px)`,
+      zIndex: event.column + 1,
+    };
+  }
+  return {
+    left: `${event.left}%`,
+    width: `${event.width}%`,
+    zIndex: 1,
+  };
+}
+
+/**
+ * Card/title classes for a completed event, per the user's chosen
+ * completed-appointment style. Returns empty strings when the event
+ * isn't completed, so callers can unconditionally append the result.
+ */
+export function getCompletedClasses(
+  status: string,
+  style: CompletedStyle,
+): { card: string; title: string } {
+  if (status !== "Completed") {
+    return { card: "", title: "" };
+  }
+  if (style === "strikethrough") {
+    return { card: "", title: "line-through decoration-2" };
+  }
+  return {
+    card: "opacity-60 grayscale bg-gray-50 border-gray-200",
+    title: "",
+  };
+}
+
 /**
  * Get overlap groups for a specific time range
  * Useful for calculating positions when events span different dates

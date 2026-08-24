@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,9 +51,22 @@ import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
 import JobCreationModal from "@/components/jobs/job-creation-modal";
 import JobEditModal from "@/components/jobs/job-edit-modal";
-import { calculateEventPositions, type PositionedEvent } from "@/lib/utils/calendar-overlap";
+import {
+  calculateEventPositions,
+  getCompletedClasses,
+  getLayoutStyle,
+  type PositionedEvent,
+} from "@/lib/utils/calendar-overlap";
 import { useJobsQuery, useVisitsQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import { CalendarSkeleton } from "@/components/ui/page-skeletons";
+import { CalendarPreferencesPanel } from "@/components/calendar/calendar-preferences-panel";
+import {
+  DEFAULT_CALENDAR_PREFERENCES,
+  hasCalendarPreferences,
+  loadCalendarPreferences,
+  saveCalendarPreferences,
+  type CalendarPreferences,
+} from "@/lib/calendar-preferences";
 
 interface Job {
   id: string;
@@ -126,7 +139,16 @@ export default function CalendarPage() {
   const [showEditJob, setShowEditJob] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);;
+  const [prefs, setPrefs] = useState<CalendarPreferences>(DEFAULT_CALENDAR_PREFERENCES);
+  const [showPrefsPanel, setShowPrefsPanel] = useState(false);
   const invalidate = useInvalidateQueries();
+
+  useEffect(() => {
+    setPrefs(loadCalendarPreferences());
+    if (!hasCalendarPreferences()) {
+      setShowPrefsPanel(true);
+    }
+  }, []);
 
   const rangeFrom = useMemo(() => {
     const d = new Date(selectedDate);
@@ -202,9 +224,6 @@ export default function CalendarPage() {
     checkDate.setHours(0, 0, 0, 0);
     
     return jobs.filter(job => {
-      // Exclude completed jobs from calendar views
-      if (job.status === 'Completed') return false;
-      
       // Filter by tag if selected
       if (selectedTag && (!job.tags || !Array.isArray(job.tags) || !job.tags.includes(selectedTag))) {
         return false;
@@ -232,9 +251,6 @@ export default function CalendarPage() {
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     
     return jobs.filter(job => {
-      // Exclude completed jobs from calendar views
-      if (job.status === 'Completed') return false;
-      
       const jobDate = new Date(job.start_time);
       return jobDate >= startOfWeek && jobDate <= endOfWeek;
     });
@@ -411,8 +427,17 @@ export default function CalendarPage() {
                 >
                   Day
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPrefsPanel(true)}
+                  title="Schedule settings"
+                  aria-label="Schedule settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
               </div>
-              
+
               <Button onClick={() => setShowAddJob(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Schedule Job
@@ -563,22 +588,22 @@ export default function CalendarPage() {
                               
                               // Calculate position relative to startHour (not 0)
                               const topPosition = (startHour_job - startHour) * 50 + (startMinute / 60) * 50;
-                              
-                              // Calculate left position and width based on overlap
+
                               // Account for padding (8px total = 4px on each side)
                               const padding = 4; // px on each side
-                              const leftPercent = job.left;
-                              const widthPercent = job.width;
-                          
+                              const layoutStyle = getLayoutStyle(job, prefs.appointmentLayout);
+                              const completed = getCompletedClasses(job.status, prefs.completedStyle);
+
                               return (
                                 <div
                                   key={job.id}
-                                  className="absolute p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group"
-                                  style={{ 
-                                    top: `${topPosition}px`, 
+                                  className={`absolute p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 group ${completed.card}`}
+                                  style={{
+                                    top: `${topPosition}px`,
                                     height: `${durationHours * 50}px`,
-                                    left: `calc(${leftPercent}% + ${padding}px)`,
-                                    width: `calc(${widthPercent}% - ${padding * 2}px)`,
+                                    left: `calc(${layoutStyle.left} + ${padding}px)`,
+                                    width: `calc(${layoutStyle.width} - ${padding * 2}px)`,
+                                    zIndex: layoutStyle.zIndex,
                                   }}
                                   onClick={() => handleEditJob(job)}
                                 >
@@ -601,7 +626,7 @@ export default function CalendarPage() {
                               </button>
                             </div>
                             <div className="flex items-center space-x-1 mb-1">
-                              <div className="text-sm font-semibold text-gray-900 truncate flex-1">
+                              <div className={`text-sm font-semibold text-gray-900 truncate flex-1 ${completed.title}`}>
                                 {job.title}
                               </div>
                               {job.estimate_id && (
@@ -710,76 +735,68 @@ export default function CalendarPage() {
                       } ${isToday ? 'text-blue-700 font-bold' : ''}`}>
                         {date.getDate()}
                       </div>
-                      <div className="space-y-1 relative">
-                        {(() => {
-                          const positionedJobs = calculateEventPositions(dayJobs.slice(0, 6));
-                          return positionedJobs.slice(0, 3).map((positionedJob) => {
-                            const job = positionedJob as Job & PositionedEvent;
-                            const StatusIcon = getStatusIcon(job.status);
-                            return (
-                              <div
-                                key={job.id}
-                                className="p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded text-xs cursor-pointer hover:shadow-md transition-all group relative"
-                                onClick={() => handleEditJob(job)}
-                                style={{
-                                  width: `${job.width}%`,
-                                  marginLeft: `${job.left}%`,
-                                  display: 'inline-block'
-                                }}
-                              >
-                                <div className="flex items-center justify-between mb-1">
-                                  <div className="flex items-center space-x-1">
-                                    <StatusIcon className="h-2 w-2 text-blue-600" />
-                                    <span className="font-medium text-blue-900">
-                                      {formatTime(job.start_time)}
-                                    </span>
-                                  </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditJob(job);
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-blue-200 rounded"
-                                    title="Edit job"
-                                  >
-                                    <Edit className="h-2.5 w-2.5 text-blue-600" />
-                                  </button>
-                                </div>
+                      <div className="space-y-1">
+                        {dayJobs.slice(0, 3).map((job) => {
+                          const StatusIcon = getStatusIcon(job.status);
+                          const completed = getCompletedClasses(job.status, prefs.completedStyle);
+                          return (
+                            <div
+                              key={job.id}
+                              className={`w-full p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded text-xs cursor-pointer hover:shadow-md transition-all group ${completed.card}`}
+                              onClick={() => handleEditJob(job)}
+                            >
+                              <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center space-x-1">
-                                  <div className="text-gray-900 truncate font-medium flex-1">
-                                    {job.title}
-                                  </div>
-                                  {job.estimate_id && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Has linked estimate">
-                                      <FileText className="h-2.5 w-2.5" />
+                                  <StatusIcon className="h-2 w-2 text-blue-600" />
+                                  <span className="font-medium text-blue-900">
+                                    {formatTime(job.start_time)}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditJob(job);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-blue-200 rounded"
+                                  title="Edit job"
+                                >
+                                  <Edit className="h-2.5 w-2.5 text-blue-600" />
+                                </button>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <div className={`text-gray-900 truncate font-medium flex-1 ${completed.title}`}>
+                                  {job.title}
+                                </div>
+                                {job.estimate_id && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Has linked estimate">
+                                    <FileText className="h-2.5 w-2.5" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-gray-600 truncate">
+                                {job.client_name}
+                              </div>
+                              {job.tags && job.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-0.5 mt-1">
+                                  {job.tags.slice(0, 1).map((tag, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                                    >
+                                      <Tag className="h-1.5 w-1.5 mr-0.5" />
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {job.tags.length > 1 && (
+                                    <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                      +{job.tags.length - 1}
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-gray-600 truncate">
-                                  {job.client_name}
-                                </div>
-                                {job.tags && job.tags.length > 0 && (
-                                  <div className="flex flex-wrap gap-0.5 mt-1">
-                                    {job.tags.slice(0, 1).map((tag, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                                      >
-                                        <Tag className="h-1.5 w-1.5 mr-0.5" />
-                                        {tag}
-                                      </span>
-                                    ))}
-                                    {job.tags.length > 1 && (
-                                      <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                                        +{job.tags.length - 1}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          });
-                        })()}
+                              )}
+                            </div>
+                          );
+                        })}
                         {dayJobs.length > 3 && (
                           <div className="text-xs text-gray-500 font-medium">
                             +{dayJobs.length - 3} more
@@ -830,157 +847,247 @@ export default function CalendarPage() {
 
               {/* Day Timeline */}
               <div className="p-6">
-                <div className="space-y-4">
-                  {(() => {
-                    const dayJobs = getJobsForDate(selectedDate);
-                    // Calculate time range for day view based on jobs
-                    let minHour = 23;
-                    let maxHour = 0;
-                    
-                    dayJobs.forEach(job => {
-                      const startDate = new Date(job.start_time);
-                      const endDate = new Date(job.end_time);
-                      const startHour = startDate.getHours();
-                      const endHour = endDate.getHours();
-                      
-                      if (startHour < minHour) minHour = startHour;
-                      if (endHour > maxHour) maxHour = endHour;
-                    });
-                    
-                    const startHour = dayJobs.length > 0 ? Math.max(0, minHour - 1) : 8;
-                    const endHour = dayJobs.length > 0 ? Math.min(23, maxHour + 1) : 19;
-                    const hoursCount = endHour - startHour + 1;
-                    
-                    return Array.from({ length: hoursCount }, (_, i) => {
-                      const hour = startHour + i;
-                      const now = new Date();
-                      const isCurrentDay = selectedDate.toDateString() === now.toDateString();
-                      const isCurrentHour = isCurrentDay && hour === now.getHours();
-                      const currentMinute = now.getMinutes();
-                      const hourJobs = dayJobs.filter(job => {
-                        const startDate = new Date(job.start_time);
-                        const endDate = new Date(job.end_time);
-                        const jobStartHour = startDate.getHours();
-                        const jobEndHour = endDate.getHours();
-                        // Show job if this hour falls within the job's time range
-                        return hour >= jobStartHour && hour <= jobEndHour;
-                      });
-                      
-                      // Get jobs that start at this hour
-                      const startingJobs = hourJobs.filter(job => {
-                        const startDate = new Date(job.start_time);
-                        return startDate.getHours() === hour;
-                      });
-                      
-                      // Calculate positions for overlapping jobs
-                      const positionedJobs = calculateEventPositions(startingJobs);
-                    
+                {(() => {
+                  const dayJobs = getJobsForDate(selectedDate);
+                  // Calculate time range for day view based on jobs
+                  let minHour = 23;
+                  let maxHour = 0;
+
+                  dayJobs.forEach(job => {
+                    const startDate = new Date(job.start_time);
+                    const endDate = new Date(job.end_time);
+                    const startHour = startDate.getHours();
+                    const endHour = endDate.getHours();
+
+                    if (startHour < minHour) minHour = startHour;
+                    if (endHour > maxHour) maxHour = endHour;
+                  });
+
+                  const startHour = dayJobs.length > 0 ? Math.max(0, minHour - 1) : 8;
+                  const endHour = dayJobs.length > 0 ? Math.min(23, maxHour + 1) : 19;
+                  const hoursCount = endHour - startHour + 1;
+
+                  // Position every job once for the whole day, instead of the old
+                  // per-hour "starting jobs only" loop - fixes multi-hour overlaps
+                  // being invisible to the overlap math.
+                  const positionedJobs = calculateEventPositions(dayJobs) as (Job & PositionedEvent)[];
+                  const now = new Date();
+                  const isCurrentDay = selectedDate.toDateString() === now.toDateString();
+                  const formatHour = (hour: number) =>
+                    hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
+
+                  if (prefs.dayOrientation === 'horizontal') {
+                    const HOUR_WIDTH = 140;
+                    const ROW_HEIGHT = 84;
+                    const CASCADE_PX = 14;
+                    const isStacked = prefs.appointmentLayout === 'stacked';
+                    const totalWidth = hoursCount * HOUR_WIDTH;
+                    const maxColumn = positionedJobs.reduce((m, j) => Math.max(m, j.column), 0);
+                    const rowsHeight = isStacked
+                      ? ROW_HEIGHT + maxColumn * CASCADE_PX
+                      : (maxColumn + 1) * ROW_HEIGHT;
+                    const nowOffsetPx = ((now.getHours() + now.getMinutes() / 60) - startHour) * HOUR_WIDTH;
+
                     return (
-                      <div key={hour} className="flex relative">
-                        {/* Current time indicator line */}
-                        {isCurrentHour && (
-                          <div 
-                            className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
-                            style={{ top: `${(currentMinute / 60) * 80}px` }}
-                          >
-                            <div className="flex items-center w-full">
-                              <div className="w-20 flex items-center">
-                                <div className="w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-white shadow-md"></div>
-                                <div className="ml-2 text-xs font-semibold text-orange-600 bg-white px-1.5 py-0.5 rounded">
-                                  Now
+                      <div className="overflow-x-auto">
+                        <div style={{ width: `${totalWidth}px` }}>
+                          <div className="flex border-b border-gray-200">
+                            {Array.from({ length: hoursCount }, (_, i) => {
+                              const hour = startHour + i;
+                              return (
+                                <div
+                                  key={hour}
+                                  className="text-xs text-gray-500 font-medium border-l border-gray-100 pl-1 pb-1"
+                                  style={{ width: `${HOUR_WIDTH}px` }}
+                                >
+                                  {formatHour(hour)}
                                 </div>
-                              </div>
-                              <div className="flex-1 h-0.5 bg-orange-500 ml-4"></div>
-                            </div>
+                              );
+                            })}
                           </div>
-                        )}
-                        <div className={`w-20 text-sm font-medium pt-2 ${
-                          isCurrentHour ? 'text-orange-600 font-bold' : 'text-gray-500'
-                        }`}>
-                          {hour === 12 ? '12:00 PM' : hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`}
-                        </div>
-                        <div className="flex-1 ml-4 relative">
-                          {positionedJobs.length > 0 ? (
-                            <div className="relative">
-                              {positionedJobs.map((positionedJob) => {
-                                const job = positionedJob as Job & PositionedEvent;
-                                const StatusIcon = getStatusIcon(job.status);
-                                const startDate = new Date(job.start_time);
-                                const endDate = new Date(job.end_time);
-                                
-                                return (
-                                  <div
-                                    key={job.id}
-                                    className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:shadow-lg transition-all duration-200 group relative mb-2"
-                                    style={{
-                                      width: `${job.width}%`,
-                                      marginLeft: `${job.left}%`,
-                                      display: 'inline-block',
-                                      verticalAlign: 'top'
-                                    }}
-                                  >
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center space-x-2">
-                                        <StatusIcon className="h-4 w-4 text-blue-600" />
-                                        <span className="text-sm font-semibold text-blue-900">
-                                          {formatTime(job.start_time)} - {formatTime(job.end_time)}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <button
-                                          onClick={() => handleEditJob(job)}
-                                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-200 rounded"
-                                          title="Edit job"
-                                        >
-                                          <Edit className="h-4 w-4 text-blue-600" />
-                                        </button>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
-                                          {job.status}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="text-lg font-semibold text-gray-900 mb-1">
-                                      {job.title}
-                                    </div>
-                                    <div className="text-sm text-gray-600 mb-2">
-                                      {job.client_name}
-                                    </div>
-                                    {job.location && (
-                                      <div className="text-sm text-gray-500 flex items-center">
-                                        <MapPin className="h-4 w-4 mr-1" />
-                                        {job.location}
-                                      </div>
-                                    )}
-                                    {job.tags && job.tags.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 mt-2">
-                                        {job.tags.slice(0, 3).map((tag, idx) => (
-                                          <span
-                                            key={idx}
-                                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                                          >
-                                            <Tag className="h-2.5 w-2.5 mr-1" />
-                                            {tag}
-                                          </span>
-                                        ))}
-                                        {job.tags.length > 3 && (
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                                            +{job.tags.length - 3}
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
+                          <div className="relative mt-2" style={{ height: `${rowsHeight}px` }}>
+                            {isCurrentDay && nowOffsetPx >= 0 && nowOffsetPx <= totalWidth && (
+                              <div
+                                className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-10 pointer-events-none"
+                                style={{ left: `${nowOffsetPx}px` }}
+                              />
+                            )}
+                            {positionedJobs.length === 0 && (
+                              <div className="text-sm text-gray-400 pt-2">No jobs scheduled for this day.</div>
+                            )}
+                            {positionedJobs.map((job) => {
+                              const startDate = new Date(job.start_time);
+                              const endDate = new Date(job.end_time);
+                              const startFrac = Math.max(0, (startDate.getHours() + startDate.getMinutes() / 60) - startHour);
+                              const endFrac = (endDate.getHours() + endDate.getMinutes() / 60) - startHour;
+                              const left = startFrac * HOUR_WIDTH;
+                              const width = Math.max(endFrac - startFrac, 0.5) * HOUR_WIDTH;
+                              const top = isStacked ? job.column * CASCADE_PX : job.column * ROW_HEIGHT;
+                              const height = ROW_HEIGHT - 8;
+                              const StatusIcon = getStatusIcon(job.status);
+                              const completed = getCompletedClasses(job.status, prefs.completedStyle);
+
+                              return (
+                                <div
+                                  key={job.id}
+                                  className={`absolute p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg cursor-pointer hover:shadow-lg transition-all group overflow-hidden ${completed.card}`}
+                                  style={{
+                                    left: `${left}px`,
+                                    width: `${width}px`,
+                                    top: `${top}px`,
+                                    height: `${height}px`,
+                                    zIndex: job.column + 1,
+                                  }}
+                                  onClick={() => handleEditJob(job)}
+                                >
+                                  <div className="flex items-center gap-1 mb-0.5">
+                                    <StatusIcon className="h-3 w-3 text-blue-600 shrink-0" />
+                                    <span className="text-xs font-semibold text-blue-900 truncate">
+                                      {formatTime(job.start_time)}
+                                    </span>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="h-16 border-l-2 border-dashed border-gray-200 ml-4"></div>
-                          )}
+                                  <div className={`text-xs font-semibold text-gray-900 truncate ${completed.title}`}>
+                                    {job.title}
+                                  </div>
+                                  <div className="text-xs text-gray-600 truncate">{job.client_name}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     );
-                  })})()}
-                </div>
+                  }
+
+                  // Vertical (default)
+                  const HOUR_HEIGHT = 80;
+                  const totalHeight = hoursCount * HOUR_HEIGHT;
+                  const nowOffsetPx = ((now.getHours() + now.getMinutes() / 60) - startHour) * HOUR_HEIGHT;
+                  const padding = 4;
+
+                  return (
+                    <div className="flex">
+                      <div className="w-20 shrink-0">
+                        {Array.from({ length: hoursCount }, (_, i) => {
+                          const hour = startHour + i;
+                          return (
+                            <div
+                              key={hour}
+                              className="text-sm font-medium text-gray-500 pt-1"
+                              style={{ height: `${HOUR_HEIGHT}px` }}
+                            >
+                              {hour === 12 ? '12:00 PM' : hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex-1 ml-4 relative border-l border-gray-100" style={{ height: `${totalHeight}px` }}>
+                        {Array.from({ length: hoursCount }, (_, i) => (
+                          <div
+                            key={i}
+                            className="absolute left-0 right-0 border-t border-gray-100"
+                            style={{ top: `${i * HOUR_HEIGHT}px` }}
+                          />
+                        ))}
+                        {isCurrentDay && nowOffsetPx >= 0 && nowOffsetPx <= totalHeight && (
+                          <div
+                            className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
+                            style={{ top: `${nowOffsetPx}px` }}
+                          >
+                            <div className="w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-white shadow-md -ml-1"></div>
+                            <div className="ml-2 text-xs font-semibold text-orange-600 bg-white px-1.5 py-0.5 rounded">
+                              Now
+                            </div>
+                            <div className="flex-1 h-0.5 bg-orange-500 ml-2"></div>
+                          </div>
+                        )}
+                        {positionedJobs.length === 0 && (
+                          <div className="text-sm text-gray-400 pt-4 pl-2">No jobs scheduled for this day.</div>
+                        )}
+                        {positionedJobs.map((job) => {
+                          const startDate = new Date(job.start_time);
+                          const endDate = new Date(job.end_time);
+                          const startFrac = Math.max(0, (startDate.getHours() + startDate.getMinutes() / 60) - startHour);
+                          const endFrac = (endDate.getHours() + endDate.getMinutes() / 60) - startHour;
+                          const top = startFrac * HOUR_HEIGHT;
+                          const height = Math.max(endFrac - startFrac, 0.5) * HOUR_HEIGHT;
+                          const StatusIcon = getStatusIcon(job.status);
+                          const layoutStyle = getLayoutStyle(job, prefs.appointmentLayout);
+                          const completed = getCompletedClasses(job.status, prefs.completedStyle);
+
+                          return (
+                            <div
+                              key={job.id}
+                              className={`absolute p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:shadow-lg transition-all duration-200 group overflow-hidden ${completed.card}`}
+                              style={{
+                                top: `${top}px`,
+                                height: `${height}px`,
+                                left: `calc(${layoutStyle.left} + ${padding}px)`,
+                                width: `calc(${layoutStyle.width} - ${padding * 2}px)`,
+                                zIndex: layoutStyle.zIndex,
+                              }}
+                              onClick={() => handleEditJob(job)}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center space-x-2">
+                                  <StatusIcon className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm font-semibold text-blue-900">
+                                    {formatTime(job.start_time)} - {formatTime(job.end_time)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditJob(job);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-200 rounded"
+                                    title="Edit job"
+                                  >
+                                    <Edit className="h-4 w-4 text-blue-600" />
+                                  </button>
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                                    {job.status}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className={`text-lg font-semibold text-gray-900 mb-1 truncate ${completed.title}`}>
+                                {job.title}
+                              </div>
+                              <div className="text-sm text-gray-600 mb-2 truncate">
+                                {job.client_name}
+                              </div>
+                              {job.location && (
+                                <div className="text-sm text-gray-500 flex items-center truncate">
+                                  <MapPin className="h-4 w-4 mr-1 shrink-0" />
+                                  {job.location}
+                                </div>
+                              )}
+                              {job.tags && job.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {job.tags.slice(0, 3).map((tag, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                                    >
+                                      <Tag className="h-2.5 w-2.5 mr-1" />
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {job.tags.length > 3 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                      +{job.tags.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1165,6 +1272,18 @@ export default function CalendarPage() {
         }}
         onJobUpdated={handleJobUpdated}
         job={selectedJob}
+      />
+
+      {/* Schedule personal settings */}
+      <CalendarPreferencesPanel
+        open={showPrefsPanel}
+        onOpenChange={setShowPrefsPanel}
+        value={prefs}
+        onSave={(next) => {
+          setPrefs(next);
+          saveCalendarPreferences(next);
+          setShowPrefsPanel(false);
+        }}
       />
     </>
   );
