@@ -40,7 +40,7 @@ function OptionCard({
     >
       <div
         className={cn(
-          "flex h-20 w-32 items-center justify-center rounded-lg border-2 bg-white p-2 transition-colors",
+          "flex h-[110px] w-[190px] items-center justify-center rounded-lg border-2 bg-white p-2.5 transition-colors",
           selected ? "border-green-600" : "border-gray-200 group-hover:border-gray-300",
         )}
       >
@@ -61,61 +61,112 @@ function OptionCard({
   );
 }
 
+/** Mini calendar-column mockup shared by Nested/Stacked/Vertical previews. */
+function ColumnGridPreview({ columns }: { columns: { top: number; blocks: number[] }[] }) {
+  return (
+    <div className="flex h-full w-full flex-col gap-1">
+      <div className="flex flex-1 gap-1">
+        {columns.map((col, i) => (
+          <div key={i} className="h-1 flex-1 rounded-full bg-gray-300" />
+        ))}
+      </div>
+      <div className="flex flex-[5] gap-1">
+        {columns.map((col, i) => (
+          <div key={i} className="flex flex-1 flex-col gap-0.5" style={{ paddingTop: `${col.top}%` }}>
+            {col.blocks.map((h, j) => (
+              <div key={j} className="w-full rounded-sm bg-gray-300" style={{ height: `${h}%` }} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function NestedPreview() {
   return (
-    <div className="flex h-full w-full gap-1">
-      <div className="h-full flex-1 rounded bg-gray-300" />
-      <div className="h-full flex-1 rounded bg-gray-300" />
-    </div>
+    <ColumnGridPreview
+      columns={[
+        { top: 0, blocks: [35, 25] },
+        { top: 10, blocks: [55] },
+        { top: 0, blocks: [20, 30] },
+        { top: 25, blocks: [20, 20] },
+      ]}
+    />
   );
 }
 
 function StackedPreview() {
   return (
-    <div className="relative h-full w-full">
-      <div className="absolute inset-0 translate-x-1.5 translate-y-1 rounded bg-gray-200" />
-      <div className="absolute inset-0 rounded bg-gray-300" />
-    </div>
+    <ColumnGridPreview
+      columns={[
+        { top: 0, blocks: [45] },
+        { top: 55, blocks: [30] },
+        { top: 15, blocks: [65] },
+        { top: 0, blocks: [25] },
+      ]}
+    />
   );
 }
 
 function GrayedOutPreview() {
   return (
-    <div className="flex h-full w-full flex-col justify-center gap-1 rounded bg-gray-100 p-2">
-      <CheckCircle className="h-3.5 w-3.5 text-gray-400" />
-      <div className="h-1.5 w-full rounded bg-gray-300" />
-      <div className="h-1.5 w-2/3 rounded bg-gray-300" />
+    <div className="flex h-full w-full flex-col justify-center gap-1.5 rounded-md bg-gray-100 p-2.5">
+      <CheckCircle className="h-4 w-4 text-green-500" />
+      <div className="h-1.5 w-full rounded-full bg-gray-300" />
+      <div className="h-1.5 w-4/5 rounded-full bg-gray-300" />
+      <div className="h-1.5 w-2/5 rounded-full bg-gray-300" />
     </div>
   );
 }
 
 function StrikethroughPreview() {
   return (
-    <div className="flex h-full w-full flex-col justify-center gap-1 rounded bg-green-50 p-2">
-      <div className="relative h-1.5 w-full rounded bg-green-300">
-        <div className="absolute inset-y-1/2 w-full border-t border-gray-700" />
+    <div className="flex h-full w-full flex-col justify-center gap-1.5 rounded-md bg-green-50 p-2.5">
+      <div className="h-3.5 w-3.5 rounded-full bg-gray-400" />
+      <div className="relative">
+        <div className="space-y-1">
+          <div className="h-1.5 w-full rounded-full bg-gray-700" />
+          <div className="h-1.5 w-4/5 rounded-full bg-gray-700" />
+        </div>
+        <div className="absolute inset-x-0 top-1/2 border-t border-gray-700" />
       </div>
-      <div className="h-1.5 w-2/3 rounded bg-green-300" />
+      <div className="h-1.5 w-2/5 rounded-full bg-gray-500" />
     </div>
   );
 }
 
 function VerticalPreview() {
   return (
-    <div className="flex h-full w-full flex-col justify-center gap-1">
-      <div className="h-1.5 w-full rounded bg-gray-300" />
-      <div className="h-1.5 w-full rounded bg-gray-300" />
-      <div className="h-1.5 w-full rounded bg-gray-300" />
-    </div>
+    <ColumnGridPreview
+      columns={[
+        { top: 0, blocks: [30, 25] },
+        { top: 15, blocks: [50] },
+        { top: 5, blocks: [20, 30] },
+      ]}
+    />
   );
 }
 
 function HorizontalPreview() {
+  const rows: { offset: number; width: number }[] = [
+    { offset: 5, width: 30 },
+    { offset: 45, width: 25 },
+    { offset: 15, width: 50 },
+  ];
   return (
-    <div className="flex h-full w-full items-center gap-1">
-      <div className="h-full w-1.5 rounded bg-gray-300" />
-      <div className="h-full w-1.5 rounded bg-gray-300" />
-      <div className="h-full w-1.5 rounded bg-gray-300" />
+    <div className="flex h-full w-full flex-col justify-center gap-1.5">
+      {rows.map((row, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <div className="h-1.5 w-3 shrink-0 rounded-full bg-gray-300" />
+          <div className="relative h-2.5 flex-1">
+            <div
+              className="absolute h-full rounded-sm bg-gray-300"
+              style={{ left: `${row.offset}%`, width: `${row.width}%` }}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
