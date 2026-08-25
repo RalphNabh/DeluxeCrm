@@ -48,29 +48,51 @@ export function DraggableJobCard({
   });
 
   const [resizeDelta, setResizeDelta] = useState(0);
+  const [resizeStartPos, setResizeStartPos] = useState<number | null>(null);
 
+  /**
+   * Uses native pointer capture (not window-level listeners) so move/up
+   * events keep reaching this exact handle for this exact gesture no matter
+   * where the pointer travels - including if the browser fires pointercancel
+   * instead of pointerup. A prior window-listener version could leak past an
+   * interrupted gesture and misfire during a later, unrelated drag,
+   * corrupting that job's time - this can't.
+   */
   function handleResizePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (!resize) return;
     e.stopPropagation();
     e.preventDefault();
-    const startPos = resize.axis === "vertical" ? e.clientY : e.clientX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setResizeStartPos(resize.axis === "vertical" ? e.clientY : e.clientX);
+  }
 
-    function handleMove(ev: PointerEvent) {
-      const pos = resize!.axis === "vertical" ? ev.clientY : ev.clientX;
-      setResizeDelta(pos - startPos);
+  function handleResizePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resize || resizeStartPos === null) return;
+    const pos = resize.axis === "vertical" ? e.clientY : e.clientX;
+    setResizeDelta(pos - resizeStartPos);
+  }
+
+  function releaseCapture(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
     }
-    function handleUp(ev: PointerEvent) {
-      const pos = resize!.axis === "vertical" ? ev.clientY : ev.clientX;
-      const finalDelta = pos - startPos;
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-      setResizeDelta(0);
-      if (Math.abs(finalDelta) > 2) {
-        resize!.onCommit(finalDelta);
-      }
+    setResizeStartPos(null);
+    setResizeDelta(0);
+  }
+
+  function handleResizePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resize || resizeStartPos === null) return;
+    const pos = resize.axis === "vertical" ? e.clientY : e.clientX;
+    const finalDelta = pos - resizeStartPos;
+    releaseCapture(e);
+    if (Math.abs(finalDelta) > 2) {
+      resize.onCommit(finalDelta);
     }
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
+  }
+
+  /** A cancelled gesture (e.g. the browser interrupts it) discards the resize instead of committing a possibly-bogus delta. */
+  function handleResizePointerCancel(e: React.PointerEvent<HTMLDivElement>) {
+    releaseCapture(e);
   }
 
   const resizeStyle: CSSProperties =
@@ -93,12 +115,23 @@ export function DraggableJobCard({
       {resize && (
         <div
           onPointerDown={handleResizePointerDown}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerUp}
+          onPointerCancel={handleResizePointerCancel}
           className={
             resize.axis === "vertical"
-              ? "absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize touch-none"
-              : "absolute top-0 bottom-0 right-0 w-2 cursor-ew-resize touch-none"
+              ? "group/resize absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize touch-none flex items-end justify-center pb-0.5"
+              : "group/resize absolute top-0 bottom-0 right-0 w-3 cursor-ew-resize touch-none flex items-center justify-end pr-0.5"
           }
-        />
+        >
+          <div
+            className={
+              resize.axis === "vertical"
+                ? "h-1 w-8 rounded-full bg-gray-900/0 group-hover/resize:bg-gray-900/40 transition-colors"
+                : "w-1 h-8 rounded-full bg-gray-900/0 group-hover/resize:bg-gray-900/40 transition-colors"
+            }
+          />
+        </div>
       )}
     </div>
   );

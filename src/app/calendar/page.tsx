@@ -62,6 +62,7 @@ import {
   type DragStartEvent,
   type DragMoveEvent,
   type Modifier,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query/keys";
@@ -405,6 +406,49 @@ export default function CalendarPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
+  // Which day column a Week-view drag currently "belongs" to. Held sticky in
+  // dayColumnCollisionDetection below so crossing a day boundary doesn't flip
+  // it instantly - matches Jobber, where a card only jumps to the next day
+  // once the drag has traveled halfway across that day's column.
+  const stickyDayRef = useRef<string | null>(null);
+
+  const dayColumnCollisionDetection: CollisionDetection = (args) => {
+    const { collisionRect, droppableContainers, droppableRects } = args;
+    const centerX = collisionRect.left + collisionRect.width / 2;
+    const dayIds = droppableContainers
+      .map((c) => c.id)
+      .filter((id): id is string => typeof id === "string" && id.startsWith("day:"));
+    if (dayIds.length === 0) return [];
+
+    const currentId = stickyDayRef.current;
+    if (currentId) {
+      const rect = droppableRects.get(currentId);
+      if (rect) {
+        const hold = rect.width / 2;
+        if (centerX >= rect.left - hold && centerX <= rect.right + hold) {
+          return [{ id: currentId }];
+        }
+      }
+    }
+
+    let closestId: string | null = null;
+    let closestDistance = Infinity;
+    for (const id of dayIds) {
+      const rect = droppableRects.get(id);
+      if (!rect) continue;
+      const distance = Math.abs(centerX - (rect.left + rect.width / 2));
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestId = id;
+      }
+    }
+    if (closestId) {
+      stickyDayRef.current = closestId;
+      return [{ id: closestId }];
+    }
+    return [];
+  };
+
   const queryClient = useQueryClient();
   // Chained promise: each reschedule PATCHes only after the previous one
   // settles, so rapid-fire drags persist in order without ever blocking the
@@ -471,7 +515,9 @@ export default function CalendarPage() {
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current as DragCardData | undefined;
-    if (data) setActiveDragJob(data.job);
+    if (!data) return;
+    setActiveDragJob(data.job);
+    stickyDayRef.current = `day:${localDateKey(new Date(data.job.start_time))}`;
   }
 
   function handleDragMove(event: DragMoveEvent) {
@@ -489,6 +535,7 @@ export default function CalendarPage() {
   function handleDragEnd(event: DragEndEvent) {
     setActiveDragJob(null);
     setDragPreview({ minutes: 0, dateKey: null });
+    stickyDayRef.current = null;
     if (!usingVisits) return;
     const { active, delta, over } = event;
     const data = active.data.current as DragCardData | undefined;
@@ -916,6 +963,7 @@ export default function CalendarPage() {
             return (
             <DndContext
               sensors={dndSensors}
+              collisionDetection={dayColumnCollisionDetection}
               modifiers={[snapToFifteenMinutes]}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
