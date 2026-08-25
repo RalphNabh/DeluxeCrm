@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  clampDragToSameDay,
+  endOfLocalDay,
   firstAssigneeUserId,
   getCompletedClasses,
   getJobCardAppearance,
@@ -111,5 +113,48 @@ describe("getJobCardAppearance", () => {
     const appearance = getJobCardAppearance({ background: "rgba(0,0,0,0.1)", border: "#123456" });
     assert.match(appearance.cardClassName, /border-l-4/);
     assert.equal(appearance.cardStyle.borderLeftColor, "#123456");
+  });
+});
+
+describe("endOfLocalDay", () => {
+  it("returns 23:59:59.999 on the same local day", () => {
+    const d = endOfLocalDay(new Date(2026, 0, 15, 9, 30, 0, 0));
+    assert.equal(d.getFullYear(), 2026);
+    assert.equal(d.getMonth(), 0);
+    assert.equal(d.getDate(), 15);
+    assert.equal(d.getHours(), 23);
+    assert.equal(d.getMinutes(), 59);
+    assert.equal(d.getSeconds(), 59);
+    assert.equal(d.getMilliseconds(), 999);
+  });
+});
+
+describe("clampDragToSameDay", () => {
+  it("leaves a same-day range untouched", () => {
+    const start = new Date(2026, 0, 15, 9, 0);
+    const end = new Date(2026, 0, 15, 10, 0);
+    const result = clampDragToSameDay(start, end);
+    assert.equal(result.start.getTime(), start.getTime());
+    assert.equal(result.end.getTime(), end.getTime());
+  });
+
+  it("shifts start earlier to keep end within the same day, preserving duration", () => {
+    const start = new Date(2026, 0, 15, 23, 0);
+    const end = new Date(2026, 0, 16, 1, 0); // 2 hours, crosses midnight
+    const durationMs = end.getTime() - start.getTime();
+    const result = clampDragToSameDay(start, end);
+
+    assert.equal(result.end.getTime(), endOfLocalDay(start).getTime());
+    assert.equal(result.end.getTime() - result.start.getTime(), durationMs);
+    assert.equal(result.start.getDate(), 15);
+    assert.equal(result.end.getDate(), 15);
+  });
+
+  it("treats an end exactly at end-of-day as same-day (no shift)", () => {
+    const start = new Date(2026, 0, 15, 20, 0);
+    const end = endOfLocalDay(start);
+    const result = clampDragToSameDay(start, end);
+    assert.equal(result.start.getTime(), start.getTime());
+    assert.equal(result.end.getTime(), end.getTime());
   });
 });

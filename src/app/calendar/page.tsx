@@ -77,6 +77,8 @@ import {
 import { DraggableJobCard } from "@/components/calendar/draggable-job-card";
 import {
   calculateEventPositions,
+  clampDragToSameDay,
+  endOfLocalDay,
   firstAssigneeUserId,
   getCompletedClasses,
   getJobCardAppearance,
@@ -230,7 +232,16 @@ function visitsToCalendarJobs(visits: unknown[]): Job[] {
   });
 }
 
+// The grid always spans the full day, regardless of which jobs are on it -
+// deliberately not derived from job content, so resizing/dragging a job can
+// never reflow the grid itself (only that job's own card moves).
+const FULL_DAY_START_HOUR = 0;
+const FULL_DAY_END_HOUR = 23;
+const FULL_DAY_HOURS_COUNT = FULL_DAY_END_HOUR - FULL_DAY_START_HOUR + 1;
+
 const WEEK_HOUR_PX = 50;
+const DAY_HOUR_WIDTH = 140; // Day view, Horizontal orientation
+const DAY_HOUR_HEIGHT = 80; // Day view, Vertical orientation
 
 /**
  * One day column in Week view. A droppable target (for dragging jobs between
@@ -284,12 +295,10 @@ function WeekDayColumn({
 
         const startHour_job = startDate.getHours();
         const startMinute = startDate.getMinutes();
-        const endHour_job = endDate.getHours();
-        const endMinute = endDate.getMinutes();
 
-        const startTimeMinutes = startHour_job * 60 + startMinute;
-        const endTimeMinutes = endHour_job * 60 + endMinute;
-        const durationHours = (endTimeMinutes - startTimeMinutes) / 60;
+        // Real elapsed time, not wall-clock-hour subtraction - the latter
+        // goes negative the moment start/end hours wrap across midnight.
+        const durationHours = Math.max((endDate.getTime() - startDate.getTime()) / 3600000, 1 / 12);
 
         const topPosition = (startHour_job - startHour) * WEEK_HOUR_PX + (startMinute / 60) * WEEK_HOUR_PX;
 
@@ -391,6 +400,10 @@ export default function CalendarPage() {
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const invalidate = useInvalidateQueries();
 
+  const weekScrollRef = useRef<HTMLDivElement | null>(null);
+  const dayVerticalScrollRef = useRef<HTMLDivElement | null>(null);
+  const dayHorizontalScrollRef = useRef<HTMLDivElement | null>(null);
+
   const teamQuery = useTeamQuery();
   const colorByUserId = useMemo(() => {
     const map = new Map<string, string>();
@@ -456,6 +469,7 @@ export default function CalendarPage() {
   const rescheduleQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const [activeDragJob, setActiveDragJob] = useState<(Job & PositionedEvent) | null>(null);
+  const [activeDragSize, setActiveDragSize] = useState<{ width: number; height: number } | null>(null);
   const [dragPreview, setDragPreview] = useState<{ minutes: number; dateKey: string | null }>({
     minutes: 0,
     dateKey: null,
@@ -517,6 +531,8 @@ export default function CalendarPage() {
     const data = event.active.data.current as DragCardData | undefined;
     if (!data) return;
     setActiveDragJob(data.job);
+    const initialRect = event.active.rect.current.initial;
+    setActiveDragSize(initialRect ? { width: initialRect.width, height: initialRect.height } : null);
     stickyDayRef.current = `day:${localDateKey(new Date(data.job.start_time))}`;
   }
 
@@ -534,6 +550,7 @@ export default function CalendarPage() {
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveDragJob(null);
+    setActiveDragSize(null);
     setDragPreview({ minutes: 0, dateKey: null });
     stickyDayRef.current = null;
     if (!usingVisits) return;
@@ -558,7 +575,8 @@ export default function CalendarPage() {
       withNewDay.setFullYear(y, m - 1, d);
       newStart = withNewDay;
     }
-    const newEnd = new Date(newStart.getTime() + durationMs);
+    let newEnd = new Date(newStart.getTime() + durationMs);
+    ({ start: newStart, end: newEnd } = clampDragToSameDay(newStart, newEnd));
 
     commitReschedule(data.job, newStart, newEnd);
   }
@@ -571,6 +589,8 @@ export default function CalendarPage() {
     const minEnd = new Date(start.getTime() + MIN_VISIT_DURATION_MINUTES * 60000);
     let newEnd = new Date(originalEnd.getTime() + snappedMinutes * 60000);
     if (newEnd < minEnd) newEnd = minEnd;
+    const dayEnd = endOfLocalDay(start);
+    if (newEnd > dayEnd) newEnd = dayEnd;
 
     commitReschedule(job, start, newEnd);
   }
@@ -609,7 +629,8 @@ export default function CalendarPage() {
       newStart = new Date(newStart);
       newStart.setFullYear(y, m - 1, d);
     }
-    const newEnd = new Date(newStart.getTime() + durationMs);
+    let newEnd = new Date(newStart.getTime() + durationMs);
+    ({ start: newStart, end: newEnd } = clampDragToSameDay(newStart, newEnd));
     return {
       title: activeDragJob.title,
       dateLabel: newStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
@@ -617,14 +638,35 @@ export default function CalendarPage() {
     };
   }
 
+  /**
+   * The dragged card's "phantom" - the exact size and color of the real
+   * card, just translucent, so it reads as a see-through copy of the same
+   * block rather than a different-looking info tooltip.
+   */
   function renderDragGhost() {
     const preview = dragPreviewLabel();
-    if (!preview) return null;
+    if (!preview || !activeDragJob) return null;
+    const color = getJobColor(firstAssigneeUserId(activeDragJob.job_assignments), colorByUserId);
+    const appearance = getJobCardAppearance(color);
+    const StatusIcon = getStatusIcon(activeDragJob.status);
     return (
-      <div className="w-44 rounded-lg border-2 border-dashed border-gray-400 bg-gray-200/90 p-2 shadow-lg opacity-90 pointer-events-none">
-        <div className="text-xs font-semibold text-gray-600 truncate">{preview.title}</div>
-        <div className="text-xs text-gray-500">{preview.dateLabel}</div>
-        <div className="text-xs font-medium text-gray-700">{preview.timeLabel}</div>
+      <div
+        className={`p-2 rounded-lg shadow-lg opacity-60 overflow-hidden ${appearance.cardClassName}`}
+        style={{
+          width: activeDragSize ? `${activeDragSize.width}px` : undefined,
+          height: activeDragSize ? `${activeDragSize.height}px` : undefined,
+          ...appearance.cardStyle,
+        }}
+      >
+        <div className="flex items-center space-x-2 mb-1">
+          <StatusIcon className={`h-3 w-3 shrink-0 ${appearance.accentClassName}`} />
+          <span className={`text-xs font-semibold truncate ${color ? 'text-gray-900' : 'text-blue-900'}`}>
+            {preview.timeLabel}
+          </span>
+        </div>
+        <div className="text-sm font-semibold text-gray-900 truncate">{preview.title}</div>
+        <div className="text-xs text-gray-600 truncate">{activeDragJob.client_name}</div>
+        <div className="text-xs text-gray-500 truncate">{preview.dateLabel}</div>
       </div>
     );
   }
@@ -735,39 +777,44 @@ export default function CalendarPage() {
     startOfWeek.setDate(date.getDate() - date.getDay());
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
-    
+
     return jobs.filter(job => {
       const jobDate = new Date(job.start_time);
       return jobDate >= startOfWeek && jobDate <= endOfWeek;
     });
   };
 
-  // Calculate the time range needed for the week view
-  const getWeekTimeRange = () => {
-    const weekJobs = getJobsForWeek(selectedDate);
-    if (weekJobs.length === 0) {
-      return { startHour: 6, endHour: 22 }; // Default 6 AM to 10 PM
+  // Scroll each view's fixed 24h grid to roughly business hours once, when
+  // the user navigates to a different date/view or data first loads -
+  // deliberately not keyed on `jobs` itself, so resizing/dragging a job
+  // never re-triggers a scroll jump.
+  useEffect(() => {
+    const isHorizontalDay = view === 'day' && prefs.dayOrientation === 'horizontal';
+    const container = view === 'week'
+      ? weekScrollRef.current
+      : isHorizontalDay
+        ? dayHorizontalScrollRef.current
+        : dayVerticalScrollRef.current;
+    if (!container) return;
+
+    const relevantJobs = view === 'week' ? getJobsForWeek(selectedDate) : getJobsForDate(selectedDate);
+    let targetHour = 7;
+    if (relevantJobs.length > 0) {
+      const earliestHour = relevantJobs.reduce(
+        (min, job) => Math.min(min, new Date(job.start_time).getHours()),
+        23,
+      );
+      targetHour = Math.max(0, earliestHour - 1);
     }
 
-    let earliestHour = 23;
-    let latestHour = 0;
-
-    weekJobs.forEach(job => {
-      const startDate = new Date(job.start_time);
-      const endDate = new Date(job.end_time);
-      const startHour = startDate.getHours();
-      const endHour = endDate.getHours();
-      
-      if (startHour < earliestHour) earliestHour = startHour;
-      if (endHour > latestHour) latestHour = endHour;
-    });
-
-    // Add padding: 1 hour before earliest, 1 hour after latest
-    const startHour = Math.max(0, earliestHour - 1);
-    const endHour = Math.min(23, latestHour + 1);
-
-    return { startHour, endHour };
-  };
+    const pxPerHour = view === 'week' ? WEEK_HOUR_PX : isHorizontalDay ? DAY_HOUR_WIDTH : DAY_HOUR_HEIGHT;
+    if (isHorizontalDay) {
+      container.scrollLeft = targetHour * pxPerHour;
+    } else {
+      container.scrollTop = targetHour * pxPerHour;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, selectedDate, prefs.dayOrientation, hasQueryData]);
 
   const getWeekDays = () => {
     const startOfWeek = new Date(selectedDate);
@@ -1011,12 +1058,12 @@ export default function CalendarPage() {
 
               {/* Week Body */}
               {(() => {
-                const { startHour, endHour } = getWeekTimeRange();
-                const hoursCount = endHour - startHour + 1;
+                const startHour = FULL_DAY_START_HOUR;
+                const hoursCount = FULL_DAY_HOURS_COUNT;
                 const totalHeight = hoursCount * WEEK_HOUR_PX;
 
                 return (
-                  <div className="grid overflow-y-auto max-h-[calc(100vh-300px)]" style={{ minHeight: '600px', gridTemplateColumns }}>
+                  <div ref={weekScrollRef} className="grid overflow-y-auto max-h-[calc(100vh-300px)]" style={{ minHeight: '600px', gridTemplateColumns }}>
                     <div className="p-4 border-r bg-gray-50/50 relative sticky left-0 z-10">
                       <div className="space-y-0">
                         {Array.from({ length: hoursCount }, (_, i) => {
@@ -1262,23 +1309,8 @@ export default function CalendarPage() {
               <div className="p-6">
                 {(() => {
                   const dayJobs = getJobsForDate(selectedDate);
-                  // Calculate time range for day view based on jobs
-                  let minHour = 23;
-                  let maxHour = 0;
-
-                  dayJobs.forEach(job => {
-                    const startDate = new Date(job.start_time);
-                    const endDate = new Date(job.end_time);
-                    const startHour = startDate.getHours();
-                    const endHour = endDate.getHours();
-
-                    if (startHour < minHour) minHour = startHour;
-                    if (endHour > maxHour) maxHour = endHour;
-                  });
-
-                  const startHour = dayJobs.length > 0 ? Math.max(0, minHour - 1) : 8;
-                  const endHour = dayJobs.length > 0 ? Math.min(23, maxHour + 1) : 19;
-                  const hoursCount = endHour - startHour + 1;
+                  const startHour = FULL_DAY_START_HOUR;
+                  const hoursCount = FULL_DAY_HOURS_COUNT;
 
                   // Position every job once for the whole day, instead of the old
                   // per-hour "starting jobs only" loop - fixes multi-hour overlaps
@@ -1290,7 +1322,7 @@ export default function CalendarPage() {
                     hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
 
                   if (prefs.dayOrientation === 'horizontal') {
-                    const HOUR_WIDTH = 140;
+                    const HOUR_WIDTH = DAY_HOUR_WIDTH;
                     const ROW_HEIGHT = 84;
                     const CASCADE_PX = 14;
                     const isStacked = prefs.appointmentLayout === 'stacked';
@@ -1302,7 +1334,7 @@ export default function CalendarPage() {
                     const nowOffsetPx = ((now.getHours() + now.getMinutes() / 60) - startHour) * HOUR_WIDTH;
 
                     return (
-                      <div className="overflow-x-auto">
+                      <div ref={dayHorizontalScrollRef} className="overflow-x-auto">
                         <div style={{ width: `${totalWidth}px` }}>
                           <div className="flex border-b border-gray-200">
                             {Array.from({ length: hoursCount }, (_, i) => {
@@ -1381,13 +1413,13 @@ export default function CalendarPage() {
                   }
 
                   // Vertical (default)
-                  const HOUR_HEIGHT = 80;
+                  const HOUR_HEIGHT = DAY_HOUR_HEIGHT;
                   const totalHeight = hoursCount * HOUR_HEIGHT;
                   const nowOffsetPx = ((now.getHours() + now.getMinutes() / 60) - startHour) * HOUR_HEIGHT;
                   const padding = 4;
 
                   return (
-                    <div className="flex">
+                    <div ref={dayVerticalScrollRef} className="flex overflow-y-auto max-h-[calc(100vh-300px)]">
                       <div className="w-20 shrink-0">
                         {Array.from({ length: hoursCount }, (_, i) => {
                           const hour = startHour + i;

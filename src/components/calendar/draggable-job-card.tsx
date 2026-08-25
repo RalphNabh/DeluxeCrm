@@ -9,6 +9,14 @@ export interface ResizeHandle {
   onCommit: (deltaPx: number) => void;
 }
 
+/** The smallest a card is ever allowed to look while live-resizing, in px. */
+const MIN_LIVE_RESIZE_PX = 20;
+
+function parsePx(value: CSSProperties["height"]): number {
+  const n = parseFloat(String(value ?? "0"));
+  return Number.isFinite(n) ? n : 0;
+}
+
 interface DraggableJobCardProps {
   dragId: string;
   dragDisabled: boolean;
@@ -69,7 +77,9 @@ export function DraggableJobCard({
   function handleResizePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!resize || resizeStartPos === null) return;
     const pos = resize.axis === "vertical" ? e.clientY : e.clientX;
-    setResizeDelta(pos - resizeStartPos);
+    const baseSize = parsePx(resize.axis === "vertical" ? style.height : style.width);
+    const minDelta = MIN_LIVE_RESIZE_PX - baseSize;
+    setResizeDelta(Math.max(pos - resizeStartPos, minDelta));
   }
 
   function releaseCapture(e: React.PointerEvent<HTMLDivElement>) {

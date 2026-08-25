@@ -243,6 +243,26 @@ export function getJobCardAppearance(color: JobColor | null): JobCardAppearance 
   };
 }
 
+export function endOfLocalDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+/**
+ * Contractor jobs never legitimately span midnight, so a drag that would
+ * push `end` into the next day shifts `start` earlier instead, preserving
+ * duration - never crossing a day boundary. Without this, the same visit
+ * matches two day columns in a day-range check keyed on inclusive date
+ * ranges, and the grid's own hour bounds can balloon to fit it.
+ */
+export function clampDragToSameDay(start: Date, end: Date): { start: Date; end: Date } {
+  const dayEnd = endOfLocalDay(start);
+  if (end <= dayEnd) return { start, end };
+  const overflowMs = end.getTime() - dayEnd.getTime();
+  return { start: new Date(start.getTime() - overflowMs), end: dayEnd };
+}
+
 /**
  * Get overlap groups for a specific time range
  * Useful for calculating positions when events span different dates
