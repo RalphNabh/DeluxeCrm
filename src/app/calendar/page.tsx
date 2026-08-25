@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +51,28 @@ import SignOutButton from "@/components/auth/sign-out";
 import UserProfile from "@/components/layout/user-profile";
 import JobCreationModal from "@/components/jobs/job-creation-modal";
 import JobEditModal from "@/components/jobs/job-edit-modal";
-import { DndContext, useDroppable, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  useDroppable,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+  type DragMoveEvent,
+  type Modifier,
+} from "@dnd-kit/core";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query/keys";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DraggableJobCard } from "@/components/calendar/draggable-job-card";
 import {
   calculateEventPositions,
@@ -83,12 +104,36 @@ function localDateKey(date: Date): string {
 }
 
 const MIN_VISIT_DURATION_MINUTES = 15;
+const DRAG_SNAP_MINUTES = 15;
 
 /** Snap a delta in px to the nearest 15 minutes, given how many px = 1 hour. */
 function pxDeltaToSnappedMinutes(deltaPx: number, pxPerHour: number): number {
   const deltaMinutes = (deltaPx / pxPerHour) * 60;
-  return Math.round(deltaMinutes / MIN_VISIT_DURATION_MINUTES) * MIN_VISIT_DURATION_MINUTES;
+  return Math.round(deltaMinutes / DRAG_SNAP_MINUTES) * DRAG_SNAP_MINUTES;
 }
+
+interface DragCardData {
+  job: Job & PositionedEvent;
+  pxPerHour: number;
+  axis: "vertical" | "horizontal";
+}
+
+/**
+ * Makes the dragged card's on-screen position snap to 15-minute increments
+ * instead of following the pointer pixel-for-pixel. Only the time axis
+ * (vertical for Week/Day-Vertical, horizontal for Day-Horizontal) is
+ * snapped - the other axis stays free so, e.g., Week view can still move
+ * smoothly between day columns.
+ */
+const snapToFifteenMinutes: Modifier = ({ transform, active }) => {
+  const data = active?.data?.current as DragCardData | undefined;
+  if (!data) return transform;
+  const gridSize = (data.pxPerHour / 60) * DRAG_SNAP_MINUTES;
+  if (data.axis === "horizontal") {
+    return { ...transform, x: Math.round(transform.x / gridSize) * gridSize };
+  }
+  return { ...transform, y: Math.round(transform.y / gridSize) * gridSize };
+};
 
 interface Job {
   id: string;
@@ -195,6 +240,7 @@ function WeekDayColumn({
   day,
   isToday,
   totalHeight,
+  hoursCount,
   positionedJobs,
   startHour,
   prefs,
@@ -206,6 +252,7 @@ function WeekDayColumn({
   day: Date;
   isToday: boolean;
   totalHeight: number;
+  hoursCount: number;
   positionedJobs: (Job & PositionedEvent)[];
   startHour: number;
   prefs: CalendarPreferences;
@@ -222,6 +269,13 @@ function WeekDayColumn({
       className={`border-r relative pt-1 ${isToday ? 'bg-blue-50/40' : 'bg-white'} ${isOver ? 'bg-blue-100/50' : ''}`}
       style={{ minHeight: `${totalHeight}px` }}
     >
+      {Array.from({ length: hoursCount }, (_, i) => (
+        <div
+          key={i}
+          className="absolute left-0 right-0 border-t border-gray-100 pointer-events-none"
+          style={{ top: `${i * WEEK_HOUR_PX}px` }}
+        />
+      ))}
       {positionedJobs.map((job) => {
         const StatusIcon = getStatusIcon(job.status);
         const startDate = new Date(job.start_time);
@@ -351,29 +405,93 @@ export default function CalendarPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  async function rescheduleVisit(visitId: string, scheduledStart: string, scheduledEnd: string) {
-    try {
-      const res = await fetch(`/api/visits/${visitId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduled_start: scheduledStart, scheduled_end: scheduledEnd }),
+  const queryClient = useQueryClient();
+  // Chained promise: each reschedule PATCHes only after the previous one
+  // settles, so rapid-fire drags persist in order without ever blocking the
+  // (already-optimistic) UI.
+  const rescheduleQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const [activeDragJob, setActiveDragJob] = useState<(Job & PositionedEvent) | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ minutes: number; dateKey: string | null }>({
+    minutes: 0,
+    dateKey: null,
+  });
+  const [pendingNotify, setPendingNotify] = useState<{
+    visitId: string;
+    clientName: string;
+    jobTitle: string;
+    newStart: string;
+    newEnd: string;
+  } | null>(null);
+  const [notifySending, setNotifySending] = useState(false);
+
+  /** Update the visits cache immediately so the card moves without waiting on the network. */
+  function applyOptimisticVisitUpdate(visitId: string, patch: Record<string, string>) {
+    queryClient.setQueryData(queryKeys.visits.list(rangeFrom, rangeTo), (old: unknown) => {
+      if (!Array.isArray(old)) return old;
+      return old.map((row) => {
+        const visit = row as Record<string, unknown>;
+        return visit.id === visitId ? { ...visit, ...patch } : row;
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to reschedule job");
+    });
+  }
+
+  function enqueueReschedule(visitId: string, scheduledStart: string, scheduledEnd: string) {
+    applyOptimisticVisitUpdate(visitId, { scheduled_start: scheduledStart, scheduled_end: scheduledEnd });
+
+    rescheduleQueueRef.current = rescheduleQueueRef.current.then(async () => {
+      try {
+        const res = await fetch(`/api/visits/${visitId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scheduled_start: scheduledStart, scheduled_end: scheduledEnd }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to save the new time");
+        }
+      } catch (e) {
+        setScheduleError(e instanceof Error ? e.message : "Failed to save the new time");
+        await invalidate.visits();
       }
-      await invalidate.visits();
-    } catch (e) {
-      setScheduleError(e instanceof Error ? e.message : "Failed to reschedule job");
-    }
+    });
+  }
+
+  function commitReschedule(job: Job & PositionedEvent, newStart: Date, newEnd: Date) {
+    if (!job.visit_id) return;
+    enqueueReschedule(job.visit_id, newStart.toISOString(), newEnd.toISOString());
+    setPendingNotify({
+      visitId: job.visit_id,
+      clientName: job.client_name,
+      jobTitle: job.title,
+      newStart: newStart.toISOString(),
+      newEnd: newEnd.toISOString(),
+    });
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    const data = event.active.data.current as DragCardData | undefined;
+    if (data) setActiveDragJob(data.job);
+  }
+
+  function handleDragMove(event: DragMoveEvent) {
+    const data = event.active.data.current as DragCardData | undefined;
+    if (!data) return;
+    const deltaPx = data.axis === "horizontal" ? event.delta.x : event.delta.y;
+    const snappedMinutes = pxDeltaToSnappedMinutes(deltaPx, data.pxPerHour);
+    const overId = typeof event.over?.id === "string" ? event.over.id : null;
+    setDragPreview({
+      minutes: snappedMinutes,
+      dateKey: overId?.startsWith("day:") ? overId.slice(4) : null,
+    });
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    setActiveDragJob(null);
+    setDragPreview({ minutes: 0, dateKey: null });
     if (!usingVisits) return;
     const { active, delta, over } = event;
-    const data = active.data.current as
-      | { job: Job & PositionedEvent; pxPerHour: number; axis: "vertical" | "horizontal" }
-      | undefined;
+    const data = active.data.current as DragCardData | undefined;
     if (!data || !data.job.visit_id) return;
 
     const deltaPx = data.axis === "horizontal" ? delta.x : delta.y;
@@ -395,7 +513,7 @@ export default function CalendarPage() {
     }
     const newEnd = new Date(newStart.getTime() + durationMs);
 
-    rescheduleVisit(data.job.visit_id, newStart.toISOString(), newEnd.toISOString());
+    commitReschedule(data.job, newStart, newEnd);
   }
 
   function handleResizeEnd(job: Job & PositionedEvent, deltaPx: number, pxPerHour: number) {
@@ -407,7 +525,61 @@ export default function CalendarPage() {
     let newEnd = new Date(originalEnd.getTime() + snappedMinutes * 60000);
     if (newEnd < minEnd) newEnd = minEnd;
 
-    rescheduleVisit(job.visit_id, start.toISOString(), newEnd.toISOString());
+    commitReschedule(job, start, newEnd);
+  }
+
+  async function handleSendRescheduleNotification() {
+    if (!pendingNotify) return;
+    setNotifySending(true);
+    try {
+      const res = await fetch(`/api/visits/${pendingNotify.visitId}/notify-reschedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_start: pendingNotify.newStart, new_end: pendingNotify.newEnd }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to notify client");
+      }
+      setPendingNotify(null);
+    } catch (e) {
+      setScheduleError(e instanceof Error ? e.message : "Failed to notify client");
+      setPendingNotify(null);
+    } finally {
+      setNotifySending(false);
+    }
+  }
+
+  /** Live label for the ghost overlay - the destination time, snapped as the user drags. */
+  function dragPreviewLabel(): { title: string; dateLabel: string; timeLabel: string } | null {
+    if (!activeDragJob) return null;
+    const originalStart = new Date(activeDragJob.start_time);
+    const originalEnd = new Date(activeDragJob.end_time);
+    const durationMs = originalEnd.getTime() - originalStart.getTime();
+    let newStart = new Date(originalStart.getTime() + dragPreview.minutes * 60000);
+    if (dragPreview.dateKey) {
+      const [y, m, d] = dragPreview.dateKey.split("-").map(Number);
+      newStart = new Date(newStart);
+      newStart.setFullYear(y, m - 1, d);
+    }
+    const newEnd = new Date(newStart.getTime() + durationMs);
+    return {
+      title: activeDragJob.title,
+      dateLabel: newStart.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+      timeLabel: `${formatTime(newStart.toISOString())} - ${formatTime(newEnd.toISOString())}`,
+    };
+  }
+
+  function renderDragGhost() {
+    const preview = dragPreviewLabel();
+    if (!preview) return null;
+    return (
+      <div className="w-44 rounded-lg border-2 border-dashed border-gray-400 bg-gray-200/90 p-2 shadow-lg opacity-90 pointer-events-none">
+        <div className="text-xs font-semibold text-gray-600 truncate">{preview.title}</div>
+        <div className="text-xs text-gray-500">{preview.dateLabel}</div>
+        <div className="text-xs font-medium text-gray-700">{preview.timeLabel}</div>
+      </div>
+    );
   }
 
   useEffect(() => {
@@ -742,7 +914,13 @@ export default function CalendarPage() {
             const weekDays = getWeekDays();
             const gridTemplateColumns = `repeat(${weekDays.length + 1}, minmax(0, 1fr))`;
             return (
-            <DndContext sensors={dndSensors} onDragEnd={handleDragEnd}>
+            <DndContext
+              sensors={dndSensors}
+              modifiers={[snapToFifteenMinutes]}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
+            >
             <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
               {/* Week Header */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
@@ -816,6 +994,7 @@ export default function CalendarPage() {
                           day={day}
                           isToday={isToday}
                           totalHeight={totalHeight}
+                          hoursCount={hoursCount}
                           positionedJobs={positionedJobs}
                           startHour={startHour}
                           prefs={prefs}
@@ -830,6 +1009,7 @@ export default function CalendarPage() {
                 );
               })()}
             </div>
+            <DragOverlay>{renderDragGhost()}</DragOverlay>
             </DndContext>
             );
           })()}
@@ -1024,7 +1204,13 @@ export default function CalendarPage() {
               </div>
 
               {/* Day Timeline */}
-              <DndContext sensors={dndSensors} onDragEnd={handleDragEnd}>
+              <DndContext
+                sensors={dndSensors}
+                modifiers={[snapToFifteenMinutes]}
+                onDragStart={handleDragStart}
+                onDragMove={handleDragMove}
+                onDragEnd={handleDragEnd}
+              >
               <div className="p-6">
                 {(() => {
                   const dayJobs = getJobsForDate(selectedDate);
@@ -1284,6 +1470,7 @@ export default function CalendarPage() {
                   );
                 })()}
               </div>
+              <DragOverlay>{renderDragGhost()}</DragOverlay>
               </DndContext>
             </div>
           )}
@@ -1481,6 +1668,31 @@ export default function CalendarPage() {
           setShowPrefsPanel(false);
         }}
       />
+
+      {/* Notify client after a reschedule */}
+      <Dialog open={!!pendingNotify} onOpenChange={(open) => { if (!open) setPendingNotify(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Notify the client?</DialogTitle>
+            <DialogDescription>
+              {pendingNotify && (
+                <>
+                  &ldquo;{pendingNotify.jobTitle}&rdquo; was moved to {formatTime(pendingNotify.newStart)}.
+                  Let {pendingNotify.clientName || 'the client'} know by email?
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingNotify(null)} disabled={notifySending}>
+              Not now
+            </Button>
+            <Button onClick={handleSendRescheduleNotification} disabled={notifySending}>
+              {notifySending ? 'Sending...' : 'Notify client'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 
 export interface ResizeHandle {
   axis: "vertical" | "horizontal";
@@ -27,6 +26,10 @@ interface DraggableJobCardProps {
  * pattern in src/app/dashboard/page.tsx) and, separately, resized from one
  * edge via raw pointer events - dnd-kit drags the whole element, so growing
  * just one edge while the rest stays put needs its own handling.
+ *
+ * The card itself stays put in its original spot while dragging - the
+ * moving "phantom" is a separate <DragOverlay> the parent renders, so
+ * users can see both where the job is now and where it's headed.
  */
 export function DraggableJobCard({
   dragId,
@@ -38,7 +41,7 @@ export function DraggableJobCard({
   children,
   resize,
 }: DraggableJobCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef } = useDraggable({
     id: dragId,
     data: dragData,
     disabled: dragDisabled,
@@ -83,13 +86,7 @@ export function DraggableJobCard({
       {...listeners}
       {...attributes}
       className={className}
-      style={{
-        ...style,
-        ...resizeStyle,
-        transform: transform ? CSS.Translate.toString(transform) : style.transform,
-        opacity: isDragging ? 0.5 : style.opacity,
-        zIndex: isDragging ? 50 : style.zIndex,
-      }}
+      style={{ ...style, ...resizeStyle }}
       onClick={onClick}
     >
       {children}
