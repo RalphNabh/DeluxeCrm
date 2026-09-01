@@ -85,29 +85,64 @@ function ColumnGridPreview({ columns }: { columns: { top: number; blocks: number
   );
 }
 
+/** Thin vertical lines marking day boundaries, shared by Nested/Stacked previews. */
+function DayDividers() {
+  return (
+    <>
+      <div className="absolute inset-y-0 left-1/3 w-px bg-gray-300" />
+      <div className="absolute inset-y-0 left-2/3 w-px bg-gray-300" />
+    </>
+  );
+}
+
+/**
+ * One appointment card - a plain gray rect with skinny line placeholders
+ * inside it, like a dialog/skeleton loader. "base" is the original
+ * appointment, "nested" is the conflicting one drawn on top of it; the two
+ * are told apart by shade alone (light gray vs. darker gray), no color.
+ */
+function AppointmentCard({ shade, style }: { shade: "base" | "nested"; style: React.CSSProperties }) {
+  const cardBg = shade === "base" ? "bg-gray-200" : "bg-gray-400";
+  const lineBg = shade === "base" ? "bg-gray-400" : "bg-gray-100";
+  return (
+    <div className={`absolute flex flex-col gap-1 overflow-hidden rounded-sm p-1 ${cardBg}`} style={style}>
+      <div className={`h-[3px] w-2/3 rounded-full ${lineBg}`} />
+      <div className={`h-[3px] w-1/2 rounded-full ${lineBg}`} />
+    </div>
+  );
+}
+
+/** A day with no conflicts - same in both previews, so the eye lands on the columns that differ. */
+function PlainDayBlock() {
+  return <AppointmentCard shade="base" style={{ left: "6%", top: "15%", width: "21%", height: "55%" }} />;
+}
+
 function NestedPreview() {
   return (
-    <ColumnGridPreview
-      columns={[
-        { top: 0, blocks: [35, 25] },
-        { top: 10, blocks: [55] },
-        { top: 0, blocks: [20, 30] },
-        { top: 25, blocks: [20, 20] },
-      ]}
-    />
+    <div className="relative h-full w-full rounded-md bg-gray-50">
+      <DayDividers />
+      <PlainDayBlock />
+      {/* A conflicting appointment nests inside the original, right-aligned to it. */}
+      <AppointmentCard shade="base" style={{ left: "39%", top: "10%", width: "22%", height: "70%" }} />
+      <AppointmentCard shade="nested" style={{ left: "49%", top: "30%", width: "12%", height: "30%" }} />
+      <AppointmentCard shade="base" style={{ left: "72%", top: "20%", width: "22%", height: "55%" }} />
+      <AppointmentCard shade="nested" style={{ left: "82%", top: "45%", width: "12%", height: "25%" }} />
+    </div>
   );
 }
 
 function StackedPreview() {
   return (
-    <ColumnGridPreview
-      columns={[
-        { top: 0, blocks: [45] },
-        { top: 55, blocks: [30] },
-        { top: 15, blocks: [65] },
-        { top: 0, blocks: [25] },
-      ]}
-    />
+    <div className="relative h-full w-full rounded-md bg-gray-50">
+      <DayDividers />
+      <PlainDayBlock />
+      {/* Conflicting appointments split the column side by side instead of nesting - same top. */}
+      <AppointmentCard shade="base" style={{ left: "35%", top: "20%", width: "13%", height: "55%" }} />
+      <AppointmentCard shade="nested" style={{ left: "52%", top: "20%", width: "13%", height: "55%" }} />
+      {/* A third example: side by side, but staggered - one starts lower than the other. */}
+      <AppointmentCard shade="base" style={{ left: "69%", top: "15%", width: "13%", height: "45%" }} />
+      <AppointmentCard shade="nested" style={{ left: "85%", top: "40%", width: "13%", height: "45%" }} />
+    </div>
   );
 }
 
