@@ -45,9 +45,23 @@ interface JobCreationModalProps {
   onClose: () => void;
   onJobCreated: (job: any) => void;
   estimate?: Estimate | null; // Optional estimate to pre-fill job data
+  /** Pre-fill from the calendar's quick-create popover's "More options" handoff. */
+  initialClientId?: string | null;
+  initialTitle?: string;
+  initialStartTime?: string; // ISO
+  initialEndTime?: string; // ISO
 }
 
-export default function JobCreationModal({ isOpen, onClose, onJobCreated, estimate }: JobCreationModalProps) {
+export default function JobCreationModal({
+  isOpen,
+  onClose,
+  onJobCreated,
+  estimate,
+  initialClientId,
+  initialTitle,
+  initialStartTime,
+  initialEndTime,
+}: JobCreationModalProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -69,6 +83,34 @@ export default function JobCreationModal({ isOpen, onClose, onJobCreated, estima
     recurrence_freq: "weekly" as "daily" | "weekly" | "monthly",
     recurrence_until: "",
   });
+
+  // Pre-fill from the calendar's quick-create popover ("More options" handoff)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialClientId && !initialTitle && !initialStartTime && !initialEndTime) return;
+    const toParts = (iso: string) => {
+      const d = new Date(iso);
+      const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      return { date, time };
+    };
+    setFormData(prev => {
+      const next = { ...prev };
+      if (initialClientId) next.client_id = initialClientId;
+      if (initialTitle) next.title = initialTitle;
+      if (initialStartTime) {
+        const { date, time } = toParts(initialStartTime);
+        next.start_date = date;
+        next.start_time = time;
+      }
+      if (initialEndTime) {
+        const { date, time } = toParts(initialEndTime);
+        next.end_date = date;
+        next.end_time = time;
+      }
+      return next;
+    });
+  }, [isOpen, initialClientId, initialTitle, initialStartTime, initialEndTime]);
 
   // Pre-fill form data when estimate is provided
   useEffect(() => {

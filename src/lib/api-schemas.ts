@@ -131,6 +131,8 @@ export const jobCreateSchema = z.object({
   recurrence_until: z.string().trim().max(20).optional().nullable(),
   recurrence_count: z.number().int().min(1).max(1000).optional().nullable(),
   timezone: z.string().trim().max(100).optional().nullable(),
+  is_anytime: z.boolean().optional(),
+  line_items: z.array(lineItemSchema).max(50).optional(),
 });
 
 /** Partial update — same fields as create, all optional except we ignore unknown keys. */

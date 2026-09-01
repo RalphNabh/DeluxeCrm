@@ -106,6 +106,8 @@ export async function POST(request: NextRequest) {
       recurrence_until,
       recurrence_count,
       timezone,
+      is_anytime,
+      line_items,
     } = parsed.data
 
     const byweekday =
@@ -137,6 +139,7 @@ export async function POST(request: NextRequest) {
       recurrence_until: recurrence_until ?? null,
       recurrence_count: recurrence_count ?? null,
       timezone: timezone ?? null,
+      is_anytime: is_anytime ?? false,
     };
     
     // Try to insert with estimate_id first, fall back to without if column doesn't exist
@@ -211,6 +214,22 @@ export async function POST(request: NextRequest) {
         .update({ status: 'Scheduled', updated_at: new Date().toISOString() })
         .eq('id', estimate_id)
         .eq('organization_id', orgId)
+    }
+
+    // Persist any line items the quick-create popover collected
+    if (job && line_items && line_items.length > 0) {
+      const rows = line_items.map((item) => ({
+        job_id: job.id,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit || 'ea',
+        unit_price: item.unit_price,
+        total: item.total ?? item.quantity * item.unit_price,
+      }))
+      const { error: lineItemsError } = await supabase.from('job_line_items').insert(rows)
+      if (lineItemsError) {
+        console.error('Error creating job line items:', lineItemsError)
+      }
     }
 
     // Materialize visits (one-off or rolling 90-day recurrence window)

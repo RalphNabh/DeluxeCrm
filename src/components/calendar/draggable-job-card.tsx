@@ -23,7 +23,7 @@ interface DraggableJobCardProps {
   dragData: Record<string, unknown>;
   className: string;
   style: CSSProperties;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   children: ReactNode;
   /** Omitted when this card doesn't support resizing (e.g. Month view chips). */
   resize?: ResizeHandle;

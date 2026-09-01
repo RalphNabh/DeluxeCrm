@@ -75,6 +75,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DraggableJobCard } from "@/components/calendar/draggable-job-card";
+import { QuickCreateJobPopover, type QuickCreateDraft } from "@/components/calendar/quick-create-job-popover";
 import {
   calculateEventPositions,
   clampDragToSameDay,
@@ -158,6 +159,7 @@ interface Job {
   job_id?: string;
   visit_id?: string;
   job_assignments?: JobAssignment[];
+  is_anytime?: boolean;
   estimates?: {
     id: string;
     status: string;
@@ -228,6 +230,7 @@ function visitsToCalendarJobs(visits: unknown[]): Job[] {
       notes: (visit.notes as string) || undefined,
       tags: (visit.tags as string[]) || (job?.tags as string[]) || [],
       job_assignments: (job?.job_assignments as JobAssignment[]) || undefined,
+      is_anytime: Boolean(job?.is_anytime),
     };
   });
 }
@@ -260,6 +263,7 @@ function WeekDayColumn({
   usingVisits,
   onEditJob,
   onResizeEnd,
+  onOpenQuickCreate,
 }: {
   day: Date;
   isToday: boolean;
@@ -272,12 +276,24 @@ function WeekDayColumn({
   usingVisits: boolean;
   onEditJob: (job: Job) => void;
   onResizeEnd: (job: Job & PositionedEvent, deltaPx: number, pxPerHour: number) => void;
+  onOpenQuickCreate: (anchor: { x: number; y: number }, start: Date, end: Date) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day:${localDateKey(day)}` });
+
+  function handleColumnClick(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const rawHour = startHour + (e.clientY - rect.top) / WEEK_HOUR_PX;
+    const snappedMinutes = Math.round((rawHour * 60) / DRAG_SNAP_MINUTES) * DRAG_SNAP_MINUTES;
+    const start = new Date(day);
+    start.setHours(0, snappedMinutes, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60000);
+    onOpenQuickCreate({ x: e.clientX, y: e.clientY }, start, end);
+  }
 
   return (
     <div
       ref={setNodeRef}
+      onClick={handleColumnClick}
       className={`border-r relative pt-1 ${isToday ? 'bg-blue-50/40' : 'bg-white'} ${isOver ? 'bg-blue-100/50' : ''}`}
       style={{ minHeight: `${totalHeight}px` }}
     >
@@ -324,7 +340,7 @@ function WeekDayColumn({
               zIndex: layoutStyle.zIndex,
               ...appearance.cardStyle,
             }}
-            onClick={() => onEditJob(job)}
+            onClick={(e) => { e.stopPropagation(); onEditJob(job); }}
             resize={draggable ? { axis: 'vertical', onCommit: (deltaPx) => onResizeEnd(job, deltaPx, WEEK_HOUR_PX) } : undefined}
           >
             <div className="flex items-center justify-between mb-1">
@@ -399,6 +415,13 @@ export default function CalendarPage() {
   const [showPrefsPanel, setShowPrefsPanel] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const invalidate = useInvalidateQueries();
+
+  const [quickCreate, setQuickCreate] = useState<{
+    anchor: { x: number; y: number };
+    start: Date;
+    end: Date;
+  } | null>(null);
+  const [prefillDraft, setPrefillDraft] = useState<QuickCreateDraft | null>(null);
 
   const weekScrollRef = useRef<HTMLDivElement | null>(null);
   const dayVerticalScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1056,6 +1079,32 @@ export default function CalendarPage() {
                 </div>
               </div>
 
+              {/* Anytime row - jobs with no specific time */}
+              <div className="grid border-b border-gray-200 bg-gray-50/60" style={{ gridTemplateColumns }}>
+                <div className="p-2 text-xs font-medium text-gray-500 border-r">Anytime</div>
+                {weekDays.map((day, index) => {
+                  const anytimeJobs = getJobsForDate(day).filter((j) => j.is_anytime);
+                  return (
+                    <div key={index} className="min-h-[32px] flex-wrap gap-1 border-r p-1.5 flex">
+                      {anytimeJobs.map((job) => {
+                        const color = getJobColor(firstAssigneeUserId(job.job_assignments), colorByUserId);
+                        const appearance = getJobCardAppearance(color);
+                        return (
+                          <button
+                            key={job.id}
+                            onClick={() => handleEditJob(job)}
+                            className={`truncate rounded px-1.5 py-0.5 text-xs ${appearance.cardClassName}`}
+                            style={appearance.cardStyle}
+                          >
+                            {job.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+
               {/* Week Body */}
               {(() => {
                 const startHour = FULL_DAY_START_HOUR;
@@ -1081,7 +1130,7 @@ export default function CalendarPage() {
                     </div>
                     {weekDays.map((day, dayIndex) => {
                       const isToday = day.toDateString() === new Date().toDateString();
-                      const dayJobs = getJobsForDate(day);
+                      const dayJobs = getJobsForDate(day).filter((j) => !j.is_anytime);
                       const positionedJobs = calculateEventPositions(dayJobs) as (Job & PositionedEvent)[];
                       return (
                         <WeekDayColumn
@@ -1097,6 +1146,7 @@ export default function CalendarPage() {
                           usingVisits={usingVisits}
                           onEditJob={handleEditJob}
                           onResizeEnd={handleResizeEnd}
+                          onOpenQuickCreate={(anchor, start, end) => setQuickCreate({ anchor, start, end })}
                         />
                       );
                     })}
@@ -1174,6 +1224,13 @@ export default function CalendarPage() {
                       className={`p-3 border-r border-b min-h-[120px] relative ${
                         isCurrentMonth ? 'bg-white' : 'bg-gray-50'
                       } ${isToday ? 'bg-blue-50 border-2 border-blue-500' : ''}`}
+                      onClick={(e) => {
+                        const start = new Date(date);
+                        start.setHours(9, 0, 0, 0);
+                        const end = new Date(date);
+                        end.setHours(10, 0, 0, 0);
+                        setQuickCreate({ anchor: { x: e.clientX, y: e.clientY }, start, end });
+                      }}
                     >
                       {isToday && (
                         <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -1194,7 +1251,7 @@ export default function CalendarPage() {
                               key={job.id}
                               className={`w-full p-2 ${appearance.cardClassName} rounded text-xs cursor-pointer hover:shadow-md transition-all group ${completed.card}`}
                               style={appearance.cardStyle}
-                              onClick={() => handleEditJob(job)}
+                              onClick={(e) => { e.stopPropagation(); handleEditJob(job); }}
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center space-x-1">
@@ -1308,7 +1365,30 @@ export default function CalendarPage() {
               >
               <div className="p-6">
                 {(() => {
-                  const dayJobs = getJobsForDate(selectedDate);
+                  const anytimeJobs = getJobsForDate(selectedDate).filter((j) => j.is_anytime);
+                  if (anytimeJobs.length === 0) return null;
+                  return (
+                    <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-lg bg-gray-50 p-2">
+                      <span className="mr-1 text-xs font-medium text-gray-500">Anytime</span>
+                      {anytimeJobs.map((job) => {
+                        const color = getJobColor(firstAssigneeUserId(job.job_assignments), colorByUserId);
+                        const appearance = getJobCardAppearance(color);
+                        return (
+                          <button
+                            key={job.id}
+                            onClick={() => handleEditJob(job)}
+                            className={`truncate rounded px-1.5 py-0.5 text-xs ${appearance.cardClassName}`}
+                            style={appearance.cardStyle}
+                          >
+                            {job.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const dayJobs = getJobsForDate(selectedDate).filter((j) => !j.is_anytime);
                   const startHour = FULL_DAY_START_HOUR;
                   const hoursCount = FULL_DAY_HOURS_COUNT;
 
@@ -1350,7 +1430,19 @@ export default function CalendarPage() {
                               );
                             })}
                           </div>
-                          <div className="relative mt-2" style={{ height: `${rowsHeight}px` }}>
+                          <div
+                            className="relative mt-2"
+                            style={{ height: `${rowsHeight}px` }}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const rawHour = startHour + (e.clientX - rect.left) / HOUR_WIDTH;
+                              const snappedMinutes = Math.round((rawHour * 60) / DRAG_SNAP_MINUTES) * DRAG_SNAP_MINUTES;
+                              const start = new Date(selectedDate);
+                              start.setHours(0, snappedMinutes, 0, 0);
+                              const end = new Date(start.getTime() + 60 * 60000);
+                              setQuickCreate({ anchor: { x: e.clientX, y: e.clientY }, start, end });
+                            }}
+                          >
                             {isCurrentDay && nowOffsetPx >= 0 && nowOffsetPx <= totalWidth && (
                               <div
                                 className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-10 pointer-events-none"
@@ -1390,7 +1482,7 @@ export default function CalendarPage() {
                                     zIndex: job.column + 1,
                                     ...appearance.cardStyle,
                                   }}
-                                  onClick={() => handleEditJob(job)}
+                                  onClick={(e) => { e.stopPropagation(); handleEditJob(job); }}
                                   resize={draggable ? { axis: 'horizontal', onCommit: (deltaPx) => handleResizeEnd(job, deltaPx, HOUR_WIDTH) } : undefined}
                                 >
                                   <div className="flex items-center gap-1 mb-0.5">
@@ -1434,7 +1526,19 @@ export default function CalendarPage() {
                           );
                         })}
                       </div>
-                      <div className="flex-1 ml-4 relative border-l border-gray-100" style={{ height: `${totalHeight}px` }}>
+                      <div
+                        className="flex-1 ml-4 relative border-l border-gray-100"
+                        style={{ height: `${totalHeight}px` }}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const rawHour = startHour + (e.clientY - rect.top) / HOUR_HEIGHT;
+                          const snappedMinutes = Math.round((rawHour * 60) / DRAG_SNAP_MINUTES) * DRAG_SNAP_MINUTES;
+                          const start = new Date(selectedDate);
+                          start.setHours(0, snappedMinutes, 0, 0);
+                          const end = new Date(start.getTime() + 60 * 60000);
+                          setQuickCreate({ anchor: { x: e.clientX, y: e.clientY }, start, end });
+                        }}
+                      >
                         {Array.from({ length: hoursCount }, (_, i) => (
                           <div
                             key={i}
@@ -1486,7 +1590,7 @@ export default function CalendarPage() {
                                 zIndex: layoutStyle.zIndex,
                                 ...appearance.cardStyle,
                               }}
-                              onClick={() => handleEditJob(job)}
+                              onClick={(e) => { e.stopPropagation(); handleEditJob(job); }}
                               resize={draggable ? { axis: 'vertical', onCommit: (deltaPx) => handleResizeEnd(job, deltaPx, HOUR_HEIGHT) } : undefined}
                             >
                               <div className="flex items-center justify-between mb-1">
@@ -1719,11 +1823,30 @@ export default function CalendarPage() {
           )}
         </main>
 
+      {/* Click-to-create quick popover */}
+      <QuickCreateJobPopover
+        anchorPoint={quickCreate?.anchor ?? null}
+        initialStart={quickCreate?.start ?? selectedDate}
+        initialEnd={quickCreate?.end ?? selectedDate}
+        jobs={jobs}
+        onClose={() => setQuickCreate(null)}
+        onCreated={() => setQuickCreate(null)}
+        onMoreOptions={(draft) => {
+          setQuickCreate(null);
+          setPrefillDraft(draft);
+          setShowAddJob(true);
+        }}
+      />
+
       {/* Job Creation Modal */}
       <JobCreationModal
         isOpen={showAddJob}
-        onClose={() => setShowAddJob(false)}
+        onClose={() => { setShowAddJob(false); setPrefillDraft(null); }}
         onJobCreated={handleJobCreated}
+        initialClientId={prefillDraft?.clientId ?? undefined}
+        initialTitle={prefillDraft?.title ?? undefined}
+        initialStartTime={prefillDraft?.startTime ?? undefined}
+        initialEndTime={prefillDraft?.endTime ?? undefined}
       />
 
       {/* Job Edit Modal */}
