@@ -159,16 +159,14 @@ function GrayedOutPreview() {
 
 function StrikethroughPreview() {
   return (
-    <div className="flex h-full w-full flex-col justify-center gap-1.5 rounded-md bg-green-50 p-2.5">
+    <div className="flex h-full w-full flex-col justify-center gap-1.5 rounded-md bg-gray-50 p-2.5">
       <div className="h-3.5 w-3.5 rounded-full bg-gray-400" />
-      <div className="relative">
-        <div className="space-y-1">
-          <div className="h-1.5 w-full rounded-full bg-gray-700" />
-          <div className="h-1.5 w-4/5 rounded-full bg-gray-700" />
-        </div>
-        <div className="absolute inset-x-0 top-1/2 border-t border-gray-700" />
+      {/* Bar is thick enough that the strike reads as a distinct line crossing it, not just a darker bar - light gray stays visible above and below the line. */}
+      <div className="relative h-3 w-full">
+        <div className="absolute inset-0 rounded-full bg-gray-300" />
+        <div className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-gray-700" />
       </div>
-      <div className="h-1.5 w-2/5 rounded-full bg-gray-500" />
+      <div className="h-1.5 w-2/5 rounded-full bg-gray-300" />
     </div>
   );
 }
