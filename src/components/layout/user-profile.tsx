@@ -13,8 +13,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { User, Settings, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
-export default function UserProfile() {
+interface UserProfileProps {
+  collapsed?: boolean;
+}
+
+export default function UserProfile({ collapsed = false }: UserProfileProps) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -65,8 +70,14 @@ export default function UserProfile() {
     <div className="p-4 border-t border-gray-200">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="w-full flex items-center space-x-3 hover:bg-slate-800 rounded-lg p-2 transition-colors">
-            <Avatar className="h-10 w-10">
+          <button
+            title={collapsed ? user.email : undefined}
+            className={cn(
+              "w-full flex items-center space-x-3 hover:bg-slate-800 rounded-lg p-2 transition-colors",
+              collapsed && "md:justify-center md:space-x-0",
+            )}
+          >
+            <Avatar className="h-10 w-10 shrink-0">
               {user.user_metadata?.avatar_url ? (
                 <AvatarImage src={user.user_metadata.avatar_url} alt={user.email} />
               ) : null}
@@ -74,7 +85,12 @@ export default function UserProfile() {
                 {getInitials(user.email)}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 text-left min-w-0">
+            <div
+              className={cn(
+                "flex-1 text-left min-w-0",
+                collapsed && "md:hidden",
+              )}
+            >
               <p className="text-sm font-medium text-slate-200 truncate">
                 {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
               </p>

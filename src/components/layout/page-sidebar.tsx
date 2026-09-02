@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LucideIcon, X } from "lucide-react";
+import { ArrowLeft, LucideIcon, X } from "lucide-react";
 import UserProfile from "@/components/layout/user-profile";
+import SidebarNavItem from "@/components/layout/sidebar-nav-item";
 import { Button } from "@/components/ui/button";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { isNavItemActive, navItemsForRole, type NavItem } from "@/lib/navigation";
 import { useCurrentMemberQuery } from "@/lib/query/hooks";
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { UNREAD_CHANGED_EVENT } from "@/lib/messaging/unread-badge";
 import { REQUESTS_UNREAD_CHANGED_EVENT } from "@/lib/requests/unread-badge";
 
@@ -33,13 +38,16 @@ interface PageSidebarProps {
   items?: LegacySidebarItem[] | readonly NavItem[];
   isOpen?: boolean;
   onClose?: () => void;
+  /** SSR-derived initial value (from the `sidebar-collapsed` cookie) so first paint matches the saved preference. */
+  initialCollapsed?: boolean;
 }
 
-export default function PageSidebar({ items, isOpen = false, onClose }: PageSidebarProps) {
+export default function PageSidebar({ items, isOpen = false, onClose, initialCollapsed = false }: PageSidebarProps) {
   const pathname = usePathname();
   const { data: member } = useCurrentMemberQuery();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadRequests, setUnreadRequests] = useState(0);
+  const { collapsed, toggle: toggleCollapsed } = useSidebarCollapsed(initialCollapsed);
 
   useEffect(() => {
     if (!member?.role) return;
@@ -102,21 +110,44 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
 
       <aside
         data-tutorial="navigation"
-        className={`
-          fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,85vw)] flex-col
-          border-r border-slate-800 bg-slate-900
-          pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]
-          transition-transform duration-300 ease-in-out print:hidden
-          md:sticky md:top-0 md:z-auto md:h-dvh md:w-64 md:translate-x-0 md:flex-shrink-0 md:self-start
-          ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-        `}
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,85vw)] flex-col",
+          "relative border-r border-slate-800 bg-slate-900",
+          "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+          "transition-transform duration-300 ease-in-out print:hidden",
+          "md:sticky md:top-0 md:z-auto md:h-dvh md:translate-x-0 md:flex-shrink-0 md:self-start",
+          "md:transition-[width] md:duration-300 md:ease-in-out motion-reduce:md:transition-none",
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          collapsed ? "md:w-20" : "md:w-64",
+        )}
       >
-        <div className="flex flex-shrink-0 items-center justify-between p-6">
+        <div
+          className={cn(
+            "flex flex-shrink-0 items-center justify-between p-6",
+            collapsed && "md:justify-center md:px-3",
+          )}
+        >
           <Link
             href="/dashboard"
-            className="bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-xl font-bold tracking-tight text-transparent"
+            className={cn(
+              "bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-xl font-bold tracking-tight text-transparent",
+              collapsed && "md:hidden",
+            )}
           >
             DyluxePro
+          </Link>
+          <Link
+            href="/dashboard"
+            aria-label="DyluxePro"
+            className={cn("hidden", collapsed && "md:block")}
+          >
+            <Image
+              src="/logo.png"
+              alt="DyluxePro"
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-lg"
+            />
           </Link>
           <Button
             variant="ghost"
@@ -128,48 +159,55 @@ export default function PageSidebar({ items, isOpen = false, onClose }: PageSide
           </Button>
         </div>
 
-        <nav className="min-h-0 flex-1 overflow-y-auto px-4" aria-label="Primary">
-          <ul className="space-y-1">
-            {resolvedItems.map((item) => {
-              const Icon = item.icon;
-              const active = isNavItemActive(item, pathname);
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
+        <nav id="primary-navigation" className="min-h-0 flex-1 overflow-y-auto px-4" aria-label="Primary">
+          <TooltipProvider delayDuration={200} skipDelayDuration={100}>
+            <ul className="space-y-1">
+              {resolvedItems.map((item) => {
+                const active = isNavItemActive(item, pathname);
+                const unreadCount =
+                  item.href === "/messages"
+                    ? unreadMessages
+                    : item.href === "/requests"
+                      ? unreadRequests
+                      : 0;
+                return (
+                  <SidebarNavItem
+                    key={item.href}
+                    item={item}
+                    active={active}
+                    collapsed={collapsed}
+                    unreadCount={unreadCount}
                     onClick={handleLinkClick}
-                    aria-current={active ? "page" : undefined}
-                    className={`group flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-150 ${
-                      active
-                        ? "bg-teal-500/15 text-teal-200 ring-1 ring-inset ring-teal-400/30"
-                        : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
-                    }`}
-                  >
-                    <Icon
-                      className={`h-5 w-5 transition-transform group-hover:scale-110 ${
-                        active ? "text-teal-300" : "text-slate-400 group-hover:text-white"
-                      }`}
-                    />
-                    <span className="flex-1">{item.label}</span>
-                    {item.href === "/messages" && unreadMessages > 0 && (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-500 px-1.5 text-[10px] font-semibold text-white">
-                        {unreadMessages > 99 ? "99+" : unreadMessages}
-                      </span>
-                    )}
-                    {item.href === "/requests" && unreadRequests > 0 && (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-teal-500 px-1.5 text-[10px] font-semibold text-white">
-                        {unreadRequests > 99 ? "99+" : unreadRequests}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                  />
+                );
+              })}
+            </ul>
+          </TooltipProvider>
         </nav>
 
-        <div className="flex-shrink-0 mt-auto border-t border-slate-800">
-          <UserProfile />
+        <div className="flex-shrink-0 mt-auto">
+          <div className="hidden border-t border-slate-800 p-3 md:flex md:justify-center">
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              aria-controls="primary-navigation"
+              className="flex h-9 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm transition-colors
+                         hover:bg-white hover:text-slate-900
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            >
+              <ArrowLeft
+                className={cn(
+                  "h-5 w-5 transition-transform duration-300 ease-in-out motion-reduce:transition-none",
+                  collapsed && "rotate-180",
+                )}
+              />
+            </button>
+          </div>
+          <div className="border-t border-slate-800">
+            <UserProfile collapsed={collapsed} />
+          </div>
         </div>
       </aside>
     </>

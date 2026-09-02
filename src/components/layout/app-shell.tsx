@@ -6,7 +6,12 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PageSidebar from "@/components/layout/page-sidebar";
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+interface AppShellProps {
+  children: React.ReactNode;
+  initialSidebarCollapsed?: boolean;
+}
+
+export default function AppShell({ children, initialSidebarCollapsed = false }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -20,7 +25,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh max-h-dvh overflow-hidden bg-gray-50">
-      <PageSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <PageSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        initialCollapsed={initialSidebarCollapsed}
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] md:hidden print:hidden">
