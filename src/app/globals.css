@@ -426,6 +426,39 @@ body {
   transform: translateY(0);
 }
 
+/* Sidebar collapse toggle arrow — 3D flip */
+.sidebar-arrow-flip-collapse {
+  animation: sidebarArrowFlipCollapse 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.sidebar-arrow-flip-expand {
+  animation: sidebarArrowFlipExpand 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes sidebarArrowFlipCollapse {
+  0% {
+    transform: translateX(0) rotateY(0deg);
+  }
+  45% {
+    transform: translateX(5px) rotateY(-100deg);
+  }
+  100% {
+    transform: translateX(0) rotateY(-180deg);
+  }
+}
+
+@keyframes sidebarArrowFlipExpand {
+  0% {
+    transform: translateX(0) rotateY(-180deg);
+  }
+  45% {
+    transform: translateX(-5px) rotateY(-80deg);
+  }
+  100% {
+    transform: translateX(0) rotateY(0deg);
+  }
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .aurora-blob,
@@ -439,6 +472,14 @@ body {
   .mkt-marquee-down,
   .mkt-marquee-up {
     animation: none !important;
+  }
+  .sidebar-arrow-flip-collapse {
+    animation: none !important;
+    transform: rotateY(-180deg) !important;
+  }
+  .sidebar-arrow-flip-expand {
+    animation: none !important;
+    transform: rotateY(0deg) !important;
   }
   .skeleton-shimmer {
     background: #e5e7eb;

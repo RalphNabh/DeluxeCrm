@@ -47,6 +47,8 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadRequests, setUnreadRequests] = useState(0);
   const { collapsed, toggle: toggleCollapsed } = useSidebarCollapsed(initialCollapsed);
+  // Only play the flip animation after a real user click — never on initial mount/remount.
+  const [hasToggledArrow, setHasToggledArrow] = useState(false);
 
   useEffect(() => {
     if (!member?.role) return;
@@ -115,7 +117,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
           "transition-transform duration-300 ease-in-out print:hidden",
           "md:sticky md:top-0 md:z-auto md:h-dvh md:translate-x-0 md:flex-shrink-0 md:self-start",
-          "md:transition-[width] md:duration-300 md:ease-in-out motion-reduce:md:transition-none",
+          "md:transition-[width] md:duration-200 md:ease-out motion-reduce:md:transition-none",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           collapsed ? "md:w-20" : "md:w-64",
         )}
@@ -123,7 +125,8 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
         <div
           className={cn(
             "flex flex-shrink-0 items-center justify-between p-6",
-            collapsed && "md:justify-center md:px-3",
+            "md:justify-start md:transition-[padding-right] md:duration-200 md:ease-out motion-reduce:md:transition-none",
+            collapsed && "md:pr-0",
           )}
         >
           <Link
@@ -187,19 +190,32 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
         <div className="hidden flex-shrink-0 mt-auto p-3 md:flex md:justify-start">
           <button
             type="button"
-            onClick={toggleCollapsed}
+            onClick={() => {
+              setHasToggledArrow(true);
+              toggleCollapsed();
+            }}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             aria-controls="primary-navigation"
+            style={{ perspective: 240 }}
             className="flex h-9 w-10 items-center justify-center rounded-lg bg-transparent text-slate-400 transition-colors
                        hover:text-white
                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
           >
             <ArrowLeft
               className={cn(
-                "h-5 w-5 transition-transform duration-300 ease-in-out motion-reduce:transition-none",
-                collapsed && "rotate-180",
+                "h-5 w-5",
+                hasToggledArrow
+                  ? collapsed
+                    ? "sidebar-arrow-flip-collapse"
+                    : "sidebar-arrow-flip-expand"
+                  : "",
               )}
+              style={
+                !hasToggledArrow
+                  ? { transform: collapsed ? "rotateY(-180deg)" : "rotateY(0deg)" }
+                  : undefined
+              }
             />
           </button>
         </div>

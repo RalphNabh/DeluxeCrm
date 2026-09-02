@@ -34,12 +34,14 @@ export default function SidebarNavItem({
           : undefined
       }
       className={cn(
-        "group flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-150",
+        "group flex min-h-11 items-center gap-3 rounded-lg pl-4 pr-4 py-3 text-sm font-medium",
+        "transition-colors duration-150",
+        "md:transition-[padding-right] md:duration-200 md:ease-out motion-reduce:md:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
         active
           ? "bg-teal-500/15 text-teal-200 ring-1 ring-inset ring-teal-400/30"
           : "text-slate-300 hover:bg-slate-800/70 hover:text-white",
-        collapsed && "md:justify-center md:gap-0 md:px-0",
+        collapsed && "md:pr-0",
       )}
     >
       <span className="relative shrink-0">
@@ -62,8 +64,9 @@ export default function SidebarNavItem({
 
       <span
         className={cn(
-          "flex-1 truncate whitespace-nowrap transition-all duration-200 ease-in-out motion-reduce:transition-none",
-          collapsed ? "md:ml-0 md:max-w-0 md:opacity-0" : "md:max-w-[10rem] md:opacity-100",
+          "flex-1 truncate whitespace-nowrap",
+          "md:transition-[max-width,opacity] md:duration-200 md:ease-out motion-reduce:md:transition-none",
+          collapsed ? "md:max-w-0 md:opacity-0" : "md:max-w-[10rem] md:opacity-100",
         )}
       >
         {item.label}
