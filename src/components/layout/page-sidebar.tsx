@@ -132,7 +132,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
           <Link
             href="/dashboard"
             className={cn(
-              "bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-xl font-bold tracking-tight text-transparent",
+              "flex h-8 items-center bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-xl font-bold tracking-tight text-transparent",
               collapsed && "md:hidden",
             )}
           >
@@ -141,7 +141,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
           <Link
             href="/dashboard"
             aria-label="DyluxePro"
-            className={cn("hidden", collapsed && "md:block")}
+            className={cn("hidden h-8 items-center", collapsed && "md:flex")}
           >
             <Image
               src="/logo.png"
