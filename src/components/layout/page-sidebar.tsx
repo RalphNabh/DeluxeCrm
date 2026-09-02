@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, LucideIcon, X } from "lucide-react";
-import UserProfile from "@/components/layout/user-profile";
 import SidebarNavItem from "@/components/layout/sidebar-nav-item";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -185,27 +184,24 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
           </TooltipProvider>
         </nav>
 
-        <div className="flex-shrink-0 mt-auto">
-          <div className="hidden p-3 md:flex md:justify-center">
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-expanded={!collapsed}
-              aria-controls="primary-navigation"
-              className="flex h-9 w-10 items-center justify-center rounded-lg bg-transparent text-slate-400 transition-colors
-                         hover:text-white
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-            >
-              <ArrowLeft
-                className={cn(
-                  "h-5 w-5 transition-transform duration-300 ease-in-out motion-reduce:transition-none",
-                  collapsed && "rotate-180",
-                )}
-              />
-            </button>
-          </div>
-          <UserProfile collapsed={collapsed} />
+        <div className="hidden flex-shrink-0 mt-auto p-3 md:flex md:justify-start">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            aria-controls="primary-navigation"
+            className="flex h-9 w-10 items-center justify-center rounded-lg bg-transparent text-slate-400 transition-colors
+                       hover:text-white
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+          >
+            <ArrowLeft
+              className={cn(
+                "h-5 w-5 transition-transform duration-300 ease-in-out motion-reduce:transition-none",
+                collapsed && "rotate-180",
+              )}
+            />
+          </button>
         </div>
       </aside>
     </>
