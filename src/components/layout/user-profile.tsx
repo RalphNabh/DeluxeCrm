@@ -51,7 +51,7 @@ export default function UserProfile({ collapsed = false }: UserProfileProps) {
 
   if (loading) {
     return (
-      <div className="p-4 border-t border-slate-700">
+      <div className="p-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
           <div className="flex-1">
@@ -67,7 +67,7 @@ export default function UserProfile({ collapsed = false }: UserProfileProps) {
   }
 
   return (
-    <div className="p-4 border-t border-gray-200">
+    <div className="p-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button

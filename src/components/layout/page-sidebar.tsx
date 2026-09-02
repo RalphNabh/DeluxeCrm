@@ -186,7 +186,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
         </nav>
 
         <div className="flex-shrink-0 mt-auto">
-          <div className="hidden border-t border-slate-800 p-3 md:flex md:justify-center">
+          <div className="hidden p-3 md:flex md:justify-center">
             <button
               type="button"
               onClick={toggleCollapsed}
@@ -205,9 +205,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
               />
             </button>
           </div>
-          <div className="border-t border-slate-800">
-            <UserProfile collapsed={collapsed} />
-          </div>
+          <UserProfile collapsed={collapsed} />
         </div>
       </aside>
     </>
