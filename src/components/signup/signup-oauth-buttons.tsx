@@ -34,7 +34,7 @@ export function SignupOAuthButtons({
       const next =
         mode === "signup"
           ? encodeURIComponent(signupNext)
-          : encodeURIComponent("/dashboard");
+          : encodeURIComponent("/home");
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,

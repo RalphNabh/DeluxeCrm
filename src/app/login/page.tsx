@@ -58,7 +58,7 @@ function LoginForm() {
           }
 
           const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
-          router.push(safeNext || persona.redirectTo || "/dashboard");
+          router.push(safeNext || persona.redirectTo || "/home");
         }
       }
     } catch {
@@ -88,7 +88,7 @@ function LoginForm() {
         <Card>
           <CardHeader>
             <CardTitle>Contractor Login</CardTitle>
-            <CardDescription>Enter your credentials to access your CRM dashboard</CardDescription>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">

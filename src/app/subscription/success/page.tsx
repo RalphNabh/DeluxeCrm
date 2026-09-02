@@ -72,9 +72,9 @@ function SubscriptionSuccessContent() {
               <p className="text-gray-600">
                 Your subscription has been successfully activated. You now have full access to all features.
               </p>
-              <Link href="/dashboard">
+              <Link href="/home">
                 <Button className="w-full">
-                  Go to Dashboard
+                  Go Home
                 </Button>
               </Link>
             </>
@@ -84,9 +84,9 @@ function SubscriptionSuccessContent() {
                 Your payment was successful. Your subscription is being processed and will be active shortly.
               </p>
               <div className="space-y-2">
-                <Link href="/dashboard">
+                <Link href="/home">
                   <Button className="w-full">
-                    Go to Dashboard
+                    Go Home
                   </Button>
                 </Link>
                 <Link href="/settings">

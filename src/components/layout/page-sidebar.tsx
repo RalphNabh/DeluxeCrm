@@ -130,7 +130,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
           )}
         >
           <Link
-            href="/dashboard"
+            href="/home"
             className={cn(
               "flex h-8 items-center bg-gradient-to-r from-teal-300 to-emerald-400 bg-clip-text text-xl font-bold tracking-tight text-transparent",
               collapsed && "md:hidden",
@@ -139,7 +139,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
             DyluxePro
           </Link>
           <Link
-            href="/dashboard"
+            href="/home"
             aria-label="DyluxePro"
             className={cn("hidden h-8 items-center", collapsed && "md:flex")}
           >

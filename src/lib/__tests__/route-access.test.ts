@@ -22,7 +22,7 @@ describe("isPublicRoute", () => {
   });
 
   it("does not treat every path as public (regression)", () => {
-    assert.equal(isPublicRoute("/dashboard"), false);
+    assert.equal(isPublicRoute("/home"), false);
     assert.equal(isPublicRoute("/api/clients"), false);
     assert.equal(isPublicRoute("/estimates"), false);
   });
@@ -32,7 +32,7 @@ describe("isApiRoute", () => {
   it("identifies API paths", () => {
     assert.equal(isApiRoute("/api/auth/signup"), true);
     assert.equal(isApiRoute("/api/stripe/webhook"), true);
-    assert.equal(isApiRoute("/dashboard"), false);
+    assert.equal(isApiRoute("/home"), false);
     assert.equal(isApiRoute("/api"), false);
   });
 });
@@ -41,7 +41,7 @@ describe("isSubscriptionExempt", () => {
   it("exempts subscription checkout and API", () => {
     assert.equal(isSubscriptionExempt("/subscription"), true);
     assert.equal(isSubscriptionExempt("/api/stripe/webhook"), true);
-    assert.equal(isSubscriptionExempt("/dashboard"), false);
+    assert.equal(isSubscriptionExempt("/home"), false);
   });
 });
 

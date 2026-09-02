@@ -35,7 +35,7 @@ function InviteAcceptContent() {
       setAccepting(false);
       return;
     }
-    router.push(data.redirectTo || "/dashboard");
+    router.push(data.redirectTo || "/home");
   };
 
   return (

@@ -17,7 +17,7 @@ describe("classifyPersona", () => {
   it("sends contractor-only users to the CRM", () => {
     const result = classifyPersona(null, membership);
     assert.equal(result.type, "contractor");
-    assert.equal(result.redirectTo, "/dashboard");
+    assert.equal(result.redirectTo, "/home");
     assert.equal(result.hasPortalAccess, false);
     assert.equal(result.hasCrmAccess, true);
   });
@@ -39,7 +39,7 @@ describe("classifyPersona", () => {
   it("CRM login admits contractors into the CRM", () => {
     const result = classifyPersona(null, membership, "contractor");
     assert.equal(result.type, "contractor");
-    assert.equal(result.redirectTo, "/dashboard");
+    assert.equal(result.redirectTo, "/home");
     assert.equal(result.hasCrmAccess, true);
   });
 
@@ -61,7 +61,7 @@ describe("classifyPersona", () => {
   it("dual-role can use CRM login for the CRM only", () => {
     const result = classifyPersona(portal, membership, "contractor");
     assert.equal(result.type, "contractor");
-    assert.equal(result.redirectTo, "/dashboard");
+    assert.equal(result.redirectTo, "/home");
     assert.equal(result.hasCrmAccess, true);
   });
 });

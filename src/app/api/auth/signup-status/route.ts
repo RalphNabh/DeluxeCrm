@@ -25,7 +25,7 @@ export async function GET() {
   if (!needsOnboarding) {
     return NextResponse.json({
       needsOnboarding: false,
-      redirectTo: "/dashboard",
+      redirectTo: "/home",
       email: user.email ?? undefined,
     });
   }

@@ -74,7 +74,7 @@ export async function updateSession(request: NextRequest) {
     if (isPortalRoute(pathname) && pathname !== '/portal/login' && !pathname.startsWith('/portal/register')) {
       if (!persona.hasPortalAccess) {
         const url = request.nextUrl.clone()
-        url.pathname = persona.hasCrmAccess ? '/dashboard' : '/portal/login'
+        url.pathname = persona.hasCrmAccess ? '/home' : '/portal/login'
         return NextResponse.redirect(url)
       }
     }
@@ -93,7 +93,7 @@ export async function updateSession(request: NextRequest) {
       }
       if (persona.role && persona.role !== 'worker' && isFieldRoute(pathname)) {
         const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
+        url.pathname = '/home'
         return NextResponse.redirect(url)
       }
     }

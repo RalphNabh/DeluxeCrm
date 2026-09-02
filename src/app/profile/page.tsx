@@ -179,8 +179,8 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">Unable to load profile</p>
-          <Link href="/dashboard">
-            <Button>Back to Dashboard</Button>
+          <Link href="/home">
+            <Button>Back to Home</Button>
           </Link>
         </div>
       </div>
@@ -193,10 +193,10 @@ export default function ProfilePage() {
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/home">
                 <Button variant="outline" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
+                  Back to Home
                 </Button>
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>

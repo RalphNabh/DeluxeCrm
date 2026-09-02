@@ -9,9 +9,9 @@ function onboardingResumePath(ref: string | null): string {
   return code ? `${base}&ref=${encodeURIComponent(code)}` : base;
 }
 
-function isDashboardIntent(next: string | null): boolean {
+function isHomeIntent(next: string | null): boolean {
   if (!next) return true;
-  return next === "/dashboard" || next.startsWith("/dashboard?");
+  return next === "/home" || next.startsWith("/home?");
 }
 
 export async function GET(request: Request) {
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
               admin,
               user.id,
             );
-            if (needsOnboarding && isDashboardIntent(next)) {
+            if (needsOnboarding && isHomeIntent(next)) {
               destination = onboardingResumePath(refParam);
             }
           } catch {

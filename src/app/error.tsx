@@ -19,12 +19,12 @@ export default function Error({
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8">
       <h1 className="text-2xl font-bold">Something went wrong</h1>
       <p className="text-gray-600 text-center max-w-md">
-        We&apos;ve been notified. Try again, or return to the dashboard.
+        We&apos;ve been notified. Try again, or return home.
       </p>
       <div className="flex gap-3">
         <Button onClick={() => reset()}>Try again</Button>
         <Button variant="outline" asChild>
-          <a href="/dashboard">Dashboard</a>
+          <a href="/home">Home</a>
         </Button>
       </div>
     </div>

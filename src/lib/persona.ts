@@ -44,7 +44,7 @@ export async function resolvePersona(
 
 export function isContractorRoute(pathname: string): boolean {
   const contractorPrefixes = [
-    "/dashboard",
+    "/home",
     "/clients",
     "/leads",
     "/estimates",

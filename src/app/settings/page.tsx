@@ -414,10 +414,10 @@ export default function SettingsPage() {
         <header className="bg-white border-b border-gray-200 px-6 py-4 transition-colors">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/home">
                 <Button variant="outline" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
+                  Back to Home
                 </Button>
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">Settings</h1>

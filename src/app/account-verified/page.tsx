@@ -19,16 +19,16 @@ export default function AccountVerifiedPage() {
         const personaRes = await fetch("/api/auth/persona");
         const persona = await personaRes.json();
         const dest = persona.hasCrmAccess
-          ? persona.redirectTo || "/dashboard"
+          ? persona.redirectTo || "/home"
           : persona.hasPortalAccess
             ? "/portal"
             : "/login";
-        if (dest === "/dashboard" && typeof window !== "undefined") {
+        if (dest === "/home" && typeof window !== "undefined") {
           markWelcomePending();
         }
         if (!cancelled) router.push(dest);
       } catch {
-        if (!cancelled) router.push("/dashboard");
+        if (!cancelled) router.push("/home");
       }
     };
 
@@ -66,7 +66,7 @@ export default function AccountVerifiedPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center text-sm text-gray-600">
-              Redirecting to your dashboard in {countdown} second{countdown !== 1 ? 's' : ''}...
+              Taking you home in {countdown} second{countdown !== 1 ? 's' : ''}...
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
@@ -75,7 +75,7 @@ export default function AccountVerifiedPage() {
                   const persona = await personaRes.json();
                   router.push(
                     persona.hasCrmAccess
-                      ? persona.redirectTo || "/dashboard"
+                      ? persona.redirectTo || "/home"
                       : persona.hasPortalAccess
                         ? "/portal"
                         : "/login",
@@ -83,7 +83,7 @@ export default function AccountVerifiedPage() {
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
-                Go to Dashboard
+                Go Home
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button
@@ -91,7 +91,7 @@ export default function AccountVerifiedPage() {
                 onClick={() => router.push('/')}
                 className="flex-1"
               >
-                Back to Home
+                Visit Website
               </Button>
             </div>
           </CardContent>

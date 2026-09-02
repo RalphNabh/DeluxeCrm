@@ -23,9 +23,9 @@ export default function SubscriptionCancelPage() {
                 Try Again
               </Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/home">
               <Button variant="outline" className="w-full">
-                Back to Dashboard
+                Back to Home
               </Button>
             </Link>
           </div>

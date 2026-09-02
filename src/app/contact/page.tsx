@@ -342,7 +342,7 @@ export default function ContactPage() {
             <div>
               <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="/dashboard" className="hover:text-white">Dashboard</Link></li>
+                <li><Link href="/home" className="hover:text-white">Home</Link></li>
                 <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
                 <li><Link href="/settings" className="hover:text-white">Settings</Link></li>
               </ul>

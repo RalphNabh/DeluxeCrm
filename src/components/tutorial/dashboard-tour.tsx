@@ -24,7 +24,7 @@ Tap this banner to try it - works great on your phone in the field.`,
   {
     target: '[data-tutorial="pipeline"]',
     title: 'Welcome to DyluxePro! 🎉',
-    content: `This is your sales pipeline dashboard. Here you can track all your leads from initial contact to completion.
+    content: `This is your sales pipeline home page. Here you can track all your leads from initial contact to completion.
 
 The pipeline shows your leads organized by stage:
 • New Leads - Fresh inquiries
@@ -41,7 +41,7 @@ You can drag and drop leads between stages to update their status.`,
     title: 'Navigation Menu',
     content: `Use the sidebar to navigate between different sections of your CRM:
 
-• Dashboard - Overview of your pipeline
+• Home - Overview of your pipeline
 • Clients - Manage your customer database
 • Estimates - Create and send quotes
 • Invoices - Track billing and payments

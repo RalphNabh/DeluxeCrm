@@ -10,6 +10,17 @@ const nextConfig: NextConfig = {
         destination: "/icons/icon-32.png",
         permanent: false,
       },
+      // The main CRM landing page was renamed from /dashboard to /home.
+      {
+        source: "/dashboard",
+        destination: "/home",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/:path*",
+        destination: "/home/:path*",
+        permanent: false,
+      },
     ];
   },
   eslint: {

@@ -70,7 +70,7 @@ export function canInviteTeam(role: OrgRole): boolean {
 
 export function getDefaultRouteForRole(role: OrgRole): string {
   if (role === "worker") return "/field";
-  return "/dashboard";
+  return "/home";
 }
 
 export const CLIENT_PERMISSIONS: Permission[] = [

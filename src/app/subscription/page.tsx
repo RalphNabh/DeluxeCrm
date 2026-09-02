@@ -144,9 +144,9 @@ export default function SubscriptionPage() {
               DyluxePro
             </Link>
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href="/home">
                 <Button variant="outline" size="sm">
-                  Dashboard
+                  Home
                 </Button>
               </Link>
             </div>

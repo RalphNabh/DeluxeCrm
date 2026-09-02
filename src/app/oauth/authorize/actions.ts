@@ -13,10 +13,10 @@ export async function approveAuthorization(formData: FormData) {
   try {
     expectedRedirectUri = getZapierRedirectUri();
   } catch {
-    redirect("/dashboard");
+    redirect("/home");
   }
   if (redirectUri !== expectedRedirectUri) {
-    redirect("/dashboard");
+    redirect("/home");
   }
 
   const supabase = await createClient();
@@ -26,7 +26,7 @@ export async function approveAuthorization(formData: FormData) {
   if (!user) redirect("/login");
 
   const membership = await getActiveMembership(supabase, user.id);
-  if (!membership) redirect("/dashboard");
+  if (!membership) redirect("/home");
 
   const code = await createAuthorizationCode({
     organizationId: membership.org_id,
@@ -48,10 +48,10 @@ export async function denyAuthorization(formData: FormData) {
   try {
     expectedRedirectUri = getZapierRedirectUri();
   } catch {
-    redirect("/dashboard");
+    redirect("/home");
   }
   if (redirectUri !== expectedRedirectUri) {
-    redirect("/dashboard");
+    redirect("/home");
   }
 
   const url = new URL(redirectUri);

@@ -22,7 +22,7 @@ type MembershipRow = {
 };
 
 function crmHome(role: MembershipRow["role"]): string {
-  return role === "worker" ? "/field" : "/dashboard";
+  return role === "worker" ? "/field" : "/home";
 }
 
 /**
@@ -124,7 +124,7 @@ export function classifyPersona(
 
   return {
     type: "contractor",
-    redirectTo: "/dashboard",
+    redirectTo: "/home",
     hasPortalAccess: false,
     hasCrmAccess: false,
   };

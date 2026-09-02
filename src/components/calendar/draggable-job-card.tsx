@@ -31,7 +31,7 @@ interface DraggableJobCardProps {
 
 /**
  * A calendar job card that can be dragged (via dnd-kit, matching the kanban
- * pattern in src/app/dashboard/page.tsx) and, separately, resized from one
+ * pattern in src/app/home/page.tsx) and, separately, resized from one
  * edge via raw pointer events - dnd-kit drags the whole element, so growing
  * just one edge while the rest stays put needs its own handling.
  *

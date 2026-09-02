@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { OrgRole } from "@/lib/org";
 import { hasPermission, type Permission } from "@/lib/rbac";
 import {
-  LayoutDashboard,
+  Home,
   Users,
   FileText,
   DollarSign,
@@ -38,7 +38,7 @@ export interface NavItem {
 }
 
 export const SIDEBAR_ITEMS: readonly NavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", permission: "view_all_clients" },
+  { icon: Home, label: "Home", href: "/home", permission: "view_all_clients" },
   { icon: Users, label: "Clients", href: "/clients" },
   { icon: FileText, label: "Estimates", href: "/estimates", permission: "create_estimates" },
   { icon: DollarSign, label: "Invoices", href: "/invoices", permission: "create_invoices" },
@@ -67,10 +67,10 @@ export function navItemsForRole(
 /**
  * Determines which nav item should be marked active for a given pathname.
  * Uses prefix matching so /clients/123 highlights the "Clients" entry.
- * Dashboard is exact-match only (otherwise it would always win).
+ * Home is exact-match only (otherwise it would always win).
  */
 export function isNavItemActive(item: NavItem, pathname: string | null): boolean {
   if (!pathname) return false;
-  if (item.href === "/dashboard") return pathname === "/dashboard";
+  if (item.href === "/home") return pathname === "/home";
   return pathname === item.href || pathname.startsWith(item.href + "/");
 }

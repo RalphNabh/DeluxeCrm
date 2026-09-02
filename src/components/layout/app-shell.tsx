@@ -43,7 +43,7 @@ export default function AppShell({ children, initialSidebarCollapsed = false }: 
             <Menu className="h-5 w-5" />
           </Button>
           <Link
-            href="/dashboard"
+            href="/home"
             className="text-lg font-bold text-teal-600"
           >
             DyluxePro
