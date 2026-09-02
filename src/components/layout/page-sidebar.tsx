@@ -193,8 +193,8 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               aria-expanded={!collapsed}
               aria-controls="primary-navigation"
-              className="flex h-9 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm transition-colors
-                         hover:bg-white hover:text-slate-900
+              className="flex h-9 w-10 items-center justify-center rounded-lg bg-transparent text-slate-400 transition-colors
+                         hover:text-white
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
             >
               <ArrowLeft
