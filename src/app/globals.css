@@ -473,14 +473,6 @@ body {
   .mkt-marquee-up {
     animation: none !important;
   }
-  .sidebar-arrow-flip-collapse {
-    animation: none !important;
-    transform: rotateY(-180deg) !important;
-  }
-  .sidebar-arrow-flip-expand {
-    animation: none !important;
-    transform: rotateY(0deg) !important;
-  }
   .skeleton-shimmer {
     background: #e5e7eb;
   }

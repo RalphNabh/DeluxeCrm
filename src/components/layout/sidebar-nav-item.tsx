@@ -36,7 +36,7 @@ export default function SidebarNavItem({
       className={cn(
         "group flex min-h-11 items-center gap-3 rounded-lg pl-4 pr-4 py-3 text-sm font-medium",
         "transition-colors duration-150",
-        "md:transition-[padding-right] md:duration-200 md:ease-out motion-reduce:md:transition-none",
+        "md:transition-[padding-right] md:duration-200 md:ease-out",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
         active
           ? "bg-teal-500/15 text-teal-200 ring-1 ring-inset ring-teal-400/30"
@@ -65,7 +65,7 @@ export default function SidebarNavItem({
       <span
         className={cn(
           "flex-1 truncate whitespace-nowrap",
-          "md:transition-[max-width,opacity] md:duration-200 md:ease-out motion-reduce:md:transition-none",
+          "md:transition-[max-width,opacity] md:duration-200 md:ease-out",
           collapsed ? "md:max-w-0 md:opacity-0" : "md:max-w-[10rem] md:opacity-100",
         )}
       >

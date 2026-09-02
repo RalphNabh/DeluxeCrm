@@ -117,7 +117,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
           "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
           "transition-transform duration-300 ease-in-out print:hidden",
           "md:sticky md:top-0 md:z-auto md:h-dvh md:translate-x-0 md:flex-shrink-0 md:self-start",
-          "md:transition-[width] md:duration-200 md:ease-out motion-reduce:md:transition-none",
+          "md:transition-[width] md:duration-200 md:ease-out",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           collapsed ? "md:w-20" : "md:w-64",
         )}
@@ -125,7 +125,7 @@ export default function PageSidebar({ items, isOpen = false, onClose, initialCol
         <div
           className={cn(
             "flex flex-shrink-0 items-center justify-between p-6",
-            "md:justify-start md:transition-[padding-right] md:duration-200 md:ease-out motion-reduce:md:transition-none",
+            "md:justify-start md:transition-[padding-right] md:duration-200 md:ease-out",
             collapsed && "md:pr-0",
           )}
         >
