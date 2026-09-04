@@ -157,6 +157,7 @@ export async function POST(request: NextRequest) {
       referral_source,
       estimated_revenue,
       referral_code,
+      captchaToken,
     } = parsed.data;
 
     const fullName = `${first_name} ${last_name}`;
@@ -174,6 +175,7 @@ export async function POST(request: NextRequest) {
       password,
       options: {
         emailRedirectTo,
+        captchaToken,
         data: {
           first_name,
           last_name,

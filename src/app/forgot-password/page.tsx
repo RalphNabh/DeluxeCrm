@@ -6,24 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setMessage("");
+
+    if (turnstileRequired && !turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const supabase = createClient();
       const redirectTo = `${window.location.origin}/reset-password`;
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
+        captchaToken: turnstileToken || undefined,
       });
 
       if (resetError) {
@@ -63,6 +73,10 @@ export default function ForgotPasswordPage() {
                   className="mt-1"
                 />
               </div>
+              <TurnstileWidget
+                onToken={setTurnstileToken}
+                onExpire={() => setTurnstileToken("")}
+              />
               {error && <p className="text-sm text-red-600">{error}</p>}
               {message && <p className="text-sm text-green-600">{message}</p>}
               <Button type="submit" disabled={loading} className="w-full">

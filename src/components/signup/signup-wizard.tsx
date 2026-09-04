@@ -30,6 +30,7 @@ import {
   SIGNUP_PENDING_EMAIL_KEY,
 } from "@/lib/auth-email-redirect";
 import { markWelcomePending } from "@/lib/welcome-notification";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 type PersistedDraft = Omit<SignupWizardDraft, "password" | "confirmPassword">;
 
@@ -126,7 +127,9 @@ export function SignupWizard() {
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const firstFieldRef = useRef<HTMLDivElement>(null);
+  const turnstileRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   const goToStep = useCallback(
     (nextStep: number, currentDraft?: SignupWizardDraft, oauth?: boolean) => {
@@ -217,6 +220,11 @@ export function SignupWizard() {
   };
 
   const submitSignup = async () => {
+    if (!oauthMode && turnstileRequired && !turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -274,6 +282,7 @@ export function SignupWizard() {
           ...body,
           email: draft.email.trim(),
           password: draft.password,
+          captchaToken: turnstileToken || undefined,
         }),
       });
 
@@ -409,6 +418,15 @@ export function SignupWizard() {
     >
       <div ref={firstFieldRef} onKeyDown={handleKeyDown}>
         <SignupStepTransition stepKey={stepId}>{renderStep()}</SignupStepTransition>
+
+        {isLastStep && !oauthMode ? (
+          <div className="mt-4">
+            <TurnstileWidget
+              onToken={setTurnstileToken}
+              onExpire={() => setTurnstileToken("")}
+            />
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

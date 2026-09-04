@@ -247,6 +247,7 @@ export const signupSchema = z
     phone: z.string().trim().max(50).optional(),
     company_name: z.string().trim().min(1).max(200),
     business_type: z.string().trim().min(1).max(100),
+    captchaToken: z.string().optional(),
   })
   .merge(signupOnboardingFieldsSchema);
 

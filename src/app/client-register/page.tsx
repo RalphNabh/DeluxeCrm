@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowLeft, CheckCircle } from "lucide-react";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 export default function ClientRegister() {
   const [formData, setFormData] = useState({
@@ -24,7 +25,9 @@ export default function ClientRegister() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const router = useRouter();
+  const turnstileRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -50,14 +53,21 @@ export default function ClientRegister() {
       return;
     }
 
+    if (turnstileRequired && !turnstileToken) {
+      setError("Please complete the security check.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
-      
+
       // Register the user
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
+          captchaToken: turnstileToken || undefined,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
@@ -233,6 +243,11 @@ export default function ClientRegister() {
                   />
                 </div>
               </div>
+
+              <TurnstileWidget
+                onToken={setTurnstileToken}
+                onExpire={() => setTurnstileToken("")}
+              />
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">

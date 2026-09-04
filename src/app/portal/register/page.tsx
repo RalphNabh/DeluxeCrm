@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 function RegisterForm() {
   const searchParams = useSearchParams();
@@ -27,7 +28,9 @@ function RegisterForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const router = useRouter();
+  const turnstileRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   useEffect(() => {
     if (!token) {
@@ -99,6 +102,11 @@ function RegisterForm() {
       return;
     }
 
+    if (turnstileRequired && !turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -120,6 +128,7 @@ function RegisterForm() {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email || invite.email,
         password,
+        options: { captchaToken: turnstileToken || undefined },
       });
       if (signInError) {
         setError(
@@ -192,6 +201,10 @@ function RegisterForm() {
               autoComplete="new-password"
             />
           </div>
+          <TurnstileWidget
+            onToken={setTurnstileToken}
+            onExpire={() => setTurnstileToken("")}
+          />
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button
             type="submit"

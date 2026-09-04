@@ -9,26 +9,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SignupOAuthButtons } from "@/components/signup/signup-oauth-buttons";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthErrorMessage } from "@/lib/auth-email-redirect";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
+  const turnstileRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    if (turnstileRequired && !turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken: turnstileToken || undefined },
       });
 
       if (error) {
@@ -127,6 +137,10 @@ function LoginForm() {
                   </Link>
                 </div>
               </div>
+              <TurnstileWidget
+                onToken={setTurnstileToken}
+                onExpire={() => setTurnstileToken("")}
+              />
               {error && (
                 <div className="text-red-600 text-sm">
                   {error}
