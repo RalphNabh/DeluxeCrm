@@ -819,25 +819,35 @@ export default function Dashboard() {
   };
 
   async function changeLeadStatus(leadId: string, newStatus: string) {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead || lead.status === newStatus) return;
+    const previousStatus = lead.status;
+
+    // Move the card immediately; reconcile with the server in the background,
+    // rolling back only if the request actually fails.
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, status: newStatus } : l))
+    );
+
     try {
       const res = await fetch(`/api/leads/${leadId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error('Failed to update lead:', errorData);
         throw new Error(errorData.error || "Failed to update lead");
       }
-      
+
       const updated = (await res.json()) as Lead;
       setLeads((prev) => prev.map((l) => {
         if (l.id === leadId) {
           // Preserve client_folders and folder_id from the original lead if not in updated response
-          return { 
-            ...l, 
+          return {
+            ...l,
             ...updated,
             client_folders: updated.client_folders || l.client_folders,
             folder_id: updated.folder_id || l.folder_id
@@ -847,6 +857,10 @@ export default function Dashboard() {
       }));
       invalidate.leads();
     } catch (e) {
+      // Server rejected it — snap the card back to where it was.
+      setLeads((prev) =>
+        prev.map((l) => (l.id === leadId ? { ...l, status: previousStatus } : l))
+      );
       const errorMessage = e instanceof Error ? e.message : "Failed to update lead";
       console.error('Error updating lead status:', e);
       setError(errorMessage);
