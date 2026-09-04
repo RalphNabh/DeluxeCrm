@@ -609,6 +609,7 @@ export default function Dashboard() {
   const invalidate = useInvalidateQueries();
 
   const lastSyncedLeadsAt = useRef(0);
+  const leadStatusRequestSeq = useRef<Record<string, number>>({});
   const lastSyncedStagesAt = useRef(0);
   const lastSyncedEstimatesAt = useRef(0);
   const lastSyncedClientsAt = useRef(0);
@@ -823,6 +824,12 @@ export default function Dashboard() {
     if (!lead || lead.status === newStatus) return;
     const previousStatus = lead.status;
 
+    // Tag this request so a slower, earlier request for the same lead can't
+    // clobber a newer drag once it finally resolves.
+    const requestId = (leadStatusRequestSeq.current[leadId] || 0) + 1;
+    leadStatusRequestSeq.current[leadId] = requestId;
+    const isStale = () => leadStatusRequestSeq.current[leadId] !== requestId;
+
     // Move the card immediately; reconcile with the server in the background,
     // rolling back only if the request actually fails.
     setLeads((prev) =>
@@ -843,6 +850,8 @@ export default function Dashboard() {
       }
 
       const updated = (await res.json()) as Lead;
+      if (isStale()) return; // a later drag already moved this card further
+
       setLeads((prev) => prev.map((l) => {
         if (l.id === leadId) {
           // Preserve client_folders and folder_id from the original lead if not in updated response
@@ -857,12 +866,15 @@ export default function Dashboard() {
       }));
       invalidate.leads();
     } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Failed to update lead";
+      console.error('Error updating lead status:', e);
+
+      if (isStale()) return; // superseded by a newer drag — don't stomp on it
+
       // Server rejected it — snap the card back to where it was.
       setLeads((prev) =>
         prev.map((l) => (l.id === leadId ? { ...l, status: previousStatus } : l))
       );
-      const errorMessage = e instanceof Error ? e.message : "Failed to update lead";
-      console.error('Error updating lead status:', e);
       setError(errorMessage);
     }
   }
