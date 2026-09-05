@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 declare global {
   interface Window {
@@ -28,12 +28,15 @@ export function TurnstileWidget({ onToken, onExpire }: TurnstileWidgetProps) {
   const widgetIdRef = useRef<string | null>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
-  const handleToken = useCallback(
-    (token: string) => {
-      onToken(token);
-    },
-    [onToken],
-  );
+  // Callers pass inline arrow functions that get a new identity on every
+  // render (e.g. every keystroke on the surrounding form). Keep the latest
+  // versions in refs so the mount effect below doesn't need them as
+  // dependencies — otherwise it tears down and re-renders the widget on
+  // every parent re-render, which is what caused the visible flicker.
+  const onTokenRef = useRef(onToken);
+  onTokenRef.current = onToken;
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
 
   useEffect(() => {
     if (!siteKey || !containerRef.current) return;
@@ -45,8 +48,8 @@ export function TurnstileWidget({ onToken, onExpire }: TurnstileWidgetProps) {
       }
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
-        callback: handleToken,
-        "expired-callback": onExpire,
+        callback: (token: string) => onTokenRef.current(token),
+        "expired-callback": () => onExpireRef.current?.(),
       });
     };
 
@@ -66,7 +69,7 @@ export function TurnstileWidget({ onToken, onExpire }: TurnstileWidgetProps) {
         window.turnstile.remove(widgetIdRef.current);
       }
     };
-  }, [siteKey, handleToken, onExpire]);
+  }, [siteKey]);
 
   if (!siteKey) return null;
 
