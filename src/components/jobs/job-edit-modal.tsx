@@ -23,6 +23,7 @@ import {
 import { Calendar, Clock, MapPin, User, X } from "lucide-react";
 import TeamMemberSelector from "./team-member-selector";
 import TimePicker from "@/components/ui/time-picker";
+import { toast } from "sonner";
 
 interface Client {
   id: string;
@@ -211,7 +212,7 @@ export default function JobEditModal({ isOpen, onClose, onJobUpdated, job }: Job
       const endTimeISO = formatDateTimeISO(formData.end_date, formData.end_time);
 
       if (!startTimeISO || !endTimeISO) {
-        alert('Please fill in both start and end date/time');
+        toast.error('Please fill in both start and end date/time');
         setLoading(false);
         return;
       }
@@ -249,11 +250,11 @@ export default function JobEditModal({ isOpen, onClose, onJobUpdated, job }: Job
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Failed to update job:', errorData.error);
-        alert('Failed to update job: ' + (errorData.error || 'Unknown error'));
+        toast.error('Failed to update job: ' + (errorData.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error updating job:', error);
-      alert('Failed to update job. Please try again.');
+      toast.error('Failed to update job. Please try again.');
     } finally {
       setLoading(false);
     }

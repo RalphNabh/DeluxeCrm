@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Loader2 } from "lucide-react";
 import AiUsageWidget from "@/components/ai/ai-usage-widget";
+import { toast } from "sonner";
 
 type SubscriptionStatus = {
   hasSubscription: boolean;
@@ -52,7 +53,7 @@ export default function SubscriptionPage() {
 
       if (!response.ok) {
         if (data.subscriptionId) {
-          alert('You already have an active subscription. Redirecting to settings...');
+          toast.error('You already have an active subscription. Redirecting to settings...');
           window.location.href = '/settings';
           return;
         }
@@ -65,7 +66,7 @@ export default function SubscriptionPage() {
       }
     } catch (error) {
       console.error('Error creating checkout:', error);
-      alert(error instanceof Error ? error.message : 'Failed to start checkout');
+      toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
     } finally {
       setCheckoutLoading(null);
     }

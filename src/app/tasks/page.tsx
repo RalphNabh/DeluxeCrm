@@ -65,6 +65,8 @@ import {
   useInvalidateQueries,
 } from "@/lib/query/hooks";
 import { ListPageSkeleton } from "@/components/ui/page-skeletons";
+import { useConfirm } from "@/components/providers/confirm-provider";
+import { toast } from "sonner";
 
 interface Task {
   id: string;
@@ -112,6 +114,7 @@ export default function TasksPage() {
   const [showTaskDialog, setShowTaskDialog] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const invalidate = useInvalidateQueries();
+  const confirm = useConfirm();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -215,7 +218,7 @@ export default function TasksPage() {
       resetForm();
       setShowTaskDialog(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create task');
+      toast.error(err instanceof Error ? err.message : 'Failed to create task');
     }
   };
 
@@ -246,12 +249,17 @@ export default function TasksPage() {
       resetForm();
       setShowTaskDialog(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update task');
+      toast.error(err instanceof Error ? err.message : 'Failed to update task');
     }
   };
 
   const handleDeleteTask = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+    const ok = await confirm({
+      title: "Delete this task?",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/tasks/${id}`, {
@@ -259,10 +267,10 @@ export default function TasksPage() {
       });
 
       if (!response.ok) throw new Error('Failed to delete task');
-      
+
       await invalidate.tasks();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete task');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete task');
     }
   };
 
@@ -278,7 +286,7 @@ export default function TasksPage() {
       
       await invalidate.tasks();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update task status');
+      toast.error(err instanceof Error ? err.message : 'Failed to update task status');
     }
   };
 

@@ -5,6 +5,8 @@ import { TutorialWrapper } from "@/components/tutorial/tutorial-wrapper";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { NotificationToast } from "@/components/notifications/notification-toast";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ConfirmProvider } from "@/components/providers/confirm-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 /** App + marketing type system — clean geometric sans (Jobber-adjacent, not Inter/Geist). */
 const jakarta = Plus_Jakarta_Sans({
@@ -54,10 +56,13 @@ export default function RootLayout({
       >
         <QueryProvider>
           <NotificationProvider>
-            <TutorialWrapper>
-              <NotificationToast />
-              {children}
-            </TutorialWrapper>
+            <ConfirmProvider>
+              <TutorialWrapper>
+                <NotificationToast />
+                <Toaster />
+                {children}
+              </TutorialWrapper>
+            </ConfirmProvider>
           </NotificationProvider>
         </QueryProvider>
       </body>

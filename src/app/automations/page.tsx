@@ -60,6 +60,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAutomationsQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import { ListPageSkeleton } from "@/components/ui/page-skeletons";
+import { useConfirm } from "@/components/providers/confirm-provider";
+import { toast } from "sonner";
 
 /** Official Google Ads icon mark (Google/Wikimedia brand SVG, wordmark cropped off), inlined so it works offline/self-hosted. */
 function GoogleAdsIcon({ className }: { className?: string }) {
@@ -222,6 +224,7 @@ export default function AutomationsPage() {
   const [updating, setUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const invalidate = useInvalidateQueries();
+  const confirm = useConfirm();
 
   const {
     data,
@@ -384,7 +387,12 @@ export default function AutomationsPage() {
   };
 
   const deleteAutomation = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this automation?')) return;
+    const ok = await confirm({
+      title: "Delete this automation?",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/automations/${id}`, {
@@ -413,11 +421,11 @@ export default function AutomationsPage() {
         throw new Error(errorMessage + details);
       }
 
-      alert(data.message || 'Automation test completed! Check your email if this automation sends emails.');
+      toast.success(data.message || 'Automation test completed! Check your email if this automation sends emails.');
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Failed to test automation';
       console.error('Test automation error:', e);
-      alert(`Error: ${errorMessage}`);
+      toast.error(`Error: ${errorMessage}`);
     }
   };
 

@@ -20,6 +20,7 @@ import PageHeader from '@/components/layout/page-header'
 import StatsCards from '@/components/ui/stats-cards'
 import EmptyState from '@/components/ui/empty-state'
 import { ListPageSkeleton } from '@/components/ui/page-skeletons'
+import { toast } from 'sonner'
 
 interface Invoice {
   id: string;
@@ -84,7 +85,7 @@ export default function InvoicesPage() {
 
   const sendInvoiceEmail = async (invoice: Invoice) => {
     if (!invoice.clients?.email) {
-      alert('Client email address is required')
+      toast.error('Client email address is required')
       return
     }
 
@@ -108,11 +109,11 @@ export default function InvoicesPage() {
       }
 
       await invalidate.invoices()
-      alert('Invoice sent successfully!')
+      toast.success('Invoice sent successfully!')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to send email'
       setActionError(message)
-      alert(message)
+      toast.error(message)
     } finally {
       setSendingEmail(null)
     }

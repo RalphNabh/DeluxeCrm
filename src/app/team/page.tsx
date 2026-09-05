@@ -62,6 +62,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTeamQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import { CardGridSkeleton } from "@/components/ui/page-skeletons";
 import { CALENDAR_COLOR_PALETTE } from "@/lib/team";
+import { useConfirm } from "@/components/providers/confirm-provider";
 
 interface TeamMember {
   id: string;
@@ -88,6 +89,7 @@ export default function TeamPage() {
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [message, setMessage] = useState<string | null>(null);;
   const invalidate = useInvalidateQueries();
+  const confirm = useConfirm();
   
   // Form state
   const [formData, setFormData] = useState({
@@ -220,7 +222,13 @@ export default function TeamPage() {
   };
 
   const handleDeleteMember = async (id: string, kind: "member" | "invitation" = "member") => {
-    if (!confirm('Are you sure you want to remove this team member?')) {
+    const ok = await confirm({
+      title: "Remove this team member?",
+      description: "They'll lose access immediately and will need a new invite to rejoin.",
+      confirmLabel: "Remove",
+      variant: "destructive",
+    });
+    if (!ok) {
       return;
     }
 

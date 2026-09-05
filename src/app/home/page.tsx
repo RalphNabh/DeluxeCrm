@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -185,11 +186,11 @@ function DraggableLeadCard({
         }
         setIsEditingValue(false);
       } else {
-        alert('Failed to update value');
+        toast.error('Failed to update value');
       }
     } catch (error) {
       console.error('Error updating value:', error);
-      alert('Error updating value');
+      toast.error('Error updating value');
     } finally {
       setIsSaving(false);
     }
@@ -970,7 +971,7 @@ export default function Dashboard() {
     // Check if any leads are using this stage
     const leadsInStage = leads.filter(l => l.status === stageToDelete.name);
     if (leadsInStage.length > 0) {
-      alert(`Cannot delete stage. There are ${leadsInStage.length} lead(s) using this stage. Please move them first.`);
+      toast.error(`Cannot delete stage. There are ${leadsInStage.length} lead(s) using this stage. Please move them first.`);
       return;
     }
 
@@ -998,7 +999,7 @@ export default function Dashboard() {
         console.error("Error deleting stage:", e);
         // Restore stage if deletion fails
         setStages(prev => [...prev, stageToDelete].sort((a, b) => a.position - b.position));
-        alert(e instanceof Error ? e.message : "Failed to delete stage");
+        toast.error(e instanceof Error ? e.message : "Failed to delete stage");
       } finally {
         setDeletedStage(null);
       }

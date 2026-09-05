@@ -44,6 +44,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChevronDown } from 'lucide-react'
 import SignOutButton from '@/components/auth/sign-out'
+import { toast } from 'sonner'
 
 interface Invoice {
   id: string;
@@ -270,7 +271,7 @@ export default function InvoiceDetailPage() {
 
       // Refresh invoice data to get updated status
       await fetchInvoice()
-      alert('Invoice sent successfully!')
+      toast.success('Invoice sent successfully!')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send email')
     } finally {

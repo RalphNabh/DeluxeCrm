@@ -34,6 +34,8 @@ import { ListPageSkeleton } from "@/components/ui/page-skeletons";
 import StatsCards from "@/components/ui/stats-cards";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import FolderManager from "@/components/clients/folder-manager";
+import { useConfirm } from "@/components/providers/confirm-provider";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -77,6 +79,7 @@ export default function ClientsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const invalidate = useInvalidateQueries();
+  const confirm = useConfirm();
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 300);
@@ -126,7 +129,12 @@ export default function ClientsPage() {
     (clientsError instanceof Error ? clientsError.message : null);
 
   const handleDeleteClient = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this client?')) {
+    const ok = await confirm({
+      title: "Delete this client?",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
+    if (!ok) {
       return;
     }
     
@@ -159,7 +167,7 @@ export default function ClientsPage() {
 
       await invalidate.clients();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to move client');
+      toast.error(err instanceof Error ? err.message : 'Failed to move client');
     }
   };
 

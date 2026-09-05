@@ -29,6 +29,7 @@ import { downloadElementAsPdf, pdfFilenameSegment } from '@/lib/pdf/document-pdf
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 
 interface Estimate {
   id: string;
@@ -357,7 +358,7 @@ function EstimateDetailContent() {
         setIsEditing(false)
       }
       
-      alert('Estimate sent successfully!')
+      toast.success('Estimate sent successfully!')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send email')
     } finally {
@@ -902,7 +903,7 @@ function EstimateDetailContent() {
                           const saved = await handleSaveEstimate()
                           if (saved) {
                             setIsEditing(false)
-                            alert('Estimate saved successfully!')
+                            toast.success('Estimate saved successfully!')
                           }
                         }}
                         disabled={saving}

@@ -43,6 +43,8 @@ import UserProfile from "@/components/layout/user-profile";
 import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
 import { useMaterialsQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import { CardGridSkeleton } from "@/components/ui/page-skeletons";
+import { useConfirm } from "@/components/providers/confirm-provider";
+import { toast } from "sonner";
 
 interface Material {
   id: string;
@@ -63,6 +65,7 @@ export default function MaterialsPage() {
   const [showNewMaterial, setShowNewMaterial] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const invalidate = useInvalidateQueries();
+  const confirm = useConfirm();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -113,7 +116,7 @@ export default function MaterialsPage() {
       resetForm();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to create material";
-      alert(errorMessage);
+      toast.error(errorMessage);
       console.error('Error creating material:', err);
     }
   };
@@ -141,12 +144,17 @@ export default function MaterialsPage() {
       setEditingMaterial(null);
       resetForm();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update material");
+      toast.error(err instanceof Error ? err.message : "Failed to update material");
     }
   };
 
   const handleDeleteMaterial = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this material?")) return;
+    const ok = await confirm({
+      title: "Delete this material?",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/materials/${id}`, {
@@ -157,7 +165,7 @@ export default function MaterialsPage() {
 
       await invalidate.materials();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete material");
+      toast.error(err instanceof Error ? err.message : "Failed to delete material");
     }
   };
 
@@ -175,12 +183,12 @@ export default function MaterialsPage() {
 
   const handleImageUpload = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      toast.error('Please select an image file');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB');
+      toast.error('Image size must be less than 5MB');
       return;
     }
 
@@ -249,7 +257,7 @@ export default function MaterialsPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload image';
       console.error('Image upload error:', err);
-      alert(`Error: ${errorMessage}`);
+      toast.error(`Error: ${errorMessage}`);
     } finally {
       setUploading(false);
     }

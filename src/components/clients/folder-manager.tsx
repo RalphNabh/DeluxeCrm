@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/providers/confirm-provider";
 
 interface ClientFolder {
   id: string;
@@ -60,6 +62,7 @@ export default function FolderManager({
   const [folderColor, setFolderColor] = useState("#3b82f6");
   const [folderDescription, setFolderDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const confirm = useConfirm();
 
   const handleCreateFolder = async () => {
     if (!folderName.trim()) return;
@@ -84,7 +87,7 @@ export default function FolderManager({
       setShowNewFolder(false);
       onFoldersChange();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to create folder');
+      toast.error(error instanceof Error ? error.message : 'Failed to create folder');
     } finally {
       setLoading(false);
     }
@@ -113,14 +116,20 @@ export default function FolderManager({
       setFolderDescription("");
       onFoldersChange();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update folder');
+      toast.error(error instanceof Error ? error.message : 'Failed to update folder');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteFolder = async (folderId: string) => {
-    if (!confirm('Are you sure you want to delete this folder? Clients in this folder will be moved to "No Folder".')) {
+    const ok = await confirm({
+      title: "Delete this folder?",
+      description: 'Clients in this folder will be moved to "No Folder".',
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
+    if (!ok) {
       return;
     }
 
@@ -136,7 +145,7 @@ export default function FolderManager({
       }
       onFoldersChange();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to delete folder');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete folder');
     }
   };
 
