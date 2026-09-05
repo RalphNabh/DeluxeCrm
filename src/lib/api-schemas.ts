@@ -154,10 +154,10 @@ export const taskCreateSchema = z.object({
 
 export const materialCreateSchema = z.object({
   name: z.string().trim().min(1).max(200),
-  description: z.string().max(2000).optional(),
-  category: z.string().trim().max(100).optional(),
-  unit: z.string().trim().max(50).optional(),
-  default_price: z.number().min(0).max(10_000_000).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  category: z.string().trim().max(100).optional().nullable(),
+  unit: z.string().trim().max(50).optional().nullable(),
+  default_price: z.number().min(0).max(10_000_000).optional().nullable(),
   is_active: z.boolean().optional(),
   image_url: z.string().max(2000).optional().nullable(),
 });
