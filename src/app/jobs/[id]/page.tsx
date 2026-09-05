@@ -17,7 +17,6 @@ import {
   AlertTriangle,
   Edit,
   Trash2,
-  Camera,
   Navigation,
   FileText,
   DollarSign,
@@ -61,6 +60,14 @@ interface Job {
     total: number;
     created_at: string;
   } | null;
+  job_line_items?: {
+    id: string;
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    total: number;
+  }[];
 }
 
 interface JobDetailPageProps {
@@ -482,24 +489,50 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   <CardTitle className="text-lg">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button variant="outline" className="w-full">
-                    <Phone className="h-4 w-4 mr-2" />
-                    Call Client
+                  <Button variant="outline" className="w-full" disabled={!job.client_phone} asChild={!!job.client_phone}>
+                    {job.client_phone ? (
+                      <a href={`tel:${job.client_phone}`}>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Call Client
+                      </a>
+                    ) : (
+                      <>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Call Client
+                      </>
+                    )}
                   </Button>
-                  
-                  <Button variant="outline" className="w-full">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Email Client
+
+                  <Button variant="outline" className="w-full" disabled={!job.client_email} asChild={!!job.client_email}>
+                    {job.client_email ? (
+                      <a href={`mailto:${job.client_email}`}>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Email Client
+                      </a>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Email Client
+                      </>
+                    )}
                   </Button>
-                  
-                  <Button variant="outline" className="w-full">
-                    <Navigation className="h-4 w-4 mr-2" />
-                    Get Directions
-                  </Button>
-                  
-                  <Button variant="outline" className="w-full">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Take Photos
+
+                  <Button variant="outline" className="w-full" disabled={!job.location} asChild={!!job.location}>
+                    {job.location ? (
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Navigation className="h-4 w-4 mr-2" />
+                        Get Directions
+                      </a>
+                    ) : (
+                      <>
+                        <Navigation className="h-4 w-4 mr-2" />
+                        Get Directions
+                      </>
+                    )}
                   </Button>
 
                   {(job.status === 'Completed' || job.status === 'In Progress') && (
@@ -512,6 +545,42 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Pricing — line items entered directly on this job, or the value of the estimate it was scheduled from */}
+              {(job.job_line_items && job.job_line_items.length > 0) || job.estimates?.total ? (
+                <Card className="border-0 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Pricing</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {job.job_line_items && job.job_line_items.length > 0 ? (
+                      <>
+                        {job.job_line_items.map((item) => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span className="text-gray-600">
+                              {item.description} <span className="text-gray-400">x{item.quantity}</span>
+                            </span>
+                            <span className="font-medium">{formatCurrencyWithSymbol(item.total)}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between pt-2 border-t border-gray-100 font-semibold">
+                          <span>Total</span>
+                          <span>
+                            {formatCurrencyWithSymbol(
+                              job.job_line_items.reduce((sum, item) => sum + item.total, 0)
+                            )}
+                          </span>
+                        </div>
+                      </>
+                    ) : job.estimates?.total ? (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Approved estimate value</span>
+                        <span className="font-semibold">{formatCurrencyWithSymbol(job.estimates.total)}</span>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ) : null}
 
               {/* Job Info */}
               <Card className="border-0 shadow-lg">

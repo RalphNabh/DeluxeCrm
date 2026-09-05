@@ -110,6 +110,31 @@ function CreateInvoiceContent() {
     }
   }, [form.estimate_id, estimates])
 
+  // No linked estimate — pull whatever line items were entered directly on the job
+  // (e.g. via the calendar's quick-create popover) instead of starting from a blank invoice.
+  useEffect(() => {
+    if (form.estimate_id || !form.job_id) return
+    let cancelled = false
+    fetch(`/api/jobs/${form.job_id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((job) => {
+        if (cancelled || !job?.job_line_items?.length) return
+        setLineItems(
+          job.job_line_items.map((item: { description: string; quantity: number; unit: string; unit_price: number; total: number }) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unit_price: item.unit_price,
+            total: item.total,
+          }))
+        )
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [form.estimate_id, form.job_id])
+
   const addLineItem = () => {
     setLineItems([...lineItems, {
       description: '',

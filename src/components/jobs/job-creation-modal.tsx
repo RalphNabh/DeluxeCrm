@@ -20,9 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, Clock, MapPin, User, X } from "lucide-react";
+import { Calendar, Clock, MapPin, User, X, FileText } from "lucide-react";
 import TeamMemberSelector from "./team-member-selector";
 import TimePicker from "@/components/ui/time-picker";
+import { formatCurrencyWithSymbol } from "@/lib/utils/currency";
+import { toast } from "sonner";
 
 interface Client {
   id: string;
@@ -171,7 +173,7 @@ export default function JobCreationModal({
       const endTimeISO = formatDateTimeISO(formData.end_date, formData.end_time);
 
       if (!startTimeISO || !endTimeISO) {
-        alert('Please fill in both start and end date/time');
+        toast.error('Please fill in both start and end date/time');
         setLoading(false);
         return;
       }
@@ -263,6 +265,19 @@ export default function JobCreationModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {estimate && (
+            <div className="p-4 bg-teal-50 rounded-lg border border-teal-200 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-teal-900">
+                <FileText className="h-4 w-4" />
+                <span className="text-sm font-medium">Scheduling from an approved estimate</span>
+              </div>
+              {typeof estimate.total === "number" && (
+                <span className="text-sm font-semibold text-teal-900">
+                  {formatCurrencyWithSymbol(estimate.total)}
+                </span>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Job Title */}
             <div className="md:col-span-2">

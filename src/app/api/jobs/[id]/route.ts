@@ -40,6 +40,14 @@ export async function GET(
           email,
           phone,
           address
+        ),
+        job_line_items (
+          id,
+          description,
+          quantity,
+          unit,
+          unit_price,
+          total
         )
       `)
       .eq('id', id)
