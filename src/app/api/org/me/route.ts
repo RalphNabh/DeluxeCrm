@@ -19,13 +19,23 @@ export async function GET() {
     const { orgId, role, user } = auth.ctx;
 
     const [{ data: organization }, { data: profile }] = await Promise.all([
-      supabase.from("organizations").select("id, name").eq("id", orgId).maybeSingle(),
+      supabase.from("organizations").select("id, name, settings").eq("id", orgId).maybeSingle(),
       supabase
         .from("user_profiles")
         .select("full_name, email, avatar_url")
         .eq("user_id", user.id)
         .maybeSingle(),
     ]);
+
+    const settings =
+      organization?.settings && typeof organization.settings === "object"
+        ? (organization.settings as Record<string, unknown>)
+        : null;
+    const onboarding =
+      settings?.onboarding && typeof settings.onboarding === "object"
+        ? (settings.onboarding as Record<string, unknown>)
+        : null;
+    const teamSize = typeof onboarding?.team_size === "string" ? onboarding.team_size : null;
 
     return NextResponse.json({
       userId: user.id,
@@ -36,6 +46,7 @@ export async function GET() {
       fullName: profile?.full_name ?? null,
       email: profile?.email ?? user.email ?? null,
       avatarUrl: profile?.avatar_url ?? null,
+      teamSize,
     });
   } catch (error) {
     captureApiError(error, { route: "org/me/GET" });

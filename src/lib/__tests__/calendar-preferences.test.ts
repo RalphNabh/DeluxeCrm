@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { parseCalendarPreferences } from "../calendar-preferences.ts";
+import { defaultDayOrientationForTeamSize, parseCalendarPreferences } from "../calendar-preferences.ts";
 
 describe("parseCalendarPreferences", () => {
   it("returns null for null input", () => {
@@ -60,5 +60,22 @@ describe("parseCalendarPreferences", () => {
       dayOrientation: "horizontal",
       showWeekends: false,
     });
+  });
+});
+
+describe("defaultDayOrientationForTeamSize", () => {
+  it("defaults to vertical for a solo operator", () => {
+    assert.equal(defaultDayOrientationForTeamSize("solo"), "vertical");
+  });
+
+  it("defaults to vertical when team size is unknown", () => {
+    assert.equal(defaultDayOrientationForTeamSize(null), "vertical");
+    assert.equal(defaultDayOrientationForTeamSize(undefined), "vertical");
+  });
+
+  it("defaults to horizontal for any team larger than solo", () => {
+    assert.equal(defaultDayOrientationForTeamSize("2-5"), "horizontal");
+    assert.equal(defaultDayOrientationForTeamSize("6-10"), "horizontal");
+    assert.equal(defaultDayOrientationForTeamSize("16+"), "horizontal");
   });
 });

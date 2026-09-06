@@ -93,6 +93,7 @@ import { CalendarSkeleton } from "@/components/ui/page-skeletons";
 import { CalendarPreferencesPanel } from "@/components/calendar/calendar-preferences-panel";
 import {
   DEFAULT_CALENDAR_PREFERENCES,
+  defaultDayOrientationForTeamSize,
   hasCalendarPreferences,
   loadCalendarPreferences,
   saveCalendarPreferences,
@@ -698,6 +699,15 @@ export default function CalendarPage() {
     setPrefs(loadCalendarPreferences());
     if (!hasCalendarPreferences()) {
       setShowPrefsPanel(true);
+      // First-time user: default Day view orientation from the team size they
+      // gave at signup instead of always starting from Vertical.
+      fetch("/api/org/me")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const orientation = defaultDayOrientationForTeamSize(data?.teamSize);
+          setPrefs((p) => ({ ...p, dayOrientation: orientation }));
+        })
+        .catch(() => {});
     }
   }, []);
 

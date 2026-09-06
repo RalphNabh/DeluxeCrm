@@ -63,3 +63,17 @@ export function hasCalendarPreferences(): boolean {
   if (typeof window === "undefined") return true;
   return localStorage.getItem(STORAGE_KEY) !== null;
 }
+
+/**
+ * Smart default for a first-time user's Day view orientation, from the team
+ * size they gave at signup: Horizontal reads better once you're looking at
+ * more than one person's schedule at a time, Vertical suits a solo operator
+ * scanning their own day. Still just a starting point in the first-run
+ * panel - not enforced, and freely overridable there or in settings later.
+ */
+export function defaultDayOrientationForTeamSize(
+  teamSize: string | null | undefined,
+): DayOrientation {
+  if (!teamSize || teamSize === "solo") return "vertical";
+  return "horizontal";
+}
