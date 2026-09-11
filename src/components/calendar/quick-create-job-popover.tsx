@@ -243,7 +243,13 @@ export function QuickCreateJobPopover({
       <PopoverAnchor asChild>
         <div style={{ position: "fixed", left: anchorPoint?.x ?? 0, top: anchorPoint?.y ?? 0, width: 0, height: 0 }} />
       </PopoverAnchor>
-      <PopoverContent className="relative w-[340px] space-y-3 pt-8" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={16}
+        className="relative w-[360px] space-y-3 pt-8"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <button
           type="button"
           onClick={onClose}
@@ -372,8 +378,8 @@ export function QuickCreateJobPopover({
           )}
         </div>
 
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
+        <div className="space-y-2">
+          <div>
             <label className="text-xs text-gray-500">Start date</label>
             <Input
               type="date"
@@ -382,38 +388,38 @@ export function QuickCreateJobPopover({
                 setStart((prev) => withDatePart(prev, e.target.value));
                 setEnd((prev) => withDatePart(prev, e.target.value));
               }}
-              className="h-8 text-xs"
+              className="h-8 w-full text-xs"
             />
           </div>
           {!isAnytime && (
-            <>
-              <div className="flex-1">
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
                 <label className="text-xs text-gray-500">Start</label>
                 <Input
                   type="time"
                   value={toTimeInputValue(start)}
                   onChange={(e) => setStart((prev) => withTimePart(prev, e.target.value))}
-                  className="h-8 text-xs"
+                  className="h-8 w-full text-xs"
                 />
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <label className="text-xs text-gray-500">End</label>
                 <Input
                   type="time"
                   value={toTimeInputValue(end)}
                   onChange={(e) => setEnd((prev) => withTimePart(prev, e.target.value))}
-                  className="h-8 text-xs"
+                  className="h-8 w-full text-xs"
                 />
               </div>
               <button
                 type="button"
                 title="Reset to the clicked time"
                 onClick={() => { setStart(initialStart); setEnd(initialEnd); }}
-                className="mb-1.5 text-gray-400 hover:text-gray-600"
+                className="mb-1.5 shrink-0 text-gray-400 hover:text-gray-600"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
-            </>
+            </div>
           )}
         </div>
 
