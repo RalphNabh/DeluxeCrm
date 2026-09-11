@@ -486,6 +486,20 @@ function WeekDayColumn({
           </div>
         );
       })()}
+      {isToday && (() => {
+        const now = new Date();
+        const nowOffsetPx = ((now.getHours() + now.getMinutes() / 60) - startHour) * WEEK_HOUR_PX;
+        if (nowOffsetPx < 0 || nowOffsetPx > totalHeight) return null;
+        return (
+          <div
+            className="absolute left-0 right-0 z-20 flex items-center pointer-events-none"
+            style={{ top: `${nowOffsetPx}px` }}
+          >
+            <div className="-ml-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white bg-red-500 shadow-md" />
+            <div className="h-0.5 flex-1 bg-red-500" />
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1571,7 +1585,7 @@ export default function CalendarPage() {
                             />
                             {isCurrentDay && nowOffsetPx >= 0 && nowOffsetPx <= totalWidth && (
                               <div
-                                className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-10 pointer-events-none"
+                                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
                                 style={{ left: `${nowOffsetPx}px` }}
                               />
                             )}
@@ -1701,11 +1715,11 @@ export default function CalendarPage() {
                             className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
                             style={{ top: `${nowOffsetPx}px` }}
                           >
-                            <div className="w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-white shadow-md -ml-1"></div>
-                            <div className="ml-2 text-xs font-semibold text-orange-600 bg-white px-1.5 py-0.5 rounded">
+                            <div className="w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white shadow-md -ml-1"></div>
+                            <div className="ml-2 text-xs font-semibold text-red-600 bg-white px-1.5 py-0.5 rounded">
                               Now
                             </div>
-                            <div className="flex-1 h-0.5 bg-orange-500 ml-2"></div>
+                            <div className="flex-1 h-0.5 bg-red-500 ml-2"></div>
                           </div>
                         )}
                         {positionedJobs.length === 0 && (
