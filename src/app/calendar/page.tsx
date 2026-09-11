@@ -247,6 +247,52 @@ const WEEK_HOUR_PX = 50;
 const DAY_HOUR_WIDTH = 140; // Day view, Horizontal orientation
 const DAY_HOUR_HEIGHT = 80; // Day view, Vertical orientation
 
+// Usual business hours - shaded outside this range (and all day on
+// weekends) so the working window reads as a plain white "square" at a
+// glance, purely a visual aid with no effect on scheduling.
+const BUSINESS_START_HOUR = 9;
+const BUSINESS_END_HOUR = 17;
+
+/** Grey wash over the non-business-hours portion of a time grid, in either orientation. */
+function OffHoursShading({
+  isWeekend,
+  startHour,
+  pxPerHour,
+  totalSize,
+  axis,
+}: {
+  isWeekend: boolean;
+  startHour: number;
+  pxPerHour: number;
+  totalSize: number;
+  axis: "vertical" | "horizontal";
+}) {
+  if (isWeekend) {
+    return <div className="absolute inset-0 bg-gray-100/70 pointer-events-none" />;
+  }
+  const startPx = Math.min(Math.max((BUSINESS_START_HOUR - startHour) * pxPerHour, 0), totalSize);
+  const endPx = Math.min(Math.max((BUSINESS_END_HOUR - startHour) * pxPerHour, 0), totalSize);
+  const posProp = axis === "vertical" ? "top" : "left";
+  const sizeProp = axis === "vertical" ? "height" : "width";
+  const crossAxisClass = axis === "vertical" ? "left-0 right-0" : "top-0 bottom-0";
+  return (
+    <>
+      {startPx > 0 && (
+        <div
+          className={`absolute bg-gray-100/70 pointer-events-none ${crossAxisClass}`}
+          style={{ [posProp]: 0, [sizeProp]: `${startPx}px` }}
+        />
+      )}
+      {endPx < totalSize && (
+        <div
+          className={`absolute bg-gray-100/70 pointer-events-none ${crossAxisClass}`}
+          style={{ [posProp]: `${endPx}px`, [sizeProp]: `${totalSize - endPx}px` }}
+        />
+      )}
+    </>
+  );
+}
+
 // Dashed outline distinguishes this from a real, saved job card while the
 // quick-create popover is open - it disappears the instant the popover closes.
 const PREVIEW_CARD_CLASS =
@@ -314,6 +360,13 @@ function WeekDayColumn({
       className={`border-r relative pt-1 ${isToday ? 'bg-blue-50/40' : 'bg-white'} ${isOver ? 'bg-blue-100/50' : ''}`}
       style={{ minHeight: `${totalHeight}px` }}
     >
+      <OffHoursShading
+        isWeekend={day.getDay() === 0 || day.getDay() === 6}
+        startHour={startHour}
+        pxPerHour={WEEK_HOUR_PX}
+        totalSize={totalHeight}
+        axis="vertical"
+      />
       {Array.from({ length: hoursCount }, (_, i) => (
         <div
           key={i}
@@ -1273,13 +1326,14 @@ export default function CalendarPage() {
                 {monthDates.map((date, i) => {
                   const isCurrentMonth = date.getMonth() === selectedDate.getMonth();
                   const isToday = date.toDateString() === new Date().toDateString();
+                  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                   const dayJobs = getJobsForDate(date);
-                  
+
                   return (
                     <div
                       key={i}
                       className={`p-3 border-r border-b min-h-[120px] relative ${
-                        isCurrentMonth ? 'bg-white' : 'bg-gray-50'
+                        !isCurrentMonth ? 'bg-gray-50' : isWeekend ? 'bg-gray-100/70' : 'bg-white'
                       } ${isToday ? 'bg-blue-50 border-2 border-blue-500' : ''}`}
                       onClick={(e) => {
                         const start = new Date(date);
@@ -1508,6 +1562,13 @@ export default function CalendarPage() {
                               openQuickCreate({ x: e.clientX, y: e.clientY }, start, end);
                             }}
                           >
+                            <OffHoursShading
+                              isWeekend={selectedDate.getDay() === 0 || selectedDate.getDay() === 6}
+                              startHour={startHour}
+                              pxPerHour={HOUR_WIDTH}
+                              totalSize={totalWidth}
+                              axis="horizontal"
+                            />
                             {isCurrentDay && nowOffsetPx >= 0 && nowOffsetPx <= totalWidth && (
                               <div
                                 className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-10 pointer-events-none"
@@ -1621,6 +1682,13 @@ export default function CalendarPage() {
                           openQuickCreate({ x: e.clientX, y: e.clientY }, start, end);
                         }}
                       >
+                        <OffHoursShading
+                          isWeekend={selectedDate.getDay() === 0 || selectedDate.getDay() === 6}
+                          startHour={startHour}
+                          pxPerHour={HOUR_HEIGHT}
+                          totalSize={totalHeight}
+                          axis="vertical"
+                        />
                         {Array.from({ length: hoursCount }, (_, i) => (
                           <div
                             key={i}
