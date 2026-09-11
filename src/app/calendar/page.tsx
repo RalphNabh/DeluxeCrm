@@ -360,13 +360,15 @@ function WeekDayColumn({
       className={`border-r relative pt-1 ${isToday ? 'bg-blue-50/40' : 'bg-white'} ${isOver ? 'bg-blue-100/50' : ''}`}
       style={{ minHeight: `${totalHeight}px` }}
     >
-      <OffHoursShading
-        isWeekend={day.getDay() === 0 || day.getDay() === 6}
-        startHour={startHour}
-        pxPerHour={WEEK_HOUR_PX}
-        totalSize={totalHeight}
-        axis="vertical"
-      />
+      {!isOver && (
+        <OffHoursShading
+          isWeekend={day.getDay() === 0 || day.getDay() === 6}
+          startHour={startHour}
+          pxPerHour={WEEK_HOUR_PX}
+          totalSize={totalHeight}
+          axis="vertical"
+        />
+      )}
       {Array.from({ length: hoursCount }, (_, i) => (
         <div
           key={i}
@@ -1318,9 +1320,16 @@ export default function CalendarPage() {
                 const monthDayLabels = prefs.showWeekends
                   ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
                   : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                // Anchor the grid on the 1st's actual weekday - a fixed "start 6
+                // days back" assumed every month opens on a Sunday, so dates
+                // landed under the wrong day-of-week header for every other case.
+                const firstOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                const leadingDays = firstOfMonth.getDay();
+                const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+                const gridCellCount = Math.ceil((leadingDays + daysInMonth) / 7) * 7;
                 const allMonthDates = Array.from(
-                  { length: 35 },
-                  (_, i) => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), i - 6),
+                  { length: gridCellCount },
+                  (_, i) => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1 - leadingDays + i),
                 );
                 const monthDates = prefs.showWeekends
                   ? allMonthDates
