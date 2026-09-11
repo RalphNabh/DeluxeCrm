@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { X, Plus, ChevronDown, HelpCircle, Loader2 } from "lucide-react";
+import { X, Plus, ChevronDown, HelpCircle, Loader2, GripHorizontal } from "lucide-react";
 import { useClientsQuery, useTeamQuery, useInvalidateQueries } from "@/lib/query/hooks";
 import type { TeamMemberView } from "@/lib/team";
 
@@ -119,6 +119,37 @@ export function QuickCreateJobPopover({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Lets the user drag the popover off the anchor point via the grip handle -
+  // pure visual offset on top of Radix's own anchored placement, reset each
+  // time a new click reopens the popover.
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const dragStartRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
+
+  useEffect(() => {
+    function handlePointerMove(e: PointerEvent) {
+      const start = dragStartRef.current;
+      if (!start) return;
+      const next = { x: start.offsetX + (e.clientX - start.x), y: start.offsetY + (e.clientY - start.y) };
+      dragOffsetRef.current = next;
+      setDragOffset(next);
+    }
+    function handlePointerUp() {
+      dragStartRef.current = null;
+    }
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, []);
+
+  function startDrag(e: React.PointerEvent) {
+    e.preventDefault();
+    dragStartRef.current = { x: e.clientX, y: e.clientY, offsetX: dragOffsetRef.current.x, offsetY: dragOffsetRef.current.y };
+  }
+
   const clientsQuery = useClientsQuery(clientQuery);
   const teamQuery = useTeamQuery();
   const members = ((teamQuery.data ?? []) as TeamMemberView[]).filter(
@@ -144,6 +175,8 @@ export function QuickCreateJobPopover({
     setIsAnytime(false);
     setShowAvailability(false);
     setError(null);
+    dragOffsetRef.current = { x: 0, y: 0 };
+    setDragOffset({ x: 0, y: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchorPoint]);
 
@@ -247,9 +280,21 @@ export function QuickCreateJobPopover({
         side="right"
         align="start"
         sideOffset={16}
-        className="relative w-[360px] space-y-3 pt-8"
+        className="w-[360px] border-0 bg-transparent p-0 shadow-none"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
+        <div
+          className="relative space-y-3 rounded-lg border bg-white p-4 pt-8 text-gray-900 shadow-lg"
+          style={{ transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }}
+        >
+        <div
+          onPointerDown={startDrag}
+          className="absolute inset-x-0 top-0 flex h-7 touch-none items-center justify-center rounded-t-lg cursor-move"
+          title="Drag to move"
+        >
+          <GripHorizontal className="h-4 w-4 text-gray-300" />
+        </div>
+
         <button
           type="button"
           onClick={onClose}
@@ -456,6 +501,7 @@ export function QuickCreateJobPopover({
               </>
             )}
           </Button>
+        </div>
         </div>
       </PopoverContent>
     </Popover>
