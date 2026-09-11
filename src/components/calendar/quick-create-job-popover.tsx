@@ -23,6 +23,13 @@ export interface QuickCreateDraft {
   endTime: string;
 }
 
+export interface QuickCreatePreview {
+  start: Date;
+  end: Date;
+  title: string;
+  isAnytime: boolean;
+}
+
 interface QuickCreateJobPopoverProps {
   anchorPoint: { x: number; y: number } | null;
   initialStart: Date;
@@ -31,6 +38,8 @@ interface QuickCreateJobPopoverProps {
   onClose: () => void;
   onCreated: () => void;
   onMoreOptions: (draft: QuickCreateDraft) => void;
+  /** Fires on every edit so the calendar grid can show a live preview of where this job will land. */
+  onDraftChange?: (draft: QuickCreatePreview) => void;
 }
 
 function toDateInputValue(d: Date): string {
@@ -88,6 +97,7 @@ export function QuickCreateJobPopover({
   onClose,
   onCreated,
   onMoreOptions,
+  onDraftChange,
 }: QuickCreateJobPopoverProps) {
   const invalidate = useInvalidateQueries();
 
@@ -136,6 +146,14 @@ export function QuickCreateJobPopover({
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchorPoint]);
+
+  // Keep the calendar grid's preview block in sync with every edit, so the
+  // user always sees exactly where/when this job will land before saving.
+  useEffect(() => {
+    if (!anchorPoint) return;
+    onDraftChange?.({ start, end, title, isAnytime });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchorPoint, start, end, title, isAnytime]);
 
   function toggleAssignee(userId: string) {
     setAssigneeIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
@@ -225,7 +243,16 @@ export function QuickCreateJobPopover({
       <PopoverAnchor asChild>
         <div style={{ position: "fixed", left: anchorPoint?.x ?? 0, top: anchorPoint?.y ?? 0, width: 0, height: 0 }} />
       </PopoverAnchor>
-      <PopoverContent className="w-[340px] space-y-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <PopoverContent className="relative w-[340px] space-y-3 pt-8" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-2 top-2 z-10 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
         {error && <div className="rounded-md bg-red-50 px-2 py-1.5 text-xs text-red-700">{error}</div>}
 
         <div className="relative">

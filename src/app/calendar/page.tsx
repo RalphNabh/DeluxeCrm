@@ -75,7 +75,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DraggableJobCard } from "@/components/calendar/draggable-job-card";
-import { QuickCreateJobPopover, type QuickCreateDraft } from "@/components/calendar/quick-create-job-popover";
+import { QuickCreateJobPopover, type QuickCreateDraft, type QuickCreatePreview } from "@/components/calendar/quick-create-job-popover";
 import {
   calculateEventPositions,
   clampDragToSameDay,
@@ -247,6 +247,20 @@ const WEEK_HOUR_PX = 50;
 const DAY_HOUR_WIDTH = 140; // Day view, Horizontal orientation
 const DAY_HOUR_HEIGHT = 80; // Day view, Vertical orientation
 
+// Dashed outline distinguishes this from a real, saved job card while the
+// quick-create popover is open - it disappears the instant the popover closes.
+const PREVIEW_CARD_CLASS =
+  "border-2 border-dashed border-green-500 bg-green-50/90 shadow-md animate-in fade-in duration-150";
+
+function PreviewCardContent({ title, timeLabel }: { title: string; timeLabel: string }) {
+  return (
+    <>
+      <div className="text-xs font-semibold text-green-800 truncate">{timeLabel}</div>
+      <div className="text-sm font-semibold text-green-900 truncate">{title || "New job"}</div>
+    </>
+  );
+}
+
 /**
  * One day column in Week view. A droppable target (for dragging jobs between
  * days) that also renders each job as a draggable/resizable card - pulled out
@@ -265,6 +279,7 @@ function WeekDayColumn({
   onEditJob,
   onResizeEnd,
   onOpenQuickCreate,
+  previewJob,
 }: {
   day: Date;
   isToday: boolean;
@@ -278,6 +293,7 @@ function WeekDayColumn({
   onEditJob: (job: Job) => void;
   onResizeEnd: (job: Job & PositionedEvent, deltaPx: number, pxPerHour: number) => void;
   onOpenQuickCreate: (anchor: { x: number; y: number }, start: Date, end: Date) => void;
+  previewJob: QuickCreatePreview | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day:${localDateKey(day)}` });
 
@@ -401,6 +417,22 @@ function WeekDayColumn({
           </DraggableJobCard>
         );
       })}
+      {previewJob && !previewJob.isAnytime && (() => {
+        const durationHours = Math.max((previewJob.end.getTime() - previewJob.start.getTime()) / 3600000, 1 / 12);
+        const topPosition =
+          (previewJob.start.getHours() - startHour) * WEEK_HOUR_PX + (previewJob.start.getMinutes() / 60) * WEEK_HOUR_PX;
+        return (
+          <div
+            className={`absolute p-2 rounded-lg pointer-events-none ${PREVIEW_CARD_CLASS}`}
+            style={{ top: `${topPosition}px`, height: `${durationHours * WEEK_HOUR_PX}px`, left: '4px', right: '4px', zIndex: 30 }}
+          >
+            <PreviewCardContent
+              title={previewJob.title}
+              timeLabel={`${formatTime(previewJob.start.toISOString())} - ${formatTime(previewJob.end.toISOString())}`}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -422,7 +454,21 @@ export default function CalendarPage() {
     start: Date;
     end: Date;
   } | null>(null);
+  // Mirrors the popover's live edits so the grid can show exactly where/when
+  // the new job will land - cleared the instant the popover closes (X,
+  // outside click, Escape, Save, or More options all funnel through here).
+  const [previewJob, setPreviewJob] = useState<QuickCreatePreview | null>(null);
   const [prefillDraft, setPrefillDraft] = useState<QuickCreateDraft | null>(null);
+
+  function openQuickCreate(anchor: { x: number; y: number }, start: Date, end: Date) {
+    setQuickCreate({ anchor, start, end });
+    setPreviewJob({ start, end, title: "", isAnytime: false });
+  }
+
+  function closeQuickCreate() {
+    setQuickCreate(null);
+    setPreviewJob(null);
+  }
 
   const weekScrollRef = useRef<HTMLDivElement | null>(null);
   const dayVerticalScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1156,7 +1202,8 @@ export default function CalendarPage() {
                           usingVisits={usingVisits}
                           onEditJob={handleEditJob}
                           onResizeEnd={handleResizeEnd}
-                          onOpenQuickCreate={(anchor, start, end) => setQuickCreate({ anchor, start, end })}
+                          onOpenQuickCreate={openQuickCreate}
+                          previewJob={previewJob && localDateKey(day) === localDateKey(previewJob.start) ? previewJob : null}
                         />
                       );
                     })}
@@ -1239,7 +1286,7 @@ export default function CalendarPage() {
                         start.setHours(9, 0, 0, 0);
                         const end = new Date(date);
                         end.setHours(10, 0, 0, 0);
-                        setQuickCreate({ anchor: { x: e.clientX, y: e.clientY }, start, end });
+                        openQuickCreate({ x: e.clientX, y: e.clientY }, start, end);
                       }}
                     >
                       {isToday && (
@@ -1318,6 +1365,14 @@ export default function CalendarPage() {
                         {dayJobs.length > 3 && (
                           <div className="text-xs text-gray-500 font-medium">
                             +{dayJobs.length - 3} more
+                          </div>
+                        )}
+                        {previewJob && !previewJob.isAnytime && localDateKey(date) === localDateKey(previewJob.start) && (
+                          <div className={`w-full p-2 rounded text-xs pointer-events-none ${PREVIEW_CARD_CLASS}`}>
+                            <PreviewCardContent
+                              title={previewJob.title}
+                              timeLabel={`${formatTime(previewJob.start.toISOString())} - ${formatTime(previewJob.end.toISOString())}`}
+                            />
                           </div>
                         )}
                       </div>
@@ -1450,7 +1505,7 @@ export default function CalendarPage() {
                               const start = new Date(selectedDate);
                               start.setHours(0, snappedMinutes, 0, 0);
                               const end = new Date(start.getTime() + 60 * 60000);
-                              setQuickCreate({ anchor: { x: e.clientX, y: e.clientY }, start, end });
+                              openQuickCreate({ x: e.clientX, y: e.clientY }, start, end);
                             }}
                           >
                             {isCurrentDay && nowOffsetPx >= 0 && nowOffsetPx <= totalWidth && (
@@ -1508,6 +1563,23 @@ export default function CalendarPage() {
                                 </DraggableJobCard>
                               );
                             })}
+                            {previewJob && !previewJob.isAnytime && localDateKey(selectedDate) === localDateKey(previewJob.start) && (() => {
+                              const startFrac = Math.max(0, (previewJob.start.getHours() + previewJob.start.getMinutes() / 60) - startHour);
+                              const endFrac = (previewJob.end.getHours() + previewJob.end.getMinutes() / 60) - startHour;
+                              const left = startFrac * HOUR_WIDTH;
+                              const width = Math.max(endFrac - startFrac, 0.5) * HOUR_WIDTH;
+                              return (
+                                <div
+                                  className={`absolute p-2 rounded-lg pointer-events-none overflow-hidden ${PREVIEW_CARD_CLASS}`}
+                                  style={{ left: `${left}px`, width: `${width}px`, top: 0, height: `${ROW_HEIGHT - 8}px`, zIndex: 30 }}
+                                >
+                                  <PreviewCardContent
+                                    title={previewJob.title}
+                                    timeLabel={`${formatTime(previewJob.start.toISOString())} - ${formatTime(previewJob.end.toISOString())}`}
+                                  />
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1546,7 +1618,7 @@ export default function CalendarPage() {
                           const start = new Date(selectedDate);
                           start.setHours(0, snappedMinutes, 0, 0);
                           const end = new Date(start.getTime() + 60 * 60000);
-                          setQuickCreate({ anchor: { x: e.clientX, y: e.clientY }, start, end });
+                          openQuickCreate({ x: e.clientX, y: e.clientY }, start, end);
                         }}
                       >
                         {Array.from({ length: hoursCount }, (_, i) => (
@@ -1659,6 +1731,23 @@ export default function CalendarPage() {
                             </DraggableJobCard>
                           );
                         })}
+                        {previewJob && !previewJob.isAnytime && localDateKey(selectedDate) === localDateKey(previewJob.start) && (() => {
+                          const startFrac = Math.max(0, (previewJob.start.getHours() + previewJob.start.getMinutes() / 60) - startHour);
+                          const endFrac = (previewJob.end.getHours() + previewJob.end.getMinutes() / 60) - startHour;
+                          const top = startFrac * HOUR_HEIGHT;
+                          const height = Math.max(endFrac - startFrac, 0.5) * HOUR_HEIGHT;
+                          return (
+                            <div
+                              className={`absolute p-3 rounded-lg pointer-events-none overflow-hidden ${PREVIEW_CARD_CLASS}`}
+                              style={{ top: `${top}px`, height: `${height}px`, left: `${padding}px`, right: `${padding}px`, zIndex: 30 }}
+                            >
+                              <PreviewCardContent
+                                title={previewJob.title}
+                                timeLabel={`${formatTime(previewJob.start.toISOString())} - ${formatTime(previewJob.end.toISOString())}`}
+                              />
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -1839,10 +1928,11 @@ export default function CalendarPage() {
         initialStart={quickCreate?.start ?? selectedDate}
         initialEnd={quickCreate?.end ?? selectedDate}
         jobs={jobs}
-        onClose={() => setQuickCreate(null)}
-        onCreated={() => setQuickCreate(null)}
+        onClose={closeQuickCreate}
+        onCreated={closeQuickCreate}
+        onDraftChange={setPreviewJob}
         onMoreOptions={(draft) => {
-          setQuickCreate(null);
+          closeQuickCreate();
           setPrefillDraft(draft);
           setShowAddJob(true);
         }}
