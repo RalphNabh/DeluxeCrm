@@ -6,7 +6,6 @@ const HERO_VIDEOS = [
   "/marketing/hero/adeco-construction.mp4",
   "/marketing/hero/hero-7622997.mp4",
   "/marketing/hero/carpenter-workshop.mp4",
-  "/marketing/hero/plumber-kitchen.mp4",
   "/marketing/hero/car-detailer.mp4",
 ] as const;
 
